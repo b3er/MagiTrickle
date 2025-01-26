@@ -29,7 +29,7 @@ type Config struct {
 	IpSetPrefix            string
 	LinkName               string
 	TargetDNSServerAddress string
-	ListenPort             uint16
+	ListenDNSPort          uint16
 	UseSoftwareRouting     bool
 }
 
@@ -101,7 +101,7 @@ func (a *App) listen(ctx context.Context) (err error) {
 		return fmt.Errorf("failed to addrList address: %w", err)
 	}
 
-	a.dnsOverrider4 = a.NetfilterHelper4.PortRemap(fmt.Sprintf("%sDNSOR", a.Config.ChainPrefix), 53, a.Config.ListenPort, addrList)
+	a.dnsOverrider4 = a.NetfilterHelper4.PortRemap(fmt.Sprintf("%sDNSOR", a.Config.ChainPrefix), 53, a.Config.ListenDNSPort, addrList)
 	err = a.dnsOverrider4.Enable()
 	if err != nil {
 		return fmt.Errorf("failed to override DNS (IPv4): %v", err)
@@ -111,7 +111,7 @@ func (a *App) listen(ctx context.Context) (err error) {
 		_ = a.dnsOverrider4.Disable()
 	}()
 
-	a.dnsOverrider6 = a.NetfilterHelper6.PortRemap(fmt.Sprintf("%sDNSOR", a.Config.ChainPrefix), 53, a.Config.ListenPort, addrList)
+	a.dnsOverrider6 = a.NetfilterHelper6.PortRemap(fmt.Sprintf("%sDNSOR", a.Config.ChainPrefix), 53, a.Config.ListenDNSPort, addrList)
 	err = a.dnsOverrider6.Enable()
 	if err != nil {
 		return fmt.Errorf("failed to override DNS (IPv6): %v", err)
@@ -489,7 +489,7 @@ func New(config Config) (*App, error) {
 	}
 	app.Link = link
 
-	app.DNSProxy = dnsProxy.New(app.Config.ListenPort, app.Config.TargetDNSServerAddress)
+	app.DNSProxy = dnsProxy.New(app.Config.ListenDNSPort, app.Config.TargetDNSServerAddress)
 	app.DNSProxy.MsgHandler = app.handleMessage
 
 	app.Records = NewRecords()

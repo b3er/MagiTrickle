@@ -20,7 +20,7 @@ func main() {
 		IpSetPrefix:            "kvas2_",
 		LinkName:               "br0",
 		TargetDNSServerAddress: "127.0.0.1:53",
-		ListenPort:             7548,
+		ListenDNSPort:          7553,
 	})
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to initialize application")
