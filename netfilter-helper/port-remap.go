@@ -40,6 +40,11 @@ func (r *PortRemap) PutIPTable(table string) error {
 			if err != nil {
 				return fmt.Errorf("failed to create rule: %w", err)
 			}
+
+			err = r.IPTables.AppendUnique("nat", r.ChainName, "-p", "tcp", "-d", addrIP.String(), "--dport", strconv.Itoa(int(r.From)), "-j", "DNAT", "--to-destination", fmt.Sprintf(":%d", r.To))
+			if err != nil {
+				return fmt.Errorf("failed to create rule: %w", err)
+			}
 		}
 
 		err = r.IPTables.InsertUnique("nat", "PREROUTING", 1, "-j", r.ChainName)

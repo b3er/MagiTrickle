@@ -9,13 +9,16 @@ import (
 	"strings"
 	"time"
 
-	"kvas2-go/dns-proxy"
+	"kvas2-go/dns-mitm"
 	"kvas2-go/models"
 	"kvas2-go/netfilter-helper"
 
+	"github.com/google/uuid"
+	"github.com/miekg/dns"
 	"github.com/rs/zerolog/log"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
+	"golang.org/x/sys/unix"
 )
 
 var (
@@ -36,11 +39,11 @@ type Config struct {
 type App struct {
 	Config Config
 
-	DNSProxy         *dnsProxy.DNSProxy
+	DNSMITM          *dnsMitm.DNSMITM
 	NetfilterHelper4 *netfilterHelper.NetfilterHelper
 	NetfilterHelper6 *netfilterHelper.NetfilterHelper
 	Records          *Records
-	Groups           map[int]*Group
+	Groups           map[uuid.UUID]*Group
 
 	Link netlink.Link
 
@@ -51,19 +54,23 @@ type App struct {
 
 func (a *App) handleLink(event netlink.LinkUpdate) {
 	switch event.Change {
-	case 0x00000001:
+	case unix.IFF_UP:
 		log.Debug().
 			Str("interface", event.Link.Attrs().Name).
 			Str("operstatestr", event.Attrs().OperState.String()).
 			Int("operstate", int(event.Attrs().OperState)).
 			Msg("interface change")
-		if event.Attrs().OperState != netlink.OperDown {
+		switch event.Attrs().OperState {
+		case netlink.OperUp:
+			ifaceName := event.Link.Attrs().Name
 			for _, group := range a.Groups {
-				if group.Interface == event.Link.Attrs().Name {
-					err := group.ifaceToIPSet.IfaceHandle()
-					if err != nil {
-						log.Error().Int("group", group.ID).Err(err).Msg("error while handling interface up")
-					}
+				if group.Interface != ifaceName {
+					continue
+				}
+
+				err := group.ifaceToIPSetNAT.IfaceHandle()
+				if err != nil {
+					log.Error().Str("group", group.ID.String()).Err(err).Msg("error while handling interface up")
 				}
 			}
 		}
@@ -83,22 +90,34 @@ func (a *App) handleLink(event netlink.LinkUpdate) {
 	}
 }
 
-func (a *App) listen(ctx context.Context) (err error) {
-	errChan := make(chan error)
-
+func (a *App) start(ctx context.Context) (err error) {
 	newCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	// TODO: Chan err
+	errChan := make(chan error)
+
+	/*
+		DNS Proxy
+	*/
+
 	go func() {
-		err := a.DNSProxy.Listen(newCtx)
+		err := a.DNSMITM.ListenUDP(newCtx)
 		if err != nil {
-			errChan <- fmt.Errorf("failed to serve DNS proxy: %v", err)
+			errChan <- fmt.Errorf("failed to serve DNS UDP proxy: %v", err)
+		}
+	}()
+
+	go func() {
+		err := a.DNSMITM.ListenTCP(newCtx)
+		if err != nil {
+			errChan <- fmt.Errorf("failed to serve DNS TCP proxy: %v", err)
 		}
 	}()
 
 	addrList, err := netlink.AddrList(a.Link, nl.FAMILY_ALL)
 	if err != nil {
-		return fmt.Errorf("failed to addrList address: %w", err)
+		return fmt.Errorf("failed to list address of interface: %w", err)
 	}
 
 	a.dnsOverrider4 = a.NetfilterHelper4.PortRemap(fmt.Sprintf("%sDNSOR", a.Config.ChainPrefix), 53, a.Config.ListenDNSPort, addrList)
@@ -121,6 +140,10 @@ func (a *App) listen(ctx context.Context) (err error) {
 		_ = a.dnsOverrider6.Disable()
 	}()
 
+	/*
+		Groups
+	*/
+
 	for _, group := range a.Groups {
 		err = group.Enable()
 		if err != nil {
@@ -134,6 +157,9 @@ func (a *App) listen(ctx context.Context) (err error) {
 		}
 	}()
 
+	/*
+		Socket (for netfilter.d events)
+	*/
 	socketPath := "/opt/var/run/kvas2-go.sock"
 	err = os.Remove(socketPath)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -181,8 +207,8 @@ func (a *App) listen(ctx context.Context) (err error) {
 						}
 					}
 					for _, group := range a.Groups {
-						if group.ifaceToIPSet.Enabled {
-							err := group.ifaceToIPSet.PutIPTable(args[2])
+						if group.ifaceToIPSetNAT.Enabled {
+							err := group.ifaceToIPSetNAT.PutIPTable(args[2])
 							if err != nil {
 								log.Error().Err(err).Msg("error while fixing iptables after netfilter.d")
 							}
@@ -193,21 +219,28 @@ func (a *App) listen(ctx context.Context) (err error) {
 		}
 	}()
 
-	link := make(chan netlink.LinkUpdate)
-	done := make(chan struct{})
-	err = netlink.LinkSubscribe(link, done)
+	/*
+		Interface updates
+	*/
+	linkUpdateChannel := make(chan netlink.LinkUpdate)
+	linkUpdateDone := make(chan struct{})
+	err = netlink.LinkSubscribe(linkUpdateChannel, linkUpdateDone)
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to link updates: %w", err)
 	}
 	defer func() {
-		close(done)
+		close(linkUpdateDone)
 	}()
 
+	/*
+		Global loop
+	*/
 	for {
 		select {
-		case event := <-link:
+		case event := <-linkUpdateChannel:
 			a.handleLink(event)
 		case err := <-errChan:
+			close(errChan)
 			return err
 		case <-ctx.Done():
 			return nil
@@ -215,7 +248,7 @@ func (a *App) listen(ctx context.Context) (err error) {
 	}
 }
 
-func (a *App) Listen(ctx context.Context) (err error) {
+func (a *App) Start(ctx context.Context) (err error) {
 	if a.isRunning {
 		return ErrAlreadyRunning
 	}
@@ -226,20 +259,16 @@ func (a *App) Listen(ctx context.Context) (err error) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			var recoveredError error
 			var ok bool
-			if recoveredError, ok = r.(error); !ok {
-				recoveredError = fmt.Errorf("%v", r)
+			if err, ok = r.(error); !ok {
+				err = fmt.Errorf("%v", r)
 			}
 
-			err = fmt.Errorf("recovered error: %w", recoveredError)
+			err = fmt.Errorf("recovered error: %w", err)
 		}
 	}()
 
-	appErr := a.listen(ctx)
-	if appErr != nil {
-		return appErr
-	}
+	err = a.start(ctx)
 
 	return err
 }
@@ -249,19 +278,19 @@ func (a *App) AddGroup(group *models.Group) error {
 		return ErrGroupIDConflict
 	}
 
-	ipsetName := fmt.Sprintf("%s%d", a.Config.IpSetPrefix, group.ID)
+	ipsetName := fmt.Sprintf("%s%8x", a.Config.IpSetPrefix, group.ID.ID())
 	ipset, err := a.NetfilterHelper4.IPSet(ipsetName)
 	if err != nil {
 		return fmt.Errorf("failed to initialize ipset: %w", err)
 	}
 
 	grp := &Group{
-		Group:        group,
-		iptables:     a.NetfilterHelper4.IPTables,
-		ipset:        ipset,
-		ifaceToIPSet: a.NetfilterHelper4.IfaceToIPSet(fmt.Sprintf("%sR_%d", a.Config.ChainPrefix, group.ID), group.Interface, ipsetName, false),
+		Group:           group,
+		iptables:        a.NetfilterHelper4.IPTables,
+		ipset:           ipset,
+		ifaceToIPSetNAT: a.NetfilterHelper4.IfaceToIPSet(fmt.Sprintf("%sR_%d", a.Config.ChainPrefix, group.ID), group.Interface, ipsetName, false),
 	}
-	a.Groups[group.ID] = grp
+	a.Groups[grp.ID] = grp
 	return a.SyncGroup(grp)
 }
 
@@ -276,7 +305,7 @@ func (a *App) SyncGroup(group *Group) error {
 	}
 
 	knownDomains := a.Records.ListKnownDomains()
-	for _, domain := range group.Domains {
+	for _, domain := range group.Rules {
 		if !domain.IsEnabled() {
 			continue
 		}
@@ -359,24 +388,24 @@ func (a *App) ListInterfaces() ([]net.Interface, error) {
 	return interfaceNames, nil
 }
 
-func (a *App) processARecord(aRecord dnsProxy.Address) {
+func (a *App) processARecord(aRecord dns.A) {
 	log.Trace().
-		Str("name", aRecord.Name.String()).
-		Str("address", aRecord.Address.String()).
-		Int("ttl", int(aRecord.TTL)).
+		Str("name", aRecord.Hdr.Name).
+		Str("address", aRecord.A.String()).
+		Int("ttl", int(aRecord.Hdr.Ttl)).
 		Msg("processing a record")
 
-	ttlDuration := time.Duration(aRecord.TTL) * time.Second
+	ttlDuration := time.Duration(aRecord.Hdr.Ttl) * time.Second
 	if ttlDuration < a.Config.MinimalTTL {
 		ttlDuration = a.Config.MinimalTTL
 	}
 
-	a.Records.AddARecord(aRecord.Name.String(), aRecord.Address, ttlDuration)
+	a.Records.AddARecord(aRecord.Hdr.Name, aRecord.A, ttlDuration)
 
-	names := a.Records.GetCNameRecords(aRecord.Name.String(), true)
+	names := a.Records.GetCNameRecords(aRecord.Hdr.Name, true)
 	for _, group := range a.Groups {
-	Domain:
-		for _, domain := range group.Domains {
+	Rule:
+		for _, domain := range group.Rules {
 			if !domain.IsEnabled() {
 				continue
 			}
@@ -384,47 +413,47 @@ func (a *App) processARecord(aRecord dnsProxy.Address) {
 				if !domain.IsMatch(name) {
 					continue
 				}
-				err := group.AddIPv4(aRecord.Address, ttlDuration)
+				err := group.AddIPv4(aRecord.A, ttlDuration)
 				if err != nil {
 					log.Error().
-						Str("address", aRecord.Address.String()).
+						Str("address", aRecord.A.String()).
 						Err(err).
 						Msg("failed to add address")
 				} else {
 					log.Trace().
-						Str("address", aRecord.Address.String()).
-						Str("aRecordDomain", aRecord.Name.String()).
+						Str("address", aRecord.A.String()).
+						Str("aRecordDomain", aRecord.Hdr.Name).
 						Str("cNameDomain", name).
 						Err(err).
 						Msg("add address")
 				}
-				break Domain
+				break Rule
 			}
 		}
 	}
 }
 
-func (a *App) processCNameRecord(cNameRecord dnsProxy.CName) {
+func (a *App) processCNameRecord(cNameRecord dns.CNAME) {
 	log.Trace().
-		Str("name", cNameRecord.Name.String()).
-		Str("cname", cNameRecord.CName.String()).
-		Int("ttl", int(cNameRecord.TTL)).
+		Str("name", cNameRecord.Hdr.Name).
+		Str("cname", cNameRecord.Target).
+		Int("ttl", int(cNameRecord.Hdr.Ttl)).
 		Msg("processing cname record")
 
-	ttlDuration := time.Duration(cNameRecord.TTL) * time.Second
+	ttlDuration := time.Duration(cNameRecord.Hdr.Ttl) * time.Second
 	if ttlDuration < a.Config.MinimalTTL {
 		ttlDuration = a.Config.MinimalTTL
 	}
 
-	a.Records.AddCNameRecord(cNameRecord.Name.String(), cNameRecord.CName.String(), ttlDuration)
+	a.Records.AddCNameRecord(cNameRecord.Hdr.Name, cNameRecord.Target, ttlDuration)
 
 	// TODO: Optimization
 	now := time.Now()
-	aRecords := a.Records.GetARecords(cNameRecord.Name.String())
-	names := a.Records.GetCNameRecords(cNameRecord.Name.String(), true)
+	aRecords := a.Records.GetARecords(cNameRecord.Hdr.Name)
+	names := a.Records.GetCNameRecords(cNameRecord.Hdr.Name, true)
 	for _, group := range a.Groups {
-	Domain:
-		for _, domain := range group.Domains {
+	Rule:
+		for _, domain := range group.Rules {
 			if !domain.IsEnabled() {
 				continue
 			}
@@ -447,31 +476,30 @@ func (a *App) processCNameRecord(cNameRecord dnsProxy.CName) {
 							Msg("add address")
 					}
 				}
-				continue Domain
+				continue Rule
 			}
 		}
 	}
 }
 
-func (a *App) handleRecord(rr dnsProxy.ResourceRecord) {
+func (a *App) handleRecord(rr dns.RR) {
 	switch v := rr.(type) {
-	case dnsProxy.Address:
-		// TODO: Optimize equals domain A records
-		a.processARecord(v)
-	case dnsProxy.CName:
-		a.processCNameRecord(v)
+	case *dns.A:
+		a.processARecord(*v)
+	case *dns.CNAME:
+		a.processCNameRecord(*v)
 	default:
 	}
 }
 
-func (a *App) handleMessage(msg *dnsProxy.Message) {
-	for _, rr := range msg.AN {
+func (a *App) handleMessage(msg dns.Msg) {
+	for _, rr := range msg.Answer {
 		a.handleRecord(rr)
 	}
-	for _, rr := range msg.NS {
+	for _, rr := range msg.Ns {
 		a.handleRecord(rr)
 	}
-	for _, rr := range msg.AR {
+	for _, rr := range msg.Extra {
 		a.handleRecord(rr)
 	}
 }
@@ -483,16 +511,67 @@ func New(config Config) (*App, error) {
 
 	app.Config = config
 
+	app.DNSMITM = dnsMitm.New(app.Config.ListenDNSPort, app.Config.TargetDNSServerAddress)
+	app.DNSMITM.RequestHook = func(clientAddr net.Addr, reqMsg dns.Msg, network string) (*dns.Msg, *dns.Msg, error) {
+		log.Debug().
+			Str("network", network).
+			Str("clientAddr", clientAddr.String()).
+			Str("name", reqMsg.Question[0].Name).
+			Msg("received DNS request")
+
+		// TODO: Need to understand why it not works in proxy mode
+		if len(reqMsg.Question) == 1 && reqMsg.Question[0].Qtype == dns.TypePTR {
+			respMsg := &dns.Msg{
+				MsgHdr: dns.MsgHdr{
+					Id:                 reqMsg.Id,
+					Response:           true,
+					RecursionAvailable: true,
+					Rcode:              dns.RcodeNameError,
+				},
+				Question: reqMsg.Question,
+			}
+			log.Debug().
+				Str("network", network).
+				Str("clientAddr", clientAddr.String()).
+				Msg("sending DNS response")
+			return nil, respMsg, nil
+		}
+
+		return nil, nil, nil
+	}
+	app.DNSMITM.ResponseHook = func(clientAddr net.Addr, reqMsg dns.Msg, respMsg dns.Msg, network string) (*dns.Msg, error) {
+		// TODO: Make it optional
+		var idx int
+		for _, a := range respMsg.Answer {
+			if a.Header().Rrtype == dns.TypeAAAA {
+				continue
+			}
+			respMsg.Answer[idx] = a
+			idx++
+		}
+		respMsg.Answer = respMsg.Answer[:idx]
+
+		if len(respMsg.Answer) != 0 {
+			log.Debug().
+				Str("network", network).
+				Str("clientAddr", clientAddr.String()).
+				Str("respMsg", respMsg.Answer[0].Header().Name).
+				Msg("sending DNS response")
+		}
+
+		app.handleMessage(respMsg)
+
+		return &respMsg, nil
+	}
+
+	app.Records = NewRecords()
+	app.Groups = make(map[uuid.UUID]*Group, 0)
+
 	link, err := netlink.LinkByName(app.Config.LinkName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find link %s: %w", app.Config.LinkName, err)
 	}
 	app.Link = link
-
-	app.DNSProxy = dnsProxy.New(app.Config.ListenDNSPort, app.Config.TargetDNSServerAddress)
-	app.DNSProxy.MsgHandler = app.handleMessage
-
-	app.Records = NewRecords()
 
 	nh4, err := netfilterHelper.New(false)
 	if err != nil {
@@ -514,7 +593,7 @@ func New(config Config) (*App, error) {
 		return nil, fmt.Errorf("failed to clear iptables: %w", err)
 	}
 
-	app.Groups = make(map[int]*Group)
+	app.Groups = make(map[uuid.UUID]*Group)
 
 	return app, nil
 }

@@ -19,7 +19,7 @@ func main() {
 		ChainPrefix:            "KVAS2_",
 		IpSetPrefix:            "kvas2_",
 		LinkName:               "br0",
-		TargetDNSServerAddress: "127.0.0.1:53",
+		TargetDNSServerAddress: "127.0.0.1",
 		ListenDNSPort:          7553,
 	})
 	if err != nil {
@@ -28,12 +28,15 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	log.Info().Msg("starting service")
+
+	/*
+		Starting app with graceful shutdown
+	*/
 	appResult := make(chan error)
 	go func() {
-		appResult <- app.Listen(ctx)
+		appResult <- app.Start(ctx)
 	}()
-
-	log.Info().Msg("starting service")
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)

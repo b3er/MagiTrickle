@@ -4,7 +4,7 @@ Better implementation of [KVAS](https://github.com/qzeleza/kvas)
 
 Realized features:
 - [x] DNS Proxy (UDP)
-- [ ] DNS Proxy (TCP)
+- [x] DNS Proxy (TCP)
 - [x] Records memory
 - [x] IPTables rules for rebind DNS server port
 - [X] IPSet integration

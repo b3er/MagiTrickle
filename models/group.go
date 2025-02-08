@@ -1,9 +1,11 @@
 package models
 
+import "github.com/google/uuid"
+
 type Group struct {
-	ID         int
+	ID         uuid.UUID
 	Name       string
 	Interface  string
+	Rules      []*Rule
 	FixProtect bool
-	Domains    []*Domain
 }

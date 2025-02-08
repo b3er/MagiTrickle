@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net"
 	"time"
 
@@ -15,9 +16,9 @@ type Group struct {
 
 	Enabled bool
 
-	iptables     *iptables.IPTables
-	ipset        *netfilterHelper.IPSet
-	ifaceToIPSet *netfilterHelper.IfaceToIPSet
+	iptables        *iptables.IPTables
+	ipset           *netfilterHelper.IPSet
+	ifaceToIPSetNAT *netfilterHelper.IfaceToIPSet
 }
 
 func (g *Group) AddIPv4(address net.IP, ttl time.Duration) error {
@@ -44,10 +45,13 @@ func (g *Group) Enable() error {
 	}()
 
 	if g.FixProtect {
-		g.iptables.AppendUnique("filter", "_NDM_SL_FORWARD", "-o", g.Interface, "-m", "state", "--state", "NEW", "-j", "_NDM_SL_PROTECT")
+		err := g.iptables.AppendUnique("filter", "_NDM_SL_FORWARD", "-o", g.Interface, "-m", "state", "--state", "NEW", "-j", "_NDM_SL_PROTECT")
+		if err != nil {
+			return fmt.Errorf("failed to fix protect: %w", err)
+		}
 	}
 
-	err := g.ifaceToIPSet.Enable()
+	err := g.ifaceToIPSetNAT.Enable()
 	if err != nil {
 		return err
 	}
@@ -64,9 +68,9 @@ func (g *Group) Disable() []error {
 		return nil
 	}
 
-	errs2 := g.ifaceToIPSet.Disable()
-	if errs2 != nil {
-		errs = append(errs, errs2...)
+	err := g.ifaceToIPSetNAT.Disable()
+	if err != nil {
+		errs = append(errs, err...)
 	}
 
 	g.Enabled = false
