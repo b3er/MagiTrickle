@@ -1,19 +1,17 @@
-package dnsMitm
+package dnsMitmProxy
 
 import (
 	"context"
 	"encoding/binary"
 	"fmt"
 	"net"
-	"strconv"
 	"time"
 
 	"github.com/miekg/dns"
 	"github.com/rs/zerolog/log"
 )
 
-type DNSMITM struct {
-	ListenPort             uint16
+type DNSMITMProxy struct {
 	TargetDNSServerAddress string
 	TargetDNSServerPort    uint16
 
@@ -21,7 +19,7 @@ type DNSMITM struct {
 	ResponseHook func(net.Addr, dns.Msg, dns.Msg, string) (*dns.Msg, error)
 }
 
-func (p DNSMITM) requestDNS(req []byte, network string) ([]byte, error) {
+func (p DNSMITMProxy) requestDNS(req []byte, network string) ([]byte, error) {
 	serverConn, err := net.Dial(network, fmt.Sprintf("%s:%d", p.TargetDNSServerAddress, p.TargetDNSServerPort))
 	if err != nil {
 		return nil, fmt.Errorf("failed to dial DNS server: %w", err)
@@ -65,7 +63,7 @@ func (p DNSMITM) requestDNS(req []byte, network string) ([]byte, error) {
 	return resp[:n], nil
 }
 
-func (p DNSMITM) processReq(clientAddr net.Addr, req []byte, network string) ([]byte, error) {
+func (p DNSMITMProxy) processReq(clientAddr net.Addr, req []byte, network string) ([]byte, error) {
 	var reqMsg dns.Msg
 	if p.RequestHook != nil || p.ResponseHook != nil {
 		err := reqMsg.Unpack(req)
@@ -97,14 +95,14 @@ func (p DNSMITM) processReq(clientAddr net.Addr, req []byte, network string) ([]
 
 	resp, err := p.requestDNS(req, network)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send request")
+		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 
 	if p.ResponseHook != nil {
 		var respMsg dns.Msg
 		err = respMsg.Unpack(resp)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse response")
+			return nil, fmt.Errorf("failed to parse response: %w", err)
 		}
 
 		modifiedResp, err := p.ResponseHook(clientAddr, reqMsg, respMsg, network)
@@ -123,12 +121,7 @@ func (p DNSMITM) processReq(clientAddr net.Addr, req []byte, network string) ([]
 	return resp, nil
 }
 
-func (p DNSMITM) ListenTCP(ctx context.Context) error {
-	addr, err := net.ResolveTCPAddr("tcp", "[::]:"+strconv.Itoa(int(p.ListenPort)))
-	if err != nil {
-		return fmt.Errorf("failed to resolve tcp address: %v", err)
-	}
-
+func (p DNSMITMProxy) ListenTCP(ctx context.Context, addr *net.TCPAddr) error {
 	listener, err := net.ListenTCP("tcp", addr)
 	if err != nil {
 		return fmt.Errorf("failed to listen tcp port: %v", err)
@@ -184,12 +177,7 @@ func (p DNSMITM) ListenTCP(ctx context.Context) error {
 	}
 }
 
-func (p DNSMITM) ListenUDP(ctx context.Context) error {
-	addr, err := net.ResolveUDPAddr("udp", "[::]:"+strconv.Itoa(int(p.ListenPort)))
-	if err != nil {
-		return fmt.Errorf("failed to resolve udp address: %v", err)
-	}
-
+func (p DNSMITMProxy) ListenUDP(ctx context.Context, addr *net.UDPAddr) error {
 	conn, err := net.ListenUDP("udp", addr)
 	if err != nil {
 		return fmt.Errorf("failed to listen udp port: %v", err)
@@ -226,14 +214,8 @@ func (p DNSMITM) ListenUDP(ctx context.Context) error {
 	}
 }
 
-func New(listenPort uint16, targetDNSServerAddress string, targetDNSServerPort ...uint16) *DNSMITM {
-	dnsMitm := &DNSMITM{
-		ListenPort:             listenPort,
-		TargetDNSServerAddress: targetDNSServerAddress,
-		TargetDNSServerPort:    53,
+func New() *DNSMITMProxy {
+	return &DNSMITMProxy{
+		TargetDNSServerPort: 53,
 	}
-	if len(targetDNSServerPort) > 0 {
-		dnsMitm.TargetDNSServerPort = targetDNSServerPort[0]
-	}
-	return dnsMitm
 }

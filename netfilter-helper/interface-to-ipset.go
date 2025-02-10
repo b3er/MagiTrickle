@@ -179,7 +179,7 @@ func (r *IfaceToIPSet) ForceEnable() error {
 	// IPTables rules
 	err = r.PutIPTable("all")
 	if err != nil {
-		return nil
+		return err
 	}
 
 	// Mapping mark with table
@@ -194,7 +194,7 @@ func (r *IfaceToIPSet) ForceEnable() error {
 
 	err = r.IfaceHandle()
 	if err != nil {
-		return nil
+		return err
 	}
 
 	r.Enabled = true
