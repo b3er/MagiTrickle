@@ -22,7 +22,7 @@ type Records struct {
 	records map[string]interface{}
 }
 
-func (r *Records) AddCNameRecord(domainName, alias string, ttl time.Duration) {
+func (r *Records) AddCNameRecord(domainName, alias string, ttl uint32) {
 	if domainName == alias {
 		return
 	}
@@ -30,16 +30,16 @@ func (r *Records) AddCNameRecord(domainName, alias string, ttl time.Duration) {
 	r.mux.Lock()
 	r.records[domainName] = &CNameRecord{
 		Alias:    alias,
-		Deadline: time.Now().Add(ttl),
+		Deadline: time.Now().Add(time.Duration(ttl) * time.Second),
 	}
 	r.mux.Unlock()
 }
 
-func (r *Records) AddARecord(domainName string, addr net.IP, ttl time.Duration) {
+func (r *Records) AddARecord(domainName string, addr net.IP, ttl uint32) {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	deadline := time.Now().Add(ttl)
+	deadline := time.Now().Add(time.Duration(ttl) * time.Second)
 
 	aRecords, _ := r.records[domainName].([]*ARecord)
 	for _, aRecord := range aRecords {

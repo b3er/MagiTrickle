@@ -29,11 +29,12 @@ var (
 )
 
 type Config struct {
-	MinimalTTL             time.Duration
+	AdditionalTTL          uint32
 	ChainPrefix            string
 	IpSetPrefix            string
 	LinkName               string
 	TargetDNSServerAddress string
+	TargetDNSServerPort    uint16
 	ListenDNSPort          uint16
 }
 
@@ -316,10 +317,7 @@ func (a *App) processARecord(aRecord dns.A) {
 		Int("ttl", int(aRecord.Hdr.Ttl)).
 		Msg("processing a record")
 
-	ttlDuration := time.Duration(aRecord.Hdr.Ttl) * time.Second
-	if ttlDuration < a.Config.MinimalTTL {
-		ttlDuration = a.Config.MinimalTTL
-	}
+	ttlDuration := aRecord.Hdr.Ttl + a.Config.AdditionalTTL
 
 	a.Records.AddARecord(aRecord.Hdr.Name[:len(aRecord.Hdr.Name)-1], aRecord.A, ttlDuration)
 
@@ -362,10 +360,7 @@ func (a *App) processCNameRecord(cNameRecord dns.CNAME) {
 		Int("ttl", int(cNameRecord.Hdr.Ttl)).
 		Msg("processing cname record")
 
-	ttlDuration := time.Duration(cNameRecord.Hdr.Ttl) * time.Second
-	if ttlDuration < a.Config.MinimalTTL {
-		ttlDuration = a.Config.MinimalTTL
-	}
+	ttlDuration := cNameRecord.Hdr.Ttl + a.Config.AdditionalTTL
 
 	a.Records.AddCNameRecord(cNameRecord.Hdr.Name[:len(cNameRecord.Hdr.Name)-1], cNameRecord.Target, ttlDuration)
 
@@ -384,7 +379,7 @@ func (a *App) processCNameRecord(cNameRecord dns.CNAME) {
 					continue
 				}
 				for _, aRecord := range aRecords {
-					err := group.AddIP(aRecord.Address, now.Sub(aRecord.Deadline))
+					err := group.AddIP(aRecord.Address, uint32(now.Sub(aRecord.Deadline).Seconds()))
 					if err != nil {
 						log.Error().
 							Str("address", aRecord.Address.String()).
@@ -429,7 +424,7 @@ func New(config Config) (*App, error) {
 
 	app.DNSMITM = dnsMitmProxy.New()
 	app.DNSMITM.TargetDNSServerAddress = app.Config.TargetDNSServerAddress
-	app.DNSMITM.TargetDNSServerPort = 53
+	app.DNSMITM.TargetDNSServerPort = app.Config.TargetDNSServerPort
 	app.DNSMITM.RequestHook = func(clientAddr net.Addr, reqMsg dns.Msg, network string) (*dns.Msg, *dns.Msg, error) {
 		// TODO: Need to understand why it not works in proxy mode
 		if len(reqMsg.Question) == 1 && reqMsg.Question[0].Qtype == dns.TypePTR {

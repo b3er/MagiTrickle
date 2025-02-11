@@ -2,12 +2,11 @@ package main
 
 import (
 	"context"
-	"github.com/rs/zerolog"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
@@ -15,12 +14,13 @@ func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
 	app, err := New(Config{
-		MinimalTTL:             time.Hour,
+		AdditionalTTL:          216000, // 1 hour
 		ChainPrefix:            "KVAS2_",
 		IpSetPrefix:            "kvas2_",
 		LinkName:               "br0",
 		TargetDNSServerAddress: "127.0.0.1",
-		ListenDNSPort:          7553,
+		TargetDNSServerPort:    53,
+		ListenDNSPort:          3553,
 	})
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to initialize application")

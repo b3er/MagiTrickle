@@ -23,9 +23,8 @@ type Group struct {
 	ipsetToLink *netfilterHelper.IPSetToLink
 }
 
-func (g *Group) AddIP(address net.IP, ttl time.Duration) error {
-	ttlSeconds := uint32(ttl.Seconds())
-	return g.ipset.AddIP(address, &ttlSeconds)
+func (g *Group) AddIP(address net.IP, ttl uint32) error {
+	return g.ipset.AddIP(address, &ttl)
 }
 
 func (g *Group) DelIP(address net.IP) error {
@@ -90,7 +89,7 @@ func (g *Group) Disable() []error {
 func (g *Group) Sync(records *records.Records) error {
 	now := time.Now()
 
-	addresses := make(map[string]time.Duration)
+	addresses := make(map[string]uint32)
 	knownDomains := records.ListKnownDomains()
 	for _, domain := range g.Rules {
 		if !domain.IsEnabled() {
@@ -104,7 +103,7 @@ func (g *Group) Sync(records *records.Records) error {
 
 			domainAddresses := records.GetARecords(domainName)
 			for _, address := range domainAddresses {
-				ttl := now.Sub(address.Deadline)
+				ttl := uint32(now.Sub(address.Deadline).Seconds())
 				if oldTTL, ok := addresses[string(address.Address)]; !ok || ttl > oldTTL {
 					addresses[string(address.Address)] = ttl
 				}
