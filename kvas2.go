@@ -71,6 +71,7 @@ func (a *App) handleLink(event netlink.LinkUpdate) {
 			Int("operstate", int(event.Attrs().OperState)).
 			Msg("interface change")
 		switch event.Attrs().OperState {
+		// TODO: Может не подняться
 		case netlink.OperUp:
 			ifaceName := event.Link.Attrs().Name
 			for _, group := range a.Groups {
