@@ -280,7 +280,7 @@ func (r *IPSetToLink) LinkUpdateHook() error {
 	return r.insertIPRoute()
 }
 
-func (nh *NetfilterHelper) IfaceToIPSet(name string, ifaceName, ipsetName string, softwareMode bool) *IPSetToLink {
+func (nh *NetfilterHelper) IPSetToLink(name string, ifaceName, ipsetName string, softwareMode bool) *IPSetToLink {
 	return &IPSetToLink{
 		IPTables:  nh.IPTables,
 		ChainName: name,

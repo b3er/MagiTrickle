@@ -295,7 +295,7 @@ func (a *App) AddGroup(group *models.Group) error {
 		Group:       group,
 		iptables:    a.NetfilterHelper4.IPTables,
 		ipset:       ipset,
-		ipsetToLink: a.NetfilterHelper4.IfaceToIPSet(fmt.Sprintf("%sR_%8x", a.Config.ChainPrefix, group.ID.ID()), group.Interface, ipsetName, false),
+		ipsetToLink: a.NetfilterHelper4.IPSetToLink(fmt.Sprintf("%sR_%8x", a.Config.ChainPrefix, group.ID.ID()), group.Interface, ipsetName, false),
 	}
 	a.Groups[grp.ID] = grp
 	return a.SyncGroup(grp)
