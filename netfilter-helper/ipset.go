@@ -2,9 +2,10 @@ package netfilterHelper
 
 import (
 	"fmt"
-	"github.com/vishvananda/netlink"
 	"net"
 	"os"
+
+	"github.com/vishvananda/netlink"
 )
 
 type IPSet struct {
@@ -23,7 +24,7 @@ func (r *IPSet) AddIP(addr net.IP, timeout *uint32) error {
 	return nil
 }
 
-func (r *IPSet) Del(addr net.IP) error {
+func (r *IPSet) DelIP(addr net.IP) error {
 	err := netlink.IpsetDel(r.SetName, &netlink.IPSetEntry{
 		IP: addr,
 	})
@@ -33,7 +34,7 @@ func (r *IPSet) Del(addr net.IP) error {
 	return nil
 }
 
-func (r *IPSet) List() (map[string]*uint32, error) {
+func (r *IPSet) ListIPs() (map[string]*uint32, error) {
 	list, err := netlink.IpsetList(r.SetName)
 	if err != nil {
 		return nil, err
@@ -62,9 +63,8 @@ func (nh *NetfilterHelper) IPSet(name string) (*IPSet, error) {
 		return nil, err
 	}
 
-	defaultTimeout := uint32(300)
 	err = netlink.IpsetCreate(ipset.SetName, "hash:net", netlink.IpsetCreateOptions{
-		Timeout: &defaultTimeout,
+		Timeout: func(i uint32) *uint32 { return &i }(300),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ipset: %w", err)

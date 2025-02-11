@@ -21,17 +21,17 @@ type Group struct {
 	ipsetToLink *netfilterHelper.IPSetToLink
 }
 
-func (g *Group) AddIPv4(address net.IP, ttl time.Duration) error {
+func (g *Group) AddIP(address net.IP, ttl time.Duration) error {
 	ttlSeconds := uint32(ttl.Seconds())
 	return g.ipset.AddIP(address, &ttlSeconds)
 }
 
-func (g *Group) DelIPv4(address net.IP) error {
-	return g.ipset.Del(address)
+func (g *Group) DelIP(address net.IP) error {
+	return g.ipset.DelIP(address)
 }
 
-func (g *Group) ListIPv4() (map[string]*uint32, error) {
-	return g.ipset.List()
+func (g *Group) ListIP() (map[string]*uint32, error) {
+	return g.ipset.ListIPs()
 }
 
 func (g *Group) Enable() error {

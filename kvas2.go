@@ -326,7 +326,7 @@ func (a *App) SyncGroup(group *Group) error {
 		}
 	}
 
-	currentAddresses, err := group.ListIPv4()
+	currentAddresses, err := group.ListIP()
 	if err != nil {
 		return fmt.Errorf("failed to get old ipset list: %w", err)
 	}
@@ -337,7 +337,7 @@ func (a *App) SyncGroup(group *Group) error {
 			continue
 		}
 		ip := net.IP(addr)
-		err = group.AddIPv4(ip, ttl)
+		err = group.AddIP(ip, ttl)
 		if err != nil {
 			log.Error().
 				Str("address", ip.String()).
@@ -356,7 +356,7 @@ func (a *App) SyncGroup(group *Group) error {
 			continue
 		}
 		ip := net.IP(addr)
-		err = group.DelIPv4(ip)
+		err = group.DelIP(ip)
 		if err != nil {
 			log.Error().
 				Str("address", ip.String()).
@@ -418,7 +418,7 @@ func (a *App) processARecord(aRecord dns.A) {
 					continue
 				}
 				// TODO: Check already existed
-				err := group.AddIPv4(aRecord.A, ttlDuration)
+				err := group.AddIP(aRecord.A, ttlDuration)
 				if err != nil {
 					log.Error().
 						Str("address", aRecord.A.String()).
@@ -467,7 +467,7 @@ func (a *App) processCNameRecord(cNameRecord dns.CNAME) {
 					continue
 				}
 				for _, aRecord := range aRecords {
-					err := group.AddIPv4(aRecord.Address, now.Sub(aRecord.Deadline))
+					err := group.AddIP(aRecord.Address, now.Sub(aRecord.Deadline))
 					if err != nil {
 						log.Error().
 							Str("address", aRecord.Address.String()).
