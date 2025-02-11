@@ -204,17 +204,13 @@ func (a *App) start(ctx context.Context) (err error) {
 				args := strings.Split(string(buf[:n]), ":")
 				if len(args) == 3 && args[0] == "netfilter.d" {
 					log.Debug().Str("table", args[2]).Msg("netfilter.d event")
-					if a.dnsOverrider4.Enabled {
-						err := a.dnsOverrider4.PutIPTable(args[2])
-						if err != nil {
-							log.Error().Err(err).Msg("error while fixing iptables after netfilter.d")
-						}
+					err = a.dnsOverrider4.NetfilerDHook(args[2])
+					if err != nil {
+						log.Error().Err(err).Msg("error while fixing iptables after netfilter.d")
 					}
-					if a.dnsOverrider6.Enabled {
-						err = a.dnsOverrider6.PutIPTable(args[2])
-						if err != nil {
-							log.Error().Err(err).Msg("error while fixing iptables after netfilter.d")
-						}
+					err = a.dnsOverrider6.NetfilerDHook(args[2])
+					if err != nil {
+						log.Error().Err(err).Msg("error while fixing iptables after netfilter.d")
 					}
 					for _, group := range a.Groups {
 						err := group.ipsetToLink.NetfilerDHook(args[2])
