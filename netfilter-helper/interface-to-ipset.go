@@ -90,7 +90,7 @@ func (r *IfaceToIPSet) PutIPTable(table string) error {
 			return fmt.Errorf("failed to clear chain: %w", err)
 		}
 
-		err = r.IPTables.AppendUnique("nat", postroutingChainName, "-o", r.IfaceName, "-j", "MASQUERADE")
+		err = r.IPTables.AppendUnique("nat", postroutingChainName, "-m", "mark", "--mark", strconv.Itoa(int(r.mark)), "-j", "MASQUERADE")
 		if err != nil {
 			return fmt.Errorf("failed to create rule: %w", err)
 		}
