@@ -75,6 +75,11 @@ func (r *IfaceToIPSet) PutIPTable(table string) error {
 				return fmt.Errorf("failed to create rule: %w", err)
 			}
 
+			err = r.IPTables.AppendUnique("mangle", preroutingChainName, "-m", "set", "--match-set", r.IPSetName, "dst", "-j", "CONNMARK", "--save-mark")
+			if err != nil {
+				return fmt.Errorf("failed to create rule: %w", err)
+			}
+
 			err = r.IPTables.AppendUnique("mangle", "PREROUTING", "-j", preroutingChainName)
 			if err != nil {
 				return fmt.Errorf("failed to append rule to PREROUTING: %w", err)
