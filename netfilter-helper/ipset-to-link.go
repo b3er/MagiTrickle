@@ -76,9 +76,8 @@ func (r *IPSetToLink) insertIPTablesRules(table string) error {
 
 func (r *IPSetToLink) deleteIPTablesRules() []error {
 	var errs []error
-	var err error
 
-	err = r.IPTables.DeleteIfExists("mangle", "PREROUTING", "-m", "set", "--match-set", r.IPSetName, "dst", "-j", r.ChainName)
+	err := r.IPTables.DeleteIfExists("mangle", "PREROUTING", "-m", "set", "--match-set", r.IPSetName, "dst", "-j", r.ChainName)
 	if err != nil {
 		errs = append(errs, fmt.Errorf("failed to unlinking chain: %w", err))
 	}
