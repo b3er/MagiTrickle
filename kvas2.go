@@ -382,7 +382,7 @@ func (a *App) processCNameRecord(cNameRecord dns.CNAME) {
 
 	ttlDuration := cNameRecord.Hdr.Ttl + a.Config.AdditionalTTL
 
-	a.Records.AddCNameRecord(cNameRecord.Hdr.Name[:len(cNameRecord.Hdr.Name)-1], cNameRecord.Target, ttlDuration)
+	a.Records.AddCNameRecord(cNameRecord.Hdr.Name[:len(cNameRecord.Hdr.Name)-1], cNameRecord.Target[:len(cNameRecord.Target)-1], ttlDuration)
 
 	// TODO: Optimization
 	now := time.Now()
