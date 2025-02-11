@@ -105,7 +105,7 @@ func (r *PortRemap) Disable() []error {
 	return errs
 }
 
-func (r *PortRemap) NetfilerDHook(table string) error {
+func (r *PortRemap) NetfilterDHook(table string) error {
 	if !r.enabled {
 		return nil
 	}

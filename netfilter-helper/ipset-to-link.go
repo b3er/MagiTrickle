@@ -265,21 +265,21 @@ func (r *IPSetToLink) Disable() []error {
 	return errs
 }
 
-func (r *IPSetToLink) NetfilerDHook(table string) error {
+func (r *IPSetToLink) NetfilterDHook(table string) error {
 	if !r.enabled {
 		return nil
 	}
 	return r.insertIPTablesRules(table)
 }
 
-func (r *IPSetToLink) LinkUpdateHook() error {
-	if !r.enabled {
+func (r *IPSetToLink) LinkUpdateHook(event netlink.LinkUpdate) error {
+	if !r.enabled || event.Change != 1 || event.Link.Attrs().Name != r.IfaceName || event.Attrs().OperState != netlink.OperUp {
 		return nil
 	}
 	return r.insertIPRoute()
 }
 
-func (nh *NetfilterHelper) IPSetToLink(name string, ifaceName, ipsetName string, softwareMode bool) *IPSetToLink {
+func (nh *NetfilterHelper) IPSetToLink(name string, ifaceName, ipsetName string) *IPSetToLink {
 	return &IPSetToLink{
 		IPTables:  nh.IPTables,
 		ChainName: name,
