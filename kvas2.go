@@ -34,7 +34,6 @@ type Config struct {
 	LinkName               string
 	TargetDNSServerAddress string
 	ListenDNSPort          uint16
-	UseSoftwareRouting     bool
 }
 
 type App struct {
@@ -69,7 +68,7 @@ func (a *App) handleLink(event netlink.LinkUpdate) {
 					continue
 				}
 
-				err := group.ifaceToIPSetNAT.IfaceHandle()
+				err := group.ipsetToLink.LinkUpdateHook()
 				if err != nil {
 					log.Error().Str("group", group.ID.String()).Err(err).Msg("error while handling interface up")
 				}
@@ -218,11 +217,9 @@ func (a *App) start(ctx context.Context) (err error) {
 						}
 					}
 					for _, group := range a.Groups {
-						if group.ifaceToIPSetNAT.Enabled {
-							err := group.ifaceToIPSetNAT.PutIPTable(args[2])
-							if err != nil {
-								log.Error().Err(err).Msg("error while fixing iptables after netfilter.d")
-							}
+						err := group.ipsetToLink.NetfilerDHook(args[2])
+						if err != nil {
+							log.Error().Err(err).Msg("error while fixing iptables after netfilter.d")
 						}
 					}
 				}
@@ -295,12 +292,11 @@ func (a *App) AddGroup(group *models.Group) error {
 	}
 
 	grp := &Group{
-		Group:           group,
-		iptables:        a.NetfilterHelper4.IPTables,
-		ipset:           ipset,
-		ifaceToIPSetNAT: a.NetfilterHelper4.IfaceToIPSet(fmt.Sprintf("%sR_%8x", a.Config.ChainPrefix, group.ID.ID()), group.Interface, ipsetName, false),
+		Group:       group,
+		iptables:    a.NetfilterHelper4.IPTables,
+		ipset:       ipset,
+		ipsetToLink: a.NetfilterHelper4.IfaceToIPSet(fmt.Sprintf("%sR_%8x", a.Config.ChainPrefix, group.ID.ID()), group.Interface, ipsetName, false),
 	}
-	grp.ifaceToIPSetNAT.SoftwareMode = a.Config.UseSoftwareRouting
 	a.Groups[grp.ID] = grp
 	return a.SyncGroup(grp)
 }

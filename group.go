@@ -16,9 +16,9 @@ type Group struct {
 
 	Enabled bool
 
-	iptables        *iptables.IPTables
-	ipset           *netfilterHelper.IPSet
-	ifaceToIPSetNAT *netfilterHelper.IfaceToIPSet
+	iptables    *iptables.IPTables
+	ipset       *netfilterHelper.IPSet
+	ipsetToLink *netfilterHelper.IPSetToLink
 }
 
 func (g *Group) AddIPv4(address net.IP, ttl time.Duration) error {
@@ -51,7 +51,7 @@ func (g *Group) Enable() error {
 		}
 	}
 
-	err := g.ifaceToIPSetNAT.Enable()
+	err := g.ipsetToLink.Enable()
 	if err != nil {
 		return err
 	}
@@ -68,7 +68,7 @@ func (g *Group) Disable() []error {
 		return nil
 	}
 
-	err := g.ifaceToIPSetNAT.Disable()
+	err := g.ipsetToLink.Disable()
 	if err != nil {
 		errs = append(errs, err...)
 	}
