@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net"
 	"os"
 	"strconv"
@@ -16,7 +19,6 @@ import (
 	"kvas2-go/netfilter-helper"
 	"kvas2-go/records"
 
-	"github.com/google/uuid"
 	"github.com/miekg/dns"
 	"github.com/rs/zerolog/log"
 	"github.com/vishvananda/netlink"
@@ -27,6 +29,12 @@ var (
 	ErrAlreadyRunning  = errors.New("already running")
 	ErrGroupIDConflict = errors.New("group id conflict")
 )
+
+func randomId() [4]byte {
+	id := make([]byte, 4)
+	binary.BigEndian.PutUint32(id, rand.Uint32())
+	return [4]byte(id)
+}
 
 type Config struct {
 	AdditionalTTL          uint32
@@ -45,7 +53,7 @@ type App struct {
 	NetfilterHelper4 *netfilterHelper.NetfilterHelper
 	NetfilterHelper6 *netfilterHelper.NetfilterHelper
 	Records          *records.Records
-	Groups           map[uuid.UUID]*group.Group
+	Groups           map[[4]byte]*group.Group
 
 	Link netlink.Link
 
@@ -72,7 +80,7 @@ func (a *App) handleLink(event netlink.LinkUpdate) {
 
 				err := group.LinkUpdateHook(event)
 				if err != nil {
-					log.Error().Str("group", group.ID.String()).Err(err).Msg("error while handling interface up")
+					log.Error().Str("group", hex.EncodeToString(group.ID[:])).Err(err).Msg("error while handling interface up")
 				}
 			}
 		}
@@ -460,7 +468,7 @@ func New(config Config) (*App, error) {
 	}
 
 	app.Records = records.New()
-	app.Groups = make(map[uuid.UUID]*group.Group)
+	app.Groups = make(map[[4]byte]*group.Group)
 
 	link, err := netlink.LinkByName(app.Config.LinkName)
 	if err != nil {
@@ -488,7 +496,7 @@ func New(config Config) (*App, error) {
 		return nil, fmt.Errorf("failed to clear iptables: %w", err)
 	}
 
-	app.Groups = make(map[uuid.UUID]*group.Group)
+	app.Groups = make(map[[4]byte]*group.Group)
 
 	return app, nil
 }

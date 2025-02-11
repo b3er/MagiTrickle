@@ -167,13 +167,13 @@ func (g *Group) LinkUpdateHook(event netlink.LinkUpdate) error {
 }
 
 func NewGroup(group *models.Group, nh4 *netfilterHelper.NetfilterHelper, chainPrefix, ipsetNamePrefix string) (*Group, error) {
-	ipsetName := fmt.Sprintf("%s%8x", ipsetNamePrefix, group.ID.ID())
+	ipsetName := fmt.Sprintf("%s%8x", ipsetNamePrefix, group.ID)
 	ipset, err := nh4.IPSet(ipsetName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize ipset: %w", err)
 	}
 
-	ipsetToLink := nh4.IPSetToLink(fmt.Sprintf("%s%8x", chainPrefix, group.ID.ID()), group.Interface, ipsetName)
+	ipsetToLink := nh4.IPSetToLink(fmt.Sprintf("%s%8x", chainPrefix, group.ID), group.Interface, ipsetName)
 	return &Group{
 		Group:       group,
 		iptables:    nh4.IPTables,

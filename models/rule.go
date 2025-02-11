@@ -4,11 +4,10 @@ import (
 	"regexp"
 
 	"github.com/IGLOU-EU/go-wildcard/v2"
-	"github.com/google/uuid"
 )
 
 type Rule struct {
-	ID     uuid.UUID
+	ID     [4]byte
 	Name   string
 	Type   string
 	Rule   string

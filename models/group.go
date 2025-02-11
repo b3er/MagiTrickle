@@ -1,9 +1,7 @@
 package models
 
-import "github.com/google/uuid"
-
 type Group struct {
-	ID         uuid.UUID
+	ID         [4]byte
 	Name       string
 	Interface  string
 	Rules      []*Rule
