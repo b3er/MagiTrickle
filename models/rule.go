@@ -2,16 +2,17 @@ package models
 
 import (
 	"regexp"
+	"strings"
 
 	"github.com/IGLOU-EU/go-wildcard/v2"
 )
 
 type Rule struct {
-	ID     [4]byte
-	Name   string
-	Type   string
-	Rule   string
-	Enable bool
+	ID     ID     `yaml:"id"`
+	Name   string `yaml:"name"`
+	Type   string `yaml:"type"`
+	Rule   string `yaml:"rule"`
+	Enable bool   `yaml:"enable"`
 }
 
 func (d *Rule) IsEnabled() bool {
@@ -25,8 +26,13 @@ func (d *Rule) IsMatch(domainName string) bool {
 	case "regex":
 		ok, _ := regexp.MatchString(d.Rule, domainName)
 		return ok
-	case "plaintext":
+	case "domain":
 		return domainName == d.Rule
+	case "namespace":
+		if domainName == d.Rule {
+			return true
+		}
+		return strings.HasSuffix(domainName, "."+d.Rule)
 	}
 	return false
 }

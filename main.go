@@ -6,22 +6,29 @@ import (
 	"os/signal"
 	"syscall"
 
+	"kvas2-go/models"
+
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"gopkg.in/yaml.v3"
 )
 
 func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
-	app, err := New(Config{
-		AdditionalTTL:          216000, // 1 hour
-		ChainPrefix:            "KVAS2_",
-		IpSetPrefix:            "kvas2_",
-		LinkName:               "br0",
-		TargetDNSServerAddress: "127.0.0.1",
-		TargetDNSServerPort:    53,
-		ListenDNSPort:          3553,
-	})
+	cfgFile, err := os.ReadFile("config.yaml")
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to read config.yaml")
+	}
+
+	cfg := models.ConfigFile{}
+	err = yaml.Unmarshal(cfgFile, &cfg)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to parse config.yaml")
+	}
+
+	app, err := New(cfg)
+
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to initialize application")
 	}

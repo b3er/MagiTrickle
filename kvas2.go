@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -28,6 +27,7 @@ import (
 var (
 	ErrAlreadyRunning  = errors.New("already running")
 	ErrGroupIDConflict = errors.New("group id conflict")
+	ErrRuleIDConflict  = errors.New("rule id conflict")
 )
 
 func randomId() [4]byte {
@@ -39,7 +39,7 @@ func randomId() [4]byte {
 type Config struct {
 	AdditionalTTL          uint32
 	ChainPrefix            string
-	IpSetPrefix            string
+	IPSetPrefix            string
 	LinkName               string
 	TargetDNSServerAddress string
 	TargetDNSServerPort    uint16
@@ -53,7 +53,7 @@ type App struct {
 	NetfilterHelper4 *netfilterHelper.NetfilterHelper
 	NetfilterHelper6 *netfilterHelper.NetfilterHelper
 	Records          *records.Records
-	Groups           map[[4]byte]*group.Group
+	Groups           []*group.Group
 
 	Link netlink.Link
 
@@ -80,7 +80,7 @@ func (a *App) handleLink(event netlink.LinkUpdate) {
 
 				err := group.LinkUpdateHook(event)
 				if err != nil {
-					log.Error().Str("group", hex.EncodeToString(group.ID[:])).Err(err).Msg("error while handling interface up")
+					log.Error().Str("group", group.ID.String()).Err(err).Msg("error while handling interface up")
 				}
 			}
 		}
@@ -287,15 +287,27 @@ func (a *App) Start(ctx context.Context) (err error) {
 }
 
 func (a *App) AddGroup(groupModel *models.Group) error {
-	if _, exists := a.Groups[groupModel.ID]; exists {
-		return ErrGroupIDConflict
+	for _, group := range a.Groups {
+		if groupModel.ID == group.ID {
+			return ErrGroupIDConflict
+		}
+	}
+	dup := make(map[[4]byte]struct{})
+	for _, rule := range groupModel.Rules {
+		if _, exists := dup[rule.ID]; exists {
+			return ErrRuleIDConflict
+		}
+		dup[rule.ID] = struct{}{}
 	}
 
-	grp, err := group.NewGroup(groupModel, a.NetfilterHelper4, a.Config.ChainPrefix, a.Config.IpSetPrefix)
+	grp, err := group.NewGroup(groupModel, a.NetfilterHelper4, a.Config.ChainPrefix, a.Config.IPSetPrefix)
 	if err != nil {
 		return fmt.Errorf("failed to create group: %w", err)
 	}
-	a.Groups[grp.ID] = grp
+	a.Groups = append(a.Groups, grp)
+
+	log.Trace().Str("id", grp.ID.String()).Str("name", grp.Name).Msg("added group")
+
 	return grp.Sync(a.Records)
 }
 
@@ -423,12 +435,52 @@ func (a *App) handleMessage(msg dns.Msg) {
 	}
 }
 
-func New(config Config) (*App, error) {
+func (a *App) ImportConfig(cfg models.ConfigFile) error {
+	a.Config = Config{
+		AdditionalTTL:          cfg.AppConfig.AdditionalTTL,
+		ChainPrefix:            cfg.AppConfig.ChainPrefix,
+		IPSetPrefix:            cfg.AppConfig.IPSetPrefix,
+		LinkName:               cfg.AppConfig.LinkName,
+		TargetDNSServerAddress: cfg.AppConfig.TargetDNSServerAddress,
+		TargetDNSServerPort:    cfg.AppConfig.TargetDNSServerPort,
+		ListenDNSPort:          cfg.AppConfig.ListenDNSPort,
+	}
+	return nil
+}
+
+func (a *App) ExportConfig() models.ConfigFile {
+	groups := make([]models.Group, len(a.Groups))
+	for idx, group := range a.Groups {
+		groups[idx] = *group.Group
+	}
+	return models.ConfigFile{
+		AppConfig: models.AppConfig{
+			AdditionalTTL:          a.Config.AdditionalTTL,
+			ChainPrefix:            a.Config.ChainPrefix,
+			IPSetPrefix:            a.Config.IPSetPrefix,
+			LinkName:               a.Config.LinkName,
+			TargetDNSServerAddress: a.Config.TargetDNSServerAddress,
+			TargetDNSServerPort:    a.Config.TargetDNSServerPort,
+			ListenDNSPort:          a.Config.ListenDNSPort,
+		},
+		Groups: groups,
+	}
+}
+
+func New(config models.ConfigFile) (*App, error) {
 	var err error
 
 	app := &App{}
 
-	app.Config = config
+	app.Config = Config{
+		AdditionalTTL:          config.AppConfig.AdditionalTTL,
+		ChainPrefix:            config.AppConfig.ChainPrefix,
+		IPSetPrefix:            config.AppConfig.IPSetPrefix,
+		LinkName:               config.AppConfig.LinkName,
+		TargetDNSServerAddress: config.AppConfig.TargetDNSServerAddress,
+		TargetDNSServerPort:    config.AppConfig.TargetDNSServerPort,
+		ListenDNSPort:          config.AppConfig.ListenDNSPort,
+	}
 
 	app.DNSMITM = dnsMitmProxy.New()
 	app.DNSMITM.TargetDNSServerAddress = app.Config.TargetDNSServerAddress
@@ -468,7 +520,6 @@ func New(config Config) (*App, error) {
 	}
 
 	app.Records = records.New()
-	app.Groups = make(map[[4]byte]*group.Group)
 
 	link, err := netlink.LinkByName(app.Config.LinkName)
 	if err != nil {
@@ -496,7 +547,12 @@ func New(config Config) (*App, error) {
 		return nil, fmt.Errorf("failed to clear iptables: %w", err)
 	}
 
-	app.Groups = make(map[[4]byte]*group.Group)
+	for _, group := range config.Groups {
+		err = app.AddGroup(&group)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	return app, nil
 }
