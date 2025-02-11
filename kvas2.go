@@ -561,7 +561,7 @@ func New(config Config) (*App, error) {
 		return nil, fmt.Errorf("netfilter helper init fail: %w", err)
 	}
 	app.NetfilterHelper4 = nh4
-	err = app.NetfilterHelper4.ClearIPTables(app.Config.ChainPrefix)
+	err = app.NetfilterHelper4.CleanIPTables(app.Config.ChainPrefix)
 	if err != nil {
 		return nil, fmt.Errorf("failed to clear iptables: %w", err)
 	}
@@ -571,7 +571,7 @@ func New(config Config) (*App, error) {
 		return nil, fmt.Errorf("netfilter helper init fail: %w", err)
 	}
 	app.NetfilterHelper6 = nh6
-	err = app.NetfilterHelper6.ClearIPTables(app.Config.ChainPrefix)
+	err = app.NetfilterHelper6.CleanIPTables(app.Config.ChainPrefix)
 	if err != nil {
 		return nil, fmt.Errorf("failed to clear iptables: %w", err)
 	}
