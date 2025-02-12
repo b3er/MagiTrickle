@@ -63,26 +63,23 @@ type App struct {
 }
 
 func (a *App) handleLink(event netlink.LinkUpdate) {
+	log.Trace().
+		Str("interface", event.Link.Attrs().Name).
+		Str("operstatestr", event.Attrs().OperState.String()).
+		Int("operstate", int(event.Attrs().OperState)).
+		Int("change", int(event.Change)).
+		Msg("interface event")
 	switch event.Change {
 	case 0x00000001:
-		log.Debug().
-			Str("interface", event.Link.Attrs().Name).
-			Str("operstatestr", event.Attrs().OperState.String()).
-			Int("operstate", int(event.Attrs().OperState)).
-			Msg("interface change")
-		switch event.Attrs().OperState {
-		// TODO: Может не подняться
-		case netlink.OperUp:
-			ifaceName := event.Link.Attrs().Name
-			for _, group := range a.Groups {
-				if group.Interface != ifaceName {
-					continue
-				}
+		ifaceName := event.Link.Attrs().Name
+		for _, group := range a.Groups {
+			if group.Interface != ifaceName {
+				continue
+			}
 
-				err := group.LinkUpdateHook(event)
-				if err != nil {
-					log.Error().Str("group", group.ID.String()).Err(err).Msg("error while handling interface up")
-				}
+			err := group.LinkUpdateHook(event)
+			if err != nil {
+				log.Error().Str("group", group.ID.String()).Err(err).Msg("error while handling interface up")
 			}
 		}
 	case 0xFFFFFFFF:
@@ -243,9 +240,7 @@ func (a *App) start(ctx context.Context) (err error) {
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to link updates: %w", err)
 	}
-	defer func() {
-		close(linkUpdateDone)
-	}()
+	defer close(linkUpdateDone)
 
 	/*
 		Global loop

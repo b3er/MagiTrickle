@@ -278,7 +278,7 @@ func (r *IPSetToLink) NetfilterDHook(table string) error {
 }
 
 func (r *IPSetToLink) LinkUpdateHook(event netlink.LinkUpdate) error {
-	if !r.enabled || event.Change != 1 || event.Link.Attrs().Name != r.IfaceName || event.Attrs().OperState != netlink.OperUp {
+	if !r.enabled || event.Change != 1 || event.Link.Attrs().Name != r.IfaceName {
 		return nil
 	}
 	return r.insertIPRoute()
