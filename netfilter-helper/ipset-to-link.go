@@ -131,7 +131,12 @@ func (r *IPSetToLink) insertIPRoute() error {
 	// Find interface
 	iface, err := netlink.LinkByName(r.IfaceName)
 	if err != nil {
-		return fmt.Errorf("error while getting interface: %w", err)
+		// TODO: Нормально отлавливать ошибку
+		if err.Error() != "Link not found" {
+			return fmt.Errorf("error while getting interface: %w", err)
+		} else {
+			return nil
+		}
 	}
 
 	// Mapping iface with table
