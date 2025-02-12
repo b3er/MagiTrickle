@@ -159,6 +159,13 @@ func (g *Group) Sync(records *records.Records) error {
 }
 
 func (g *Group) NetfilterDHook(table string) error {
+	if g.enabled && g.FixProtect && table == "filter" {
+		err := g.iptables.AppendUnique("filter", "_NDM_SL_FORWARD", "-o", g.Interface, "-m", "state", "--state", "NEW", "-j", "_NDM_SL_PROTECT")
+		if err != nil {
+			return fmt.Errorf("failed to fix protect: %w", err)
+		}
+	}
+
 	return g.ipsetToLink.NetfilterDHook(table)
 }
 
