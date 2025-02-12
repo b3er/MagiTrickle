@@ -27,11 +27,18 @@ func (nh *NetfilterHelper) CleanIPTables(chainPrefix string) error {
 			}
 
 			for _, rule := range rules {
-				if strings.Contains(rule, jumpToChainPrefix) {
-					err = nh.IPTables.Delete(table, chain, rule)
-					if err != nil {
-						return fmt.Errorf("rule deletion error: %w", err)
-					}
+				if !strings.Contains(rule, jumpToChainPrefix) {
+					continue
+				}
+
+				ruleSlice := strings.Split(rule, " ")
+				if len(ruleSlice) < 2 || ruleSlice[0] != "-A" || ruleSlice[1] != chain {
+					continue
+				}
+
+				err = nh.IPTables.Delete(table, chain, ruleSlice[2:]...)
+				if err != nil {
+					return fmt.Errorf("rule deletion error: %w", err)
 				}
 			}
 		}
