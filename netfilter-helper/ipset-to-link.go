@@ -132,11 +132,11 @@ func (r *IPSetToLink) insertIPRoute() error {
 	iface, err := netlink.LinkByName(r.IfaceName)
 	if err != nil {
 		// TODO: Нормально отлавливать ошибку
-		if err.Error() != "Link not found" {
-			return fmt.Errorf("error while getting interface: %w", err)
-		} else {
+		if err.Error() == "Link not found" {
+			// TODO: Логи
 			return nil
 		}
+		return fmt.Errorf("error while getting interface: %w", err)
 	}
 
 	// Mapping iface with table
@@ -146,9 +146,12 @@ func (r *IPSetToLink) insertIPRoute() error {
 		Dst:       &net.IPNet{IP: []byte{0, 0, 0, 0}, Mask: []byte{0, 0, 0, 0}},
 	}
 	// Delete rule if exists
-	_ = netlink.RouteDel(route)
 	err = netlink.RouteAdd(route)
 	if err != nil {
+		// TODO: Нормально отлавливать ошибку
+		if err.Error() == "file exists" {
+			return nil
+		}
 		return fmt.Errorf("error while mapping iface with table: %w", err)
 	}
 	r.ipRoute = route
