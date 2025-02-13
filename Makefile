@@ -2,7 +2,7 @@ APP_NAME = kvas2
 APP_DESCRIPTION = DNS-based routing application
 APP_MAINTAINER = Vladimir Avtsenov <vladimir.lsk.cool@gmail.com>
 
-TAG = $(shell git describe --tags --abbrev=0)
+TAG = $(shell git describe --tags --abbrev=0 2> /dev/null || git rev-parse --short HEAD)
 COMMIT = $(shell git rev-parse --short HEAD)
 COMMITS_SINCE_TAG = $(shell git rev-list ${TAG}..HEAD --count || echo "0")
 VERSION ?= $(TAG)
