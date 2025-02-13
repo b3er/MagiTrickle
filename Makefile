@@ -38,4 +38,4 @@ package:
 	@cp -r ./opt $(PKG_DIR)/data/
 	@fakeroot sh -c "tar -C $(PKG_DIR)/control -czvf $(PKG_DIR)/control.tar.gz ."
 	@fakeroot sh -c "tar -C $(PKG_DIR)/data -czvf $(PKG_DIR)/data.tar.gz ."
-	@tar -C $(PKG_DIR) -czvf $(BUILD_DIR)/$(APP_NAME)_$(ARCH).ipk $(PKG_DIR)/debian-binary $(PKG_DIR)/control.tar.gz $(PKG_DIR)/data.tar.gz .
+	@tar -C $(PKG_DIR) -czvf $(BUILD_DIR)/$(APP_NAME)_$(ARCH).ipk ./debian-binary ./control.tar.gz ./data.tar.gz
