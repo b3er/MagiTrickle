@@ -13,7 +13,8 @@ GOARCH ?= mipsle
 GOMIPS ?= softfloat
 GOARM ?=
 
-PKG_DIR = ./.build/$(ARCH)
+BUILD_DIR = ./.build
+PKG_DIR = $(BUILD_DIR)/$(ARCH)
 BIN_DIR = $(PKG_DIR)/data/opt/usr/bin
 PARAMS = -v -a -trimpath -ldflags="-X 'kvas2/constant.Version=$(VERSION)' -X 'kvas2/constant.Commit=$(COMMIT)' -w -s"
 
@@ -37,4 +38,4 @@ package:
 	@cp -r ./opt/* $(PKG_DIR)/data/
 	@fakeroot sh -c "tar -C $(PKG_DIR)/control -cvf $(PKG_DIR)/control.tar ."
 	@fakeroot sh -c "tar -C $(PKG_DIR)/data -cvf $(PKG_DIR)/data.tar ."
-	@ar r $(PKG_DIR)/$(APP_NAME)_$(ARCH).ipk $(PKG_DIR)/debian-binary $(PKG_DIR)/control.tar $(PKG_DIR)/data.tar
+	@ar r $(BUILD_DIR)/$(APP_NAME)_$(ARCH).ipk $(PKG_DIR)/debian-binary $(PKG_DIR)/control.tar $(PKG_DIR)/data.tar
