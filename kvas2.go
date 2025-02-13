@@ -164,7 +164,7 @@ func (a *App) start(ctx context.Context) (err error) {
 	}
 	defer func() {
 		for _, group := range a.Groups {
-			_ = group.Disable()
+			_ = group.Destroy()
 		}
 	}()
 

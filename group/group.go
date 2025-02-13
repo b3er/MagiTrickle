@@ -86,6 +86,15 @@ func (g *Group) Disable() []error {
 	return errs
 }
 
+func (g *Group) Destroy() []error {
+	errs := g.Disable()
+	err := g.ipset.Destroy()
+	if err != nil {
+		errs = append(errs, err)
+	}
+	return errs
+}
+
 func (g *Group) Sync(records *records.Records) error {
 	now := time.Now()
 
