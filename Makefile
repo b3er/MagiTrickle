@@ -31,7 +31,7 @@ package:
 	@echo 'Architecture: $(ARCH)' >> $(PKG_DIR)/control/control
 	@echo 'Maintainer: $(APP_MAINTAINER)' >> $(PKG_DIR)/control/control
 	@echo 'Description: $(APP_DESCRIPTION)' >> $(PKG_DIR)/control/control
-	@echo 'Section: base' >> $(PKG_DIR)/control/control
+	@echo 'Section: net' >> $(PKG_DIR)/control/control
 	@echo 'Priority: optional' >> $(PKG_DIR)/control/control
 	@echo 'Depends: libc, iptables, socat' >> $(PKG_DIR)/control/control
 	@mkdir -p $(PKG_DIR)/data/opt/usr/bin
