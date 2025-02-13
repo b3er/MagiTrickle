@@ -36,6 +36,6 @@ package:
 	@echo 'Depends: libc, iptables, socat' >> $(PKG_DIR)/control/control
 	@mkdir -p $(PKG_DIR)/data/opt/usr/bin
 	@cp -r ./opt $(PKG_DIR)/data/
-	@fakeroot sh -c "tar -C $(PKG_DIR)/control -cvf $(PKG_DIR)/control.tar ."
-	@fakeroot sh -c "tar -C $(PKG_DIR)/data -cvf $(PKG_DIR)/data.tar ."
-	@ar r $(BUILD_DIR)/$(APP_NAME)_$(ARCH).ipk $(PKG_DIR)/debian-binary $(PKG_DIR)/control.tar $(PKG_DIR)/data.tar
+	@fakeroot sh -c "tar -C $(PKG_DIR)/control -czvf $(PKG_DIR)/control.tar.gz ."
+	@fakeroot sh -c "tar -C $(PKG_DIR)/data -czvf $(PKG_DIR)/data.tar.gz ."
+	@ar r $(BUILD_DIR)/$(APP_NAME)_$(ARCH).ipk $(PKG_DIR)/debian-binary $(PKG_DIR)/control.tar.gz $(PKG_DIR)/data.tar.gz
