@@ -1,4 +1,4 @@
-module kvas2-go
+module kvas2
 
 go 1.21
 

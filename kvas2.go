@@ -1,4 +1,4 @@
-package main
+package kvas2
 
 import (
 	"context"
@@ -12,11 +12,11 @@ import (
 	"strings"
 	"time"
 
-	"kvas2-go/dns-mitm-proxy"
-	"kvas2-go/group"
-	"kvas2-go/models"
-	"kvas2-go/netfilter-helper"
-	"kvas2-go/records"
+	"kvas2/dns-mitm-proxy"
+	"kvas2/group"
+	"kvas2/models"
+	"kvas2/netfilter-helper"
+	"kvas2/records"
 
 	"github.com/miekg/dns"
 	"github.com/rs/zerolog/log"
@@ -63,14 +63,13 @@ type App struct {
 }
 
 func (a *App) handleLink(event netlink.LinkUpdate) {
-	log.Trace().
-		Str("interface", event.Link.Attrs().Name).
-		Str("operstatestr", event.Attrs().OperState.String()).
-		Int("operstate", int(event.Attrs().OperState)).
-		Int("change", int(event.Change)).
-		Msg("interface event")
+
 	switch event.Change {
 	case 0x00000001:
+		log.Trace().
+			Str("interface", event.Link.Attrs().Name).
+			Int("change", int(event.Change)).
+			Msg("interface event")
 		ifaceName := event.Link.Attrs().Name
 		for _, group := range a.Groups {
 			if group.Interface != ifaceName {
@@ -172,7 +171,7 @@ func (a *App) start(ctx context.Context) (err error) {
 	/*
 		Socket (for netfilter.d events)
 	*/
-	socketPath := "/opt/var/run/kvas2-go.sock"
+	socketPath := "/opt/var/run/kvas2.sock"
 	err = os.Remove(socketPath)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("failed to remove existed UNIX socket: %w", err)
@@ -302,7 +301,7 @@ func (a *App) AddGroup(groupModel *models.Group) error {
 	}
 	a.Groups = append(a.Groups, grp)
 
-	log.Trace().Str("id", grp.ID.String()).Str("name", grp.Name).Msg("added group")
+	log.Debug().Str("id", grp.ID.String()).Str("name", grp.Name).Msg("added group")
 
 	return grp.Sync(a.Records)
 }
@@ -326,11 +325,20 @@ func (a *App) ListInterfaces() ([]net.Interface, error) {
 	return interfaceNames, nil
 }
 
-func (a *App) processARecord(aRecord dns.A) {
+func (a *App) processARecord(aRecord dns.A, clientAddr net.Addr, network *string) {
+	var clientAddrStr, networkStr string
+	if clientAddr != nil {
+		clientAddrStr = clientAddr.String()
+	}
+	if network != nil {
+		networkStr = *network
+	}
 	log.Trace().
 		Str("name", aRecord.Hdr.Name).
 		Str("address", aRecord.A.String()).
 		Int("ttl", int(aRecord.Hdr.Ttl)).
+		Str("clientAddr", clientAddrStr).
+		Str("network", networkStr).
 		Msg("processing a record")
 
 	ttlDuration := aRecord.Hdr.Ttl + a.Config.AdditionalTTL
@@ -356,11 +364,10 @@ func (a *App) processARecord(aRecord dns.A) {
 						Err(err).
 						Msg("failed to add address")
 				} else {
-					log.Trace().
+					log.Debug().
 						Str("address", aRecord.A.String()).
 						Str("aRecordDomain", aRecord.Hdr.Name).
 						Str("cNameDomain", name).
-						Err(err).
 						Msg("add address")
 				}
 				break Rule
@@ -369,11 +376,20 @@ func (a *App) processARecord(aRecord dns.A) {
 	}
 }
 
-func (a *App) processCNameRecord(cNameRecord dns.CNAME) {
+func (a *App) processCNameRecord(cNameRecord dns.CNAME, clientAddr net.Addr, network *string) {
+	var clientAddrStr, networkStr string
+	if clientAddr != nil {
+		clientAddrStr = clientAddr.String()
+	}
+	if network != nil {
+		networkStr = *network
+	}
 	log.Trace().
 		Str("name", cNameRecord.Hdr.Name).
 		Str("cname", cNameRecord.Target).
 		Int("ttl", int(cNameRecord.Hdr.Ttl)).
+		Str("clientAddr", clientAddrStr).
+		Str("network", networkStr).
 		Msg("processing cname record")
 
 	ttlDuration := cNameRecord.Hdr.Ttl + a.Config.AdditionalTTL
@@ -402,10 +418,9 @@ func (a *App) processCNameRecord(cNameRecord dns.CNAME) {
 							Err(err).
 							Msg("failed to add address")
 					} else {
-						log.Trace().
+						log.Debug().
 							Str("address", aRecord.Address.String()).
 							Str("cNameDomain", name).
-							Err(err).
 							Msg("add address")
 					}
 				}
@@ -415,19 +430,19 @@ func (a *App) processCNameRecord(cNameRecord dns.CNAME) {
 	}
 }
 
-func (a *App) handleRecord(rr dns.RR) {
+func (a *App) handleRecord(rr dns.RR, clientAddr net.Addr, network *string) {
 	switch v := rr.(type) {
 	case *dns.A:
-		a.processARecord(*v)
+		a.processARecord(*v, clientAddr, network)
 	case *dns.CNAME:
-		a.processCNameRecord(*v)
+		a.processCNameRecord(*v, clientAddr, network)
 	default:
 	}
 }
 
-func (a *App) handleMessage(msg dns.Msg) {
+func (a *App) handleMessage(msg dns.Msg, clientAddr net.Addr, network *string) {
 	for _, rr := range msg.Answer {
-		a.handleRecord(rr)
+		a.handleRecord(rr, clientAddr, network)
 	}
 }
 
@@ -510,7 +525,7 @@ func New(config models.ConfigFile) (*App, error) {
 		}
 		respMsg.Answer = respMsg.Answer[:idx]
 
-		app.handleMessage(respMsg)
+		app.handleMessage(respMsg, clientAddr, &network)
 
 		return &respMsg, nil
 	}

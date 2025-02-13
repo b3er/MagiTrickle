@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    run-name: Build ${{ matrix.arch }}
+    name: Build ${{ matrix.arch }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -46,33 +46,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y fakeroot
 
-      - name: Build binary
+      - name: Build and Package
         run: |
-          go mod tidy
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} GOMIPS=${{ matrix.gomips }} GOARM=${{ matrix.goarm }} go build -o kvas2-${{ matrix.arch }} -v -a -trimpath -ldflags="-w -s" .
-
-      - name: Package as OPKG
-        run: |
-          mkdir -p build/${{ matrix.arch }}/control
-          echo 'Package: kvas2' > build/${{ matrix.arch }}/control/control
-          echo 'Version: 0.0.1' >> build/${{ matrix.arch }}/control/control
-          echo 'Architecture: ${{ matrix.arch }}' >> build/${{ matrix.arch }}/control/control
-          echo 'Maintainer: Vladimir Avtsenov <vladimir.lsk.cool@gmail.com>' >> build/${{ matrix.arch }}/control/control
-          echo 'Description: kvas2' >> build/${{ matrix.arch }}/control/control
-          echo 'Section: base' >> build/${{ matrix.arch }}/control/control
-          echo 'Priority: optional' >> build/${{ matrix.arch }}/control/control
-          echo 'Depends: libc, iptables, socat' >> build/${{ matrix.arch }}/control/control
-          mkdir -p build/${{ matrix.arch }}/data/opt/usr/bin
-          cp kvas2-${{ matrix.arch }} build/${{ matrix.arch }}/data/opt/usr/bin/kvas2
-          cp -r opt build/${{ matrix.arch }}/data/
-          chmod +x build/${{ matrix.arch }}/data/opt/usr/bin/kvas2
-          fakeroot sh -c "tar -C build/${{ matrix.arch }}/control -cvf build/${{ matrix.arch }}/control.tar ."
-          fakeroot sh -c "tar -C build/${{ matrix.arch }}/data -cvf build/${{ matrix.arch }}/data.tar ."
-          echo '2.0' > build/${{ matrix.arch }}/debian-binary
-          ar r build/kvas2_${{ matrix.arch }}.ipk build/${{ matrix.arch }}/debian-binary build/${{ matrix.arch }}/control.tar build/${{ matrix.arch }}/data.tar
+          ARCH=${{ matrix.arch }} GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} GOMIPS=${{ matrix.gomips }} GOARM=${{ matrix.goarm }} make
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
           name: kvas2_${{ matrix.arch }}.ipk
-          path: build/kvas2_${{ matrix.arch }}.ipk
+          path: .build/kvas2_${{ matrix.arch }}.ipk

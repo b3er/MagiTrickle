@@ -6,6 +6,7 @@ type ConfigFile struct {
 }
 
 type AppConfig struct {
+	LogLevel               string `yaml:"logLevel"`
 	AdditionalTTL          uint32 `yaml:"additionalTTL"`
 	ChainPrefix            string `yaml:"chainPrefix"`
 	IPSetPrefix            string `yaml:"ipsetPrefix"`

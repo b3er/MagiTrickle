@@ -5,9 +5,9 @@ import (
 	"net"
 	"time"
 
-	"kvas2-go/models"
-	"kvas2-go/netfilter-helper"
-	"kvas2-go/records"
+	"kvas2/models"
+	"kvas2/netfilter-helper"
+	"kvas2/records"
 
 	"github.com/coreos/go-iptables/iptables"
 	"github.com/rs/zerolog/log"

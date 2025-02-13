@@ -1,5 +1,5 @@
 #!/bin/sh
-SOCKET_PATH="/opt/var/run/kvas2-go.sock"
+SOCKET_PATH="/opt/var/run/kvas2.sock"
 if [ ! -S "$SOCKET_PATH" ]; then
     exit
 fi
