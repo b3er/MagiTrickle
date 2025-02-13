@@ -63,3 +63,4 @@ jobs:
           name: kvas2_${{ matrix.arch }}.ipk.zip
           path: .build/kvas2_${{ matrix.arch }}.ipk
           if-no-files-found: error
+          compression-level: 0
