@@ -15,7 +15,7 @@ GOARM ?=
 
 BUILD_DIR = ./.build
 PKG_DIR = $(BUILD_DIR)/$(ARCH)
-BIN_DIR = $(PKG_DIR)/data/opt/usr/bin
+BIN_DIR = $(PKG_DIR)/data/opt/bin
 PARAMS = -v -a -trimpath -ldflags="-X 'kvas2/constant.Version=$(VERSION)' -X 'kvas2/constant.Commit=$(COMMIT)' -w -s"
 
 all: build_daemon package
