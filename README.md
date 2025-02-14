@@ -27,7 +27,7 @@ MagiTrickle - Маршрутизация трафика на основе DNS з
 
 1. Устанавливаем пакет:
 ```bash
-opkg install magitrickle_0.1.0-3_mipsel-3.4.ipk
+opkg install magitrickle_<version>_<arch>.ipk
 ```
 2. Копируем конфиг:
 ```bash
