@@ -2,16 +2,16 @@ package models
 
 import "testing"
 
-func TestDomain_IsMatch_Plaintext(t *testing.T) {
+func TestDomain_IsMatch_Domain(t *testing.T) {
 	rule := &Rule{
-		Type: "plaintext",
+		Type: "domain",
 		Rule: "example.com",
 	}
 	if !rule.IsMatch("example.com") {
-		t.Fatal("&Rule{Type: \"plaintext\", Rule: \"example.com\"}.IsMatch(\"example.com\") returns false")
+		t.Fatal("&Rule{Type: \"domain\", Rule: \"example.com\"}.IsMatch(\"example.com\") returns false")
 	}
 	if rule.IsMatch("noexample.com") {
-		t.Fatal("&Rule{Type: \"plaintext\", Rule: \"example.com\"}.IsMatch(\"noexample.com\") returns true")
+		t.Fatal("&Rule{Type: \"domain\", Rule: \"example.com\"}.IsMatch(\"noexample.com\") returns true")
 	}
 }
 
