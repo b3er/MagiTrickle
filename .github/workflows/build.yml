@@ -61,8 +61,8 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
-          name: magitrickle_${{ matrix.arch }}.ipk.zip
-          path: .build/magitrickle_${{ matrix.arch }}.ipk
+          name: magitrickle_${{ matrix.arch }}
+          path: .build/magitrickle_*_${{ matrix.arch }}.ipk
           if-no-files-found: error
           compression-level: 0
 
@@ -73,5 +73,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: |-
-            .build/*.ipk
+            .build/magitrickle_*_${{ matrix.arch }}.ipk
           api_key: '${{secrets.RELEASE_TOKEN}}'
