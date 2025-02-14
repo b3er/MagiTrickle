@@ -5,9 +5,9 @@ import (
 	"net"
 	"time"
 
-	"kvas2/models"
-	"kvas2/netfilter-helper"
-	"kvas2/records"
+	"magitrickle/models"
+	"magitrickle/netfilter-helper"
+	"magitrickle/records"
 
 	"github.com/coreos/go-iptables/iptables"
 	"github.com/rs/zerolog/log"

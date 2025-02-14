@@ -1,4 +1,4 @@
-module kvas2
+module magitrickle
 
 go 1.21
 

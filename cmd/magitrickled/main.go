@@ -10,18 +10,18 @@ import (
 	"sync"
 	"syscall"
 
-	"kvas2"
-	"kvas2/constant"
-	"kvas2/models"
+	"magitrickle"
+	"magitrickle/constant"
+	"magitrickle/models"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/yaml.v3"
 )
 
-const cfgFolderLocation = "/opt/var/lib/kvas2"
+const cfgFolderLocation = "/opt/var/lib/magitrickle"
 const cfgFileLocation = cfgFolderLocation + "/config.yaml"
-const pidFileLocation = "/opt/var/run/kvas2.pid"
+const pidFileLocation = "/opt/var/run/magitrickle.pid"
 
 func checkPIDFile() error {
 	data, err := os.ReadFile(pidFileLocation)
@@ -59,10 +59,10 @@ func main() {
 	log.Info().
 		Str("version", constant.Version).
 		Str("commit", constant.Commit).
-		Msg("starting kvas2 daemon")
+		Msg("starting MagiTrickle daemon")
 
 	if err := checkPIDFile(); err != nil {
-		log.Fatal().Err(err).Msg("failed to start kvas2 daemon")
+		log.Fatal().Err(err).Msg("failed to start MagiTrickle daemon")
 	}
 
 	if err := createPIDFile(); err != nil {
@@ -78,7 +78,7 @@ func main() {
 		}
 		cfg = models.Config{
 			ConfigVersion: "0.1.0",
-			App:           kvas2.DefaultAppConfig,
+			App:           magitrickle.DefaultAppConfig,
 		}
 		out, err := yaml.Marshal(cfg)
 		if err != nil {
@@ -122,7 +122,7 @@ func main() {
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	}
 
-	app := kvas2.New()
+	app := magitrickle.New()
 	err = app.ImportConfig(cfg)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to import config")

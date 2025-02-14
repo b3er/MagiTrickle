@@ -1,4 +1,4 @@
-package kvas2
+package magitrickle
 
 import (
 	"context"
@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"kvas2/dns-mitm-proxy"
-	"kvas2/group"
-	"kvas2/models"
-	"kvas2/netfilter-helper"
-	"kvas2/records"
+	"magitrickle/dns-mitm-proxy"
+	"magitrickle/group"
+	"magitrickle/models"
+	"magitrickle/netfilter-helper"
+	"magitrickle/records"
 
 	"github.com/miekg/dns"
 	"github.com/rs/zerolog/log"
@@ -38,10 +38,10 @@ var DefaultAppConfig = models.App{
 	},
 	Netfilter: models.Netfilter{
 		IPTables: models.IPTables{
-			ChainPrefix: "KVAS2_",
+			ChainPrefix: "MT_",
 		},
 		IPSet: models.IPSet{
-			TablePrefix:   "kvas2_",
+			TablePrefix:   "mt_",
 			AdditionalTTL: 3600,
 		},
 	},
@@ -254,7 +254,7 @@ func (a *App) start(ctx context.Context) (err error) {
 	/*
 		Socket (for netfilter.d events)
 	*/
-	socketPath := "/opt/var/run/kvas2.sock"
+	socketPath := "/opt/var/run/magitrickle.sock"
 	err = os.Remove(socketPath)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("failed to remove existed UNIX socket: %w", err)

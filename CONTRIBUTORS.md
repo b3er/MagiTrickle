@@ -1,5 +1,5 @@
-# Contributors
+# Коллабораторы
 
-## Consultants
+## Консультация
 
-- **nesteroff561** - [GitHub](https://github.com/nesteroff561) - "Help with understanding `iptables`"
+- **nesteroff561** ([GitHub](https://github.com/nesteroff561)) - Помощь с `iptables`

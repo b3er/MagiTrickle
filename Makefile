@@ -1,4 +1,4 @@
-APP_NAME = kvas2
+APP_NAME = magitrickle
 APP_DESCRIPTION = DNS-based routing application
 APP_MAINTAINER = Vladimir Avtsenov <vladimir.lsk.cool@gmail.com>
 
@@ -16,12 +16,12 @@ GOARM ?=
 BUILD_DIR = ./.build
 PKG_DIR = $(BUILD_DIR)/$(ARCH)
 BIN_DIR = $(PKG_DIR)/data/opt/bin
-PARAMS = -v -a -trimpath -ldflags="-X 'kvas2/constant.Version=$(VERSION)' -X 'kvas2/constant.Commit=$(COMMIT)' -w -s"
+PARAMS = -v -a -trimpath -ldflags="-X 'magitrickle/constant.Version=$(VERSION)' -X 'magitrickle/constant.Commit=$(COMMIT)' -w -s"
 
 all: build_daemon package
 
 build_daemon:
-	GOOS=$(GOOS) GOARCH=$(GOARCH) GOMIPS=$(GOMIPS) GOARM=$(GOARM) go build $(PARAMS) -o $(BIN_DIR)/kvas2d ./cmd/kvas2d
+	GOOS=$(GOOS) GOARCH=$(GOARCH) GOMIPS=$(GOMIPS) GOARM=$(GOARM) go build $(PARAMS) -o $(BIN_DIR)/magitrickled ./cmd/magitrickled
 
 package:
 	@mkdir -p $(PKG_DIR)/control

@@ -12,9 +12,9 @@ app:
         disableDropAAAA: false
     netfilter:
         iptables:
-            chainPrefix: KVAS2_
+            chainPrefix: MT_
         ipset:
-            tablePrefix: kvas2_
+            tablePrefix: mt_
             additionalTTL: 3600
     link:
         - br0
