@@ -11,7 +11,7 @@ ifeq ($(shell git rev-parse --abbrev-ref HEAD), main)
 	OPKG_REVISION = -$(shell expr $(COMMITS_SINCE_TAG) + 1)
 endif
 
-ARCH ?= mipsel
+ARCH ?= mipsel-3.4
 GOOS ?= linux
 GOARCH ?= mipsle
 GOMIPS ?= softfloat
