@@ -112,6 +112,8 @@ func (r *IPSetToLink) insertIPRule() error {
 	}
 	r.ipRule = rule
 
+	log.Trace().Int("table", r.table).Int("mark", int(r.mark)).Msg("using ip table and mark")
+
 	return nil
 }
 
