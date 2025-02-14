@@ -8,7 +8,7 @@ app:
             address: 127.0.0.1
             port: 53
         disableRemap53: false
-        disableDropPTR: false
+        disableFakePTR: false
         disableDropAAAA: false
     netfilter:
         iptables:
