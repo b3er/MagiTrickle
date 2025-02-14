@@ -18,7 +18,10 @@ PKG_DIR = $(BUILD_DIR)/$(ARCH)
 BIN_DIR = $(PKG_DIR)/data/opt/bin
 PARAMS = -v -a -trimpath -ldflags="-X 'magitrickle/constant.Version=$(VERSION)' -X 'magitrickle/constant.Commit=$(COMMIT)' -w -s"
 
-all: build_daemon package
+all: clear build_daemon package
+
+clear:
+	rm -rf $(PKG_DIR)
 
 build_daemon:
 	GOOS=$(GOOS) GOARCH=$(GOARCH) GOMIPS=$(GOMIPS) GOARM=$(GOARM) go build $(PARAMS) -o $(BIN_DIR)/magitrickled ./cmd/magitrickled
