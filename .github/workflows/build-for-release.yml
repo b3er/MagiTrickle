@@ -1,9 +1,6 @@
 name: Build and Package OPKG
 
 on:
-  push:
-    branches-ignore:
-      - 'refs/tags/*'
   release:
     types: [published]
 
@@ -58,16 +55,7 @@ jobs:
         run: |
           ARCH=${{ matrix.arch }} GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} GOMIPS=${{ matrix.gomips }} GOARM=${{ matrix.goarm }} make
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: magitrickle_${{ matrix.arch }}
-          path: .build/magitrickle_*_${{ matrix.arch }}.ipk
-          if-no-files-found: error
-          compression-level: 0
-
       - name: Upload asset to release
-        if: ${{ github.event_name == 'release' }}
         uses: https://gitea.com/actions/release-action@main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
