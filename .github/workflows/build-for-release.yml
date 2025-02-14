@@ -1,9 +1,8 @@
 name: Build and Package OPKG
 
 on:
-  push:
-    branches:
-      - main
+  release:
+    types: [published]
 
 jobs:
   build:
@@ -43,10 +42,9 @@ jobs:
           fetch-tags: true
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v3
         with:
           go-version: '1.21'
-          cache: false
 
       - name: Install dependencies
         run: |
@@ -57,10 +55,11 @@ jobs:
         run: |
           ARCH=${{ matrix.arch }} GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} GOMIPS=${{ matrix.gomips }} GOARM=${{ matrix.goarm }} make
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
+      - name: Upload asset to release
+        uses: https://gitea.com/actions/release-action@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: magitrickle_${{ matrix.arch }}.ipk.zip
-          path: .build/magitrickle_${{ matrix.arch }}.ipk
-          if-no-files-found: error
-          compression-level: 0
+          files: |-
+            .build/magitrickle_*_${{ matrix.arch }}.ipk
+          api_key: '${{secrets.RELEASE_TOKEN}}'
