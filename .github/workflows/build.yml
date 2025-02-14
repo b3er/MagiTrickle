@@ -2,6 +2,8 @@ name: Build and Package OPKG
 
 on:
   push:
+  release:
+    types: [published]
 
 jobs:
   build:
@@ -61,3 +63,13 @@ jobs:
           path: .build/magitrickle_${{ matrix.arch }}.ipk
           if-no-files-found: error
           compression-level: 0
+
+      - name: Upload asset to release
+        if: ${{ github.event_name == 'release' }}
+        uses: https://gitea.com/actions/release-action@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          files: |-
+            .build/*.ipk
+          api_key: '${{secrets.RELEASE_TOKEN}}'
