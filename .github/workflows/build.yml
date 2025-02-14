@@ -2,8 +2,6 @@ name: Build and Package OPKG
 
 on:
   push:
-    branches:
-      - main
 
 jobs:
   build:
