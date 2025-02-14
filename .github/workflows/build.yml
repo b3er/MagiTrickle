@@ -2,6 +2,8 @@ name: Build and Package OPKG
 
 on:
   push:
+    branches-ignore:
+      - 'refs/tags/*'
   release:
     types: [published]
 
