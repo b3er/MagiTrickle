@@ -21,7 +21,8 @@ type PortRemap struct {
 
 func (r *PortRemap) insertIPTablesRules(table string) error {
 	if table == "" || table == "nat" {
-		err := r.IPTables.NewChain("nat", r.ChainName)
+		preroutingChain := r.ChainName + "_PRR"
+		err := r.IPTables.NewChain("nat", preroutingChain)
 		if err != nil {
 			// If not "AlreadyExists"
 			if eerr, eok := err.(*iptables.Error); !(eok && eerr.ExitStatus() == 1) {
@@ -34,18 +35,62 @@ func (r *PortRemap) insertIPTablesRules(table string) error {
 				continue
 			}
 
-			for _, iptablesArgs := range [][]string{
-				{"-p", "tcp", "-d", addr.IP.String(), "--dport", strconv.Itoa(int(r.From)), "-j", "DNAT", "--to-destination", fmt.Sprintf(":%d", r.To)},
-				{"-p", "udp", "-d", addr.IP.String(), "--dport", strconv.Itoa(int(r.From)), "-j", "DNAT", "--to-destination", fmt.Sprintf(":%d", r.To)},
-			} {
-				err = r.IPTables.AppendUnique("nat", r.ChainName, iptablesArgs...)
-				if err != nil {
-					return fmt.Errorf("failed to append rule: %w", err)
+			if r.IPTables.Proto() != iptables.ProtocolIPv6 {
+				for _, iptablesArgs := range [][]string{
+					{"-p", "tcp", "-d", addr.IP.String(), "--dport", fmt.Sprintf("%d", r.From), "-j", "REDIRECT", "--to-port", fmt.Sprintf("%d", r.To)},
+					{"-p", "udp", "-d", addr.IP.String(), "--dport", fmt.Sprintf("%d", r.From), "-j", "REDIRECT", "--to-port", fmt.Sprintf("%d", r.To)},
+				} {
+					err = r.IPTables.AppendUnique("nat", preroutingChain, iptablesArgs...)
+					if err != nil {
+						return fmt.Errorf("failed to append rule: %w", err)
+					}
+				}
+			} else {
+				for _, iptablesArgs := range [][]string{
+					{"-p", "tcp", "-d", addr.IP.String(), "--dport", strconv.Itoa(int(r.From)), "-j", "DNAT", "--to-destination", fmt.Sprintf(":%d", r.To)},
+					{"-p", "udp", "-d", addr.IP.String(), "--dport", strconv.Itoa(int(r.From)), "-j", "DNAT", "--to-destination", fmt.Sprintf(":%d", r.To)},
+				} {
+					err = r.IPTables.AppendUnique("nat", preroutingChain, iptablesArgs...)
+					if err != nil {
+						return fmt.Errorf("failed to append rule: %w", err)
+					}
 				}
 			}
 		}
 
-		err = r.IPTables.InsertUnique("nat", "PREROUTING", 1, "-j", r.ChainName)
+		err = r.IPTables.InsertUnique("nat", "PREROUTING", 1, "-j", preroutingChain)
+		if err != nil {
+			return fmt.Errorf("failed to linking chain: %w", err)
+		}
+
+		postroutingChain := r.ChainName + "_POR"
+		err = r.IPTables.NewChain("nat", postroutingChain)
+		if err != nil {
+			// If not "AlreadyExists"
+			if eerr, eok := err.(*iptables.Error); !(eok && eerr.ExitStatus() == 1) {
+				return fmt.Errorf("failed to create chain: %w", err)
+			}
+		}
+
+		for _, addr := range r.Addresses {
+			if !((r.IPTables.Proto() == iptables.ProtocolIPv4 && len(addr.IP) == net.IPv4len) || (r.IPTables.Proto() == iptables.ProtocolIPv6 && len(addr.IP) == net.IPv6len)) {
+				continue
+			}
+
+			if r.IPTables.Proto() == iptables.ProtocolIPv4 {
+				for _, iptablesArgs := range [][]string{
+					{"-p", "tcp", "-d", addr.IP.String(), "--sport", strconv.Itoa(int(r.To)), "-j", "SNAT", "--to-source", addr.IP.String()},
+					{"-p", "udp", "-d", addr.IP.String(), "--sport", strconv.Itoa(int(r.To)), "-j", "SNAT", "--to-source", addr.IP.String()},
+				} {
+					err = r.IPTables.AppendUnique("nat", postroutingChain, iptablesArgs...)
+					if err != nil {
+						return fmt.Errorf("failed to append rule: %w", err)
+					}
+				}
+			}
+		}
+
+		err = r.IPTables.InsertUnique("nat", "POSTROUTING", 1, "-j", postroutingChain)
 		if err != nil {
 			return fmt.Errorf("failed to linking chain: %w", err)
 		}
@@ -57,7 +102,14 @@ func (r *PortRemap) insertIPTablesRules(table string) error {
 func (r *PortRemap) deleteIPTablesRules() []error {
 	var errs []error
 
-	err := r.IPTables.DeleteIfExists("nat", "PREROUTING", "-j", r.ChainName)
+	preroutingChain := r.ChainName + "_PRR"
+	err := r.IPTables.DeleteIfExists("nat", "PREROUTING", "-j", preroutingChain)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("failed to unlinking chain: %w", err))
+	}
+
+	postroutingChain := r.ChainName + "_POR"
+	err = r.IPTables.DeleteIfExists("nat", "POSTROUTING", "-j", postroutingChain)
 	if err != nil {
 		errs = append(errs, fmt.Errorf("failed to unlinking chain: %w", err))
 	}
