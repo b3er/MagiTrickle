@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/coreos/go-iptables/iptables"
+	"github.com/rs/zerolog/log"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
 )
@@ -133,7 +134,7 @@ func (r *IPSetToLink) insertIPRoute() error {
 	if err != nil {
 		// TODO: Нормально отлавливать ошибку
 		if err.Error() == "Link not found" {
-			// TODO: Логи
+			log.Debug().Str("iface", r.IfaceName).Msg("interface not found (waiting for it to exist)")
 			return nil
 		}
 		return fmt.Errorf("error while getting interface: %w", err)

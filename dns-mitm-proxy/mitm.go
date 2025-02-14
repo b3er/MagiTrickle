@@ -12,33 +12,33 @@ import (
 )
 
 type DNSMITMProxy struct {
-	TargetDNSServerAddress string
-	TargetDNSServerPort    uint16
+	UpstreamDNSAddress string
+	UpstreamDNSPort    uint16
 
 	RequestHook  func(net.Addr, dns.Msg, string) (*dns.Msg, *dns.Msg, error)
 	ResponseHook func(net.Addr, dns.Msg, dns.Msg, string) (*dns.Msg, error)
 }
 
 func (p DNSMITMProxy) requestDNS(req []byte, network string) ([]byte, error) {
-	serverConn, err := net.Dial(network, fmt.Sprintf("%s:%d", p.TargetDNSServerAddress, p.TargetDNSServerPort))
+	upstreamConn, err := net.Dial(network, fmt.Sprintf("%s:%d", p.UpstreamDNSAddress, p.UpstreamDNSPort))
 	if err != nil {
-		return nil, fmt.Errorf("failed to dial DNS server: %w", err)
+		return nil, fmt.Errorf("failed to dial DNS upstream: %w", err)
 	}
-	defer func() { _ = serverConn.Close() }()
+	defer func() { _ = upstreamConn.Close() }()
 
-	err = serverConn.SetDeadline(time.Now().Add(time.Second * 5))
+	err = upstreamConn.SetDeadline(time.Now().Add(time.Second * 5))
 	if err != nil {
 		return nil, fmt.Errorf("failed to set deadline: %w", err)
 	}
 
 	if network == "tcp" {
-		err = binary.Write(serverConn, binary.BigEndian, uint16(len(req)))
+		err = binary.Write(upstreamConn, binary.BigEndian, uint16(len(req)))
 		if err != nil {
 			return nil, fmt.Errorf("failed to write length: %w", err)
 		}
 	}
 
-	n, err := serverConn.Write(req)
+	n, err := upstreamConn.Write(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to write request: %w", err)
 	}
@@ -46,7 +46,7 @@ func (p DNSMITMProxy) requestDNS(req []byte, network string) ([]byte, error) {
 	var resp []byte
 	if network == "tcp" {
 		var respLen uint16
-		err = binary.Read(serverConn, binary.BigEndian, &respLen)
+		err = binary.Read(upstreamConn, binary.BigEndian, &respLen)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read length: %w", err)
 		}
@@ -55,7 +55,7 @@ func (p DNSMITMProxy) requestDNS(req []byte, network string) ([]byte, error) {
 		resp = make([]byte, 512)
 	}
 
-	n, err = serverConn.Read(resp)
+	n, err = upstreamConn.Read(resp)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
@@ -211,11 +211,5 @@ func (p DNSMITMProxy) ListenUDP(ctx context.Context, addr *net.UDPAddr) error {
 				return
 			}
 		}(conn, clientAddr)
-	}
-}
-
-func New() *DNSMITMProxy {
-	return &DNSMITMProxy{
-		TargetDNSServerPort: 53,
 	}
 }

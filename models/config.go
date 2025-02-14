@@ -1,17 +1,41 @@
 package models
 
-type ConfigFile struct {
-	AppConfig AppConfig `yaml:"appConfig"`
-	Groups    []Group   `yaml:"groups"`
+type Config struct {
+	ConfigVersion string  `yaml:"configVersion"`
+	App           App     `yaml:"app"`
+	Groups        []Group `yaml:"groups"`
 }
 
-type AppConfig struct {
-	LogLevel               string `yaml:"logLevel"`
-	AdditionalTTL          uint32 `yaml:"additionalTTL"`
-	ChainPrefix            string `yaml:"chainPrefix"`
-	IPSetPrefix            string `yaml:"ipsetPrefix"`
-	LinkName               string `yaml:"linkName"`
-	TargetDNSServerAddress string `yaml:"targetDNSServerAddress"`
-	TargetDNSServerPort    uint16 `yaml:"targetDNSServerPort"`
-	ListenDNSPort          uint16 `yaml:"listenDNSPort"`
+type App struct {
+	DNSProxy  DNSProxy  `yaml:"dnsProxy"`
+	Netfilter Netfilter `yaml:"netfilter"`
+	Link      []string  `yaml:"link"`
+	LogLevel  string    `yaml:"logLevel"`
+}
+
+type DNSProxy struct {
+	Host            DNSProxyServer `yaml:"host"`
+	Upstream        DNSProxyServer `yaml:"upstream"`
+	DisableRemap53  bool           `yaml:"disableRemap53"`
+	DisableFakePTR  bool           `yaml:"disableDropPTR"`
+	DisableDropAAAA bool           `yaml:"disableDropAAAA"`
+}
+
+type DNSProxyServer struct {
+	Address string `yaml:"address"`
+	Port    uint16 `yaml:"port"`
+}
+
+type Netfilter struct {
+	IPTables IPTables `yaml:"iptables"`
+	IPSet    IPSet    `yaml:"ipset"`
+}
+
+type IPTables struct {
+	ChainPrefix string `yaml:"chainPrefix"`
+}
+
+type IPSet struct {
+	TablePrefix   string `yaml:"tablePrefix"`
+	AdditionalTTL uint32 `yaml:"additionalTTL"`
 }

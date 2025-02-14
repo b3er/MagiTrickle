@@ -15,7 +15,7 @@ import (
 )
 
 type Group struct {
-	*models.Group
+	models.Group
 
 	enabled     bool
 	iptables    *iptables.IPTables
@@ -126,9 +126,14 @@ func (g *Group) Sync(records *records.Records) error {
 	}
 
 	for addr, ttl := range addresses {
-		// TODO: Check TTL
 		if _, exists := currentAddresses[addr]; exists {
-			continue
+			if currentAddresses[addr] == nil {
+				continue
+			} else {
+				if ttl < *currentAddresses[addr] {
+					continue
+				}
+			}
 		}
 		ip := net.IP(addr)
 		err = g.AddIP(ip, ttl)
@@ -182,7 +187,7 @@ func (g *Group) LinkUpdateHook(event netlink.LinkUpdate) error {
 	return g.ipsetToLink.LinkUpdateHook(event)
 }
 
-func NewGroup(group *models.Group, nh4 *netfilterHelper.NetfilterHelper, chainPrefix, ipsetNamePrefix string) (*Group, error) {
+func NewGroup(group models.Group, nh4 *netfilterHelper.NetfilterHelper, chainPrefix, ipsetNamePrefix string) (*Group, error) {
 	ipsetName := fmt.Sprintf("%s%8x", ipsetNamePrefix, group.ID)
 	ipset, err := nh4.IPSet(ipsetName)
 	if err != nil {

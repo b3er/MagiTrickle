@@ -1,11 +1,24 @@
-appConfig:
-  additionalTTL: 216000
-  chainPrefix: KVAS2_
-  ipsetPrefix: kvas2_
-  linkName: br0
-  targetDNSServerAddress: 127.0.0.1
-  targetDNSServerPort: 53
-  listenDNSPort: 3553
+configVersion: 0.1.0
+app:
+    dnsProxy:
+        host:
+            address: '[::]'
+            port: 3553
+        upstream:
+            address: 127.0.0.1
+            port: 53
+        disableRemap53: false
+        disableDropPTR: false
+        disableDropAAAA: false
+    netfilter:
+        iptables:
+            chainPrefix: KVAS2_
+        ipset:
+            tablePrefix: kvas2_
+            additionalTTL: 3600
+    link:
+        - br0
+    logLevel: info
 groups:
   - id: d663876a
     name: Example

@@ -70,30 +70,15 @@ func main() {
 	}
 	defer removePIDFile()
 
-	cfg := models.ConfigFile{}
-
+	cfg := models.Config{}
 	cfgFile, err := os.ReadFile(cfgFileLocation)
-	if err == nil {
-		err = yaml.Unmarshal(cfgFile, &cfg)
-		if err != nil {
-			log.Fatal().Err(err).Msg("failed to parse config.yaml")
-		}
-
-	} else {
+	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
 			log.Fatal().Err(err).Msg("failed to read config.yaml")
 		}
-		cfg = models.ConfigFile{
-			AppConfig: models.AppConfig{
-				LogLevel:               "info",
-				AdditionalTTL:          216000,
-				ChainPrefix:            "KVAS2_",
-				IPSetPrefix:            "kvas2_",
-				LinkName:               "br0",
-				TargetDNSServerAddress: "127.0.0.1",
-				TargetDNSServerPort:    53,
-				ListenDNSPort:          3553,
-			},
+		cfg = models.Config{
+			ConfigVersion: "0.1.0",
+			App:           kvas2.DefaultAppConfig,
 		}
 		out, err := yaml.Marshal(cfg)
 		if err != nil {
@@ -107,9 +92,14 @@ func main() {
 		if err != nil {
 			log.Fatal().Err(err).Msg("failed to save config.yaml")
 		}
+	} else {
+		err = yaml.Unmarshal(cfgFile, &cfg)
+		if err != nil {
+			log.Fatal().Err(err).Msg("failed to parse config.yaml")
+		}
 	}
 
-	switch cfg.AppConfig.LogLevel {
+	switch cfg.App.LogLevel {
 	case "trace":
 		zerolog.SetGlobalLevel(zerolog.TraceLevel)
 	case "debug":
@@ -132,18 +122,18 @@ func main() {
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	}
 
-	app, err := kvas2.New(cfg)
+	app := kvas2.New()
+	err = app.ImportConfig(cfg)
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to initialize application")
+		log.Fatal().Err(err).Msg("failed to import config")
 	}
-
-	ctx, cancel := context.WithCancel(context.Background())
 
 	log.Info().Msg("starting service")
 
 	/*
 		Starting app with graceful shutdown
 	*/
+	ctx, cancel := context.WithCancel(context.Background())
 	appResult := make(chan error)
 	go func() {
 		appResult <- app.Start(ctx)

@@ -2,13 +2,10 @@ package kvas2
 
 import (
 	"context"
-	"encoding/binary"
 	"errors"
 	"fmt"
-	"math/rand"
 	"net"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -25,37 +22,42 @@ import (
 )
 
 var (
-	ErrAlreadyRunning  = errors.New("already running")
-	ErrGroupIDConflict = errors.New("group id conflict")
-	ErrRuleIDConflict  = errors.New("rule id conflict")
+	ErrAlreadyRunning           = errors.New("already running")
+	ErrGroupIDConflict          = errors.New("group id conflict")
+	ErrRuleIDConflict           = errors.New("rule id conflict")
+	ErrConfigUnsupportedVersion = errors.New("config unsupported version")
 )
 
-func randomId() [4]byte {
-	id := make([]byte, 4)
-	binary.BigEndian.PutUint32(id, rand.Uint32())
-	return [4]byte(id)
-}
-
-type Config struct {
-	AdditionalTTL          uint32
-	ChainPrefix            string
-	IPSetPrefix            string
-	LinkName               string
-	TargetDNSServerAddress string
-	TargetDNSServerPort    uint16
-	ListenDNSPort          uint16
+var DefaultAppConfig = models.App{
+	DNSProxy: models.DNSProxy{
+		Host:            models.DNSProxyServer{Address: "[::]", Port: 3553},
+		Upstream:        models.DNSProxyServer{Address: "127.0.0.1", Port: 53},
+		DisableRemap53:  false,
+		DisableFakePTR:  false,
+		DisableDropAAAA: false,
+	},
+	Netfilter: models.Netfilter{
+		IPTables: models.IPTables{
+			ChainPrefix: "KVAS2_",
+		},
+		IPSet: models.IPSet{
+			TablePrefix:   "kvas2_",
+			AdditionalTTL: 3600,
+		},
+	},
+	Link:     []string{"br0"},
+	LogLevel: "info",
 }
 
 type App struct {
-	Config Config
+	config            models.App
+	unprocessedGroups []models.Group
 
-	DNSMITM          *dnsMitmProxy.DNSMITMProxy
-	NetfilterHelper4 *netfilterHelper.NetfilterHelper
-	NetfilterHelper6 *netfilterHelper.NetfilterHelper
-	Records          *records.Records
-	Groups           []*group.Group
-
-	Link netlink.Link
+	dnsMITM   *dnsMitmProxy.DNSMITMProxy
+	nfHelper4 *netfilterHelper.NetfilterHelper
+	nfHelper6 *netfilterHelper.NetfilterHelper
+	records   *records.Records
+	groups    []*group.Group
 
 	isRunning     bool
 	dnsOverrider4 *netfilterHelper.PortRemap
@@ -63,7 +65,6 @@ type App struct {
 }
 
 func (a *App) handleLink(event netlink.LinkUpdate) {
-
 	switch event.Change {
 	case 0x00000001:
 		log.Trace().
@@ -71,7 +72,7 @@ func (a *App) handleLink(event netlink.LinkUpdate) {
 			Int("change", int(event.Change)).
 			Msg("interface event")
 		ifaceName := event.Link.Attrs().Name
-		for _, group := range a.Groups {
+		for _, group := range a.groups {
 			if group.Interface != ifaceName {
 				continue
 			}
@@ -98,6 +99,72 @@ func (a *App) handleLink(event netlink.LinkUpdate) {
 }
 
 func (a *App) start(ctx context.Context) (err error) {
+	a.dnsMITM = &dnsMitmProxy.DNSMITMProxy{
+		UpstreamDNSAddress: a.config.DNSProxy.Upstream.Address,
+		UpstreamDNSPort:    a.config.DNSProxy.Upstream.Port,
+		RequestHook: func(clientAddr net.Addr, reqMsg dns.Msg, network string) (*dns.Msg, *dns.Msg, error) {
+			if a.config.DNSProxy.DisableFakePTR {
+				return nil, nil, nil
+			}
+
+			// TODO: Проверить на интерфейс
+			if len(reqMsg.Question) == 1 && reqMsg.Question[0].Qtype == dns.TypePTR {
+				respMsg := &dns.Msg{
+					MsgHdr: dns.MsgHdr{
+						Id:                 reqMsg.Id,
+						Response:           true,
+						RecursionAvailable: true,
+						Rcode:              dns.RcodeNameError,
+					},
+					Question: reqMsg.Question,
+				}
+				return nil, respMsg, nil
+			}
+
+			return nil, nil, nil
+		},
+		ResponseHook: func(clientAddr net.Addr, reqMsg dns.Msg, respMsg dns.Msg, network string) (*dns.Msg, error) {
+			defer a.handleMessage(respMsg, clientAddr, &network)
+
+			if a.config.DNSProxy.DisableDropAAAA {
+				return nil, nil
+			}
+
+			var idx int
+			for _, answer := range respMsg.Answer {
+				if answer.Header().Rrtype == dns.TypeAAAA {
+					continue
+				}
+				respMsg.Answer[idx] = answer
+				idx++
+			}
+			respMsg.Answer = respMsg.Answer[:idx]
+
+			return &respMsg, nil
+		},
+	}
+	a.records = records.New()
+
+	nh4, err := netfilterHelper.New(false)
+	if err != nil {
+		return fmt.Errorf("netfilter helper init fail: %w", err)
+	}
+	err = nh4.CleanIPTables(a.config.Netfilter.IPTables.ChainPrefix)
+	if err != nil {
+		return fmt.Errorf("failed to clear iptables: %w", err)
+	}
+	a.nfHelper4 = nh4
+
+	nh6, err := netfilterHelper.New(true)
+	if err != nil {
+		return fmt.Errorf("netfilter helper init fail: %w", err)
+	}
+	err = nh6.CleanIPTables(a.config.Netfilter.IPTables.ChainPrefix)
+	if err != nil {
+		return fmt.Errorf("failed to clear iptables: %w", err)
+	}
+	a.nfHelper6 = nh6
+
 	newCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -108,12 +175,12 @@ func (a *App) start(ctx context.Context) (err error) {
 	*/
 
 	go func() {
-		addr, err := net.ResolveUDPAddr("udp", "[::]:"+strconv.Itoa(int(a.Config.ListenDNSPort)))
+		addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", a.config.DNSProxy.Host.Address, a.config.DNSProxy.Host.Port))
 		if err != nil {
 			errChan <- fmt.Errorf("failed to resolve udp address: %v", err)
 			return
 		}
-		err = a.DNSMITM.ListenUDP(newCtx, addr)
+		err = a.dnsMITM.ListenUDP(newCtx, addr)
 		if err != nil {
 			errChan <- fmt.Errorf("failed to serve DNS UDP proxy: %v", err)
 			return
@@ -121,49 +188,65 @@ func (a *App) start(ctx context.Context) (err error) {
 	}()
 
 	go func() {
-		addr, err := net.ResolveTCPAddr("tcp", "[::]:"+strconv.Itoa(int(a.Config.ListenDNSPort)))
+		addr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", a.config.DNSProxy.Host.Address, a.config.DNSProxy.Host.Port))
 		if err != nil {
 			errChan <- fmt.Errorf("failed to resolve tcp address: %v", err)
 			return
 		}
-		err = a.DNSMITM.ListenTCP(newCtx, addr)
+		err = a.dnsMITM.ListenTCP(newCtx, addr)
 		if err != nil {
 			errChan <- fmt.Errorf("failed to serve DNS TCP proxy: %v", err)
 			return
 		}
 	}()
 
-	addrList, err := netlink.AddrList(a.Link, nl.FAMILY_ALL)
-	if err != nil {
-		return fmt.Errorf("failed to list address of interface: %w", err)
+	var addrList []netlink.Addr
+	for _, linkName := range a.config.Link {
+		link, err := netlink.LinkByName(linkName)
+		if err != nil {
+			return fmt.Errorf("failed to find link %s: %w", linkName, err)
+		}
+		linkAddrList, err := netlink.AddrList(link, nl.FAMILY_ALL)
+		if err != nil {
+			return fmt.Errorf("failed to list address of interface: %w", err)
+		}
+		addrList = append(addrList, linkAddrList...)
 	}
 
-	a.dnsOverrider4 = a.NetfilterHelper4.PortRemap(fmt.Sprintf("%sDNSOR", a.Config.ChainPrefix), 53, a.Config.ListenDNSPort, addrList)
-	err = a.dnsOverrider4.Enable()
-	if err != nil {
-		return fmt.Errorf("failed to override DNS (IPv4): %v", err)
-	}
-	defer func() { _ = a.dnsOverrider4.Disable() }()
+	if !a.config.DNSProxy.DisableRemap53 {
+		a.dnsOverrider4 = a.nfHelper4.PortRemap(fmt.Sprintf("%sDNSOR", a.config.Netfilter.IPTables.ChainPrefix), 53, a.config.DNSProxy.Host.Port, addrList)
+		err = a.dnsOverrider4.Enable()
+		if err != nil {
+			return fmt.Errorf("failed to override DNS (IPv4): %v", err)
+		}
+		defer func() { _ = a.dnsOverrider4.Disable() }()
 
-	a.dnsOverrider6 = a.NetfilterHelper6.PortRemap(fmt.Sprintf("%sDNSOR", a.Config.ChainPrefix), 53, a.Config.ListenDNSPort, addrList)
-	err = a.dnsOverrider6.Enable()
-	if err != nil {
-		return fmt.Errorf("failed to override DNS (IPv6): %v", err)
+		a.dnsOverrider6 = a.nfHelper6.PortRemap(fmt.Sprintf("%sDNSOR", a.config.Netfilter.IPTables.ChainPrefix), 53, a.config.DNSProxy.Host.Port, addrList)
+		err = a.dnsOverrider6.Enable()
+		if err != nil {
+			return fmt.Errorf("failed to override DNS (IPv6): %v", err)
+		}
+		defer func() { _ = a.dnsOverrider6.Disable() }()
 	}
-	defer func() { _ = a.dnsOverrider6.Disable() }()
 
 	/*
 		Groups
 	*/
 
-	for _, group := range a.Groups {
+	for _, group := range a.unprocessedGroups {
+		err := a.AddGroup(group)
+		if err != nil {
+			return err
+		}
+	}
+	for _, group := range a.groups {
 		err = group.Enable()
 		if err != nil {
 			return fmt.Errorf("failed to enable group: %w", err)
 		}
 	}
 	defer func() {
-		for _, group := range a.Groups {
+		for _, group := range a.groups {
 			_ = group.Destroy()
 		}
 	}()
@@ -219,7 +302,7 @@ func (a *App) start(ctx context.Context) (err error) {
 					if err != nil {
 						log.Error().Err(err).Msg("error while fixing iptables after netfilter.d")
 					}
-					for _, group := range a.Groups {
+					for _, group := range a.groups {
 						err := group.NetfilterDHook(args[2])
 						if err != nil {
 							log.Error().Err(err).Msg("error while fixing iptables after netfilter.d")
@@ -281,8 +364,8 @@ func (a *App) Start(ctx context.Context) (err error) {
 	return err
 }
 
-func (a *App) AddGroup(groupModel *models.Group) error {
-	for _, group := range a.Groups {
+func (a *App) AddGroup(groupModel models.Group) error {
+	for _, group := range a.groups {
 		if groupModel.ID == group.ID {
 			return ErrGroupIDConflict
 		}
@@ -295,15 +378,18 @@ func (a *App) AddGroup(groupModel *models.Group) error {
 		dup[rule.ID] = struct{}{}
 	}
 
-	grp, err := group.NewGroup(groupModel, a.NetfilterHelper4, a.Config.ChainPrefix, a.Config.IPSetPrefix)
+	grp, err := group.NewGroup(groupModel, a.nfHelper4, a.config.Netfilter.IPTables.ChainPrefix, a.config.Netfilter.IPSet.TablePrefix)
 	if err != nil {
 		return fmt.Errorf("failed to create group: %w", err)
 	}
-	a.Groups = append(a.Groups, grp)
+	a.groups = append(a.groups, grp)
 
 	log.Debug().Str("id", grp.ID.String()).Str("name", grp.Name).Msg("added group")
 
-	return grp.Sync(a.Records)
+	if a.isRunning {
+		return grp.Sync(a.records)
+	}
+	return nil
 }
 
 func (a *App) ListInterfaces() ([]net.Interface, error) {
@@ -341,12 +427,12 @@ func (a *App) processARecord(aRecord dns.A, clientAddr net.Addr, network *string
 		Str("network", networkStr).
 		Msg("processing a record")
 
-	ttlDuration := aRecord.Hdr.Ttl + a.Config.AdditionalTTL
+	ttlDuration := aRecord.Hdr.Ttl + a.config.Netfilter.IPSet.AdditionalTTL
 
-	a.Records.AddARecord(aRecord.Hdr.Name[:len(aRecord.Hdr.Name)-1], aRecord.A, ttlDuration)
+	a.records.AddARecord(aRecord.Hdr.Name[:len(aRecord.Hdr.Name)-1], aRecord.A, ttlDuration)
 
-	names := a.Records.GetAliases(aRecord.Hdr.Name[:len(aRecord.Hdr.Name)-1])
-	for _, group := range a.Groups {
+	names := a.records.GetAliases(aRecord.Hdr.Name[:len(aRecord.Hdr.Name)-1])
+	for _, group := range a.groups {
 	Rule:
 		for _, domain := range group.Rules {
 			if !domain.IsEnabled() {
@@ -392,15 +478,15 @@ func (a *App) processCNameRecord(cNameRecord dns.CNAME, clientAddr net.Addr, net
 		Str("network", networkStr).
 		Msg("processing cname record")
 
-	ttlDuration := cNameRecord.Hdr.Ttl + a.Config.AdditionalTTL
+	ttlDuration := cNameRecord.Hdr.Ttl + a.config.Netfilter.IPSet.AdditionalTTL
 
-	a.Records.AddCNameRecord(cNameRecord.Hdr.Name[:len(cNameRecord.Hdr.Name)-1], cNameRecord.Target[:len(cNameRecord.Target)-1], ttlDuration)
+	a.records.AddCNameRecord(cNameRecord.Hdr.Name[:len(cNameRecord.Hdr.Name)-1], cNameRecord.Target[:len(cNameRecord.Target)-1], ttlDuration)
 
 	// TODO: Optimization
 	now := time.Now()
-	aRecords := a.Records.GetARecords(cNameRecord.Hdr.Name[:len(cNameRecord.Hdr.Name)-1])
-	names := a.Records.GetAliases(cNameRecord.Hdr.Name[:len(cNameRecord.Hdr.Name)-1])
-	for _, group := range a.Groups {
+	aRecords := a.records.GetARecords(cNameRecord.Hdr.Name[:len(cNameRecord.Hdr.Name)-1])
+	names := a.records.GetAliases(cNameRecord.Hdr.Name[:len(cNameRecord.Hdr.Name)-1])
+	for _, group := range a.groups {
 	Rule:
 		for _, domain := range group.Rules {
 			if !domain.IsEnabled() {
@@ -446,124 +532,51 @@ func (a *App) handleMessage(msg dns.Msg, clientAddr net.Addr, network *string) {
 	}
 }
 
-func (a *App) ImportConfig(cfg models.ConfigFile) error {
-	a.Config = Config{
-		AdditionalTTL:          cfg.AppConfig.AdditionalTTL,
-		ChainPrefix:            cfg.AppConfig.ChainPrefix,
-		IPSetPrefix:            cfg.AppConfig.IPSetPrefix,
-		LinkName:               cfg.AppConfig.LinkName,
-		TargetDNSServerAddress: cfg.AppConfig.TargetDNSServerAddress,
-		TargetDNSServerPort:    cfg.AppConfig.TargetDNSServerPort,
-		ListenDNSPort:          cfg.AppConfig.ListenDNSPort,
+func (a *App) ImportConfig(cfg models.Config) error {
+	if !strings.HasPrefix(cfg.ConfigVersion, "0.1.") {
+		return ErrConfigUnsupportedVersion
 	}
+
+	if cfg.App.DNSProxy.Upstream.Address != "" {
+		a.config.DNSProxy.Upstream.Address = cfg.App.DNSProxy.Upstream.Address
+	}
+	if cfg.App.DNSProxy.Upstream.Port != 0 {
+		a.config.DNSProxy.Upstream.Port = cfg.App.DNSProxy.Upstream.Port
+	}
+	if cfg.App.DNSProxy.Host.Address != "" {
+		a.config.DNSProxy.Host.Address = cfg.App.DNSProxy.Host.Address
+	}
+	if cfg.App.DNSProxy.Host.Port != 0 {
+		a.config.DNSProxy.Host.Port = cfg.App.DNSProxy.Host.Port
+	}
+	a.config.DNSProxy.DisableRemap53 = cfg.App.DNSProxy.DisableRemap53
+	a.config.DNSProxy.DisableFakePTR = cfg.App.DNSProxy.DisableFakePTR
+	a.config.DNSProxy.DisableDropAAAA = cfg.App.DNSProxy.DisableDropAAAA
+	if cfg.App.Netfilter.IPTables.ChainPrefix != "" {
+		a.config.Netfilter.IPTables.ChainPrefix = cfg.App.Netfilter.IPTables.ChainPrefix
+	}
+	if cfg.App.Netfilter.IPSet.TablePrefix != "" {
+		a.config.Netfilter.IPSet.TablePrefix = cfg.App.Netfilter.IPSet.TablePrefix
+	}
+	a.config.Netfilter.IPSet.AdditionalTTL = cfg.App.Netfilter.IPSet.AdditionalTTL
+
+	a.unprocessedGroups = cfg.Groups
+
 	return nil
 }
 
-func (a *App) ExportConfig() models.ConfigFile {
-	groups := make([]models.Group, len(a.Groups))
-	for idx, group := range a.Groups {
-		groups[idx] = *group.Group
+func (a *App) ExportConfig() models.Config {
+	groups := make([]models.Group, len(a.groups))
+	for idx, group := range a.groups {
+		groups[idx] = group.Group
 	}
-	return models.ConfigFile{
-		AppConfig: models.AppConfig{
-			AdditionalTTL:          a.Config.AdditionalTTL,
-			ChainPrefix:            a.Config.ChainPrefix,
-			IPSetPrefix:            a.Config.IPSetPrefix,
-			LinkName:               a.Config.LinkName,
-			TargetDNSServerAddress: a.Config.TargetDNSServerAddress,
-			TargetDNSServerPort:    a.Config.TargetDNSServerPort,
-			ListenDNSPort:          a.Config.ListenDNSPort,
-		},
-		Groups: groups,
+	return models.Config{
+		ConfigVersion: "0.1.0",
+		App:           a.config,
+		Groups:        groups,
 	}
 }
 
-func New(config models.ConfigFile) (*App, error) {
-	var err error
-
-	app := &App{}
-
-	app.Config = Config{
-		AdditionalTTL:          config.AppConfig.AdditionalTTL,
-		ChainPrefix:            config.AppConfig.ChainPrefix,
-		IPSetPrefix:            config.AppConfig.IPSetPrefix,
-		LinkName:               config.AppConfig.LinkName,
-		TargetDNSServerAddress: config.AppConfig.TargetDNSServerAddress,
-		TargetDNSServerPort:    config.AppConfig.TargetDNSServerPort,
-		ListenDNSPort:          config.AppConfig.ListenDNSPort,
-	}
-
-	app.DNSMITM = dnsMitmProxy.New()
-	app.DNSMITM.TargetDNSServerAddress = app.Config.TargetDNSServerAddress
-	app.DNSMITM.TargetDNSServerPort = app.Config.TargetDNSServerPort
-	app.DNSMITM.RequestHook = func(clientAddr net.Addr, reqMsg dns.Msg, network string) (*dns.Msg, *dns.Msg, error) {
-		// TODO: Need to understand why it not works in proxy mode
-		if len(reqMsg.Question) == 1 && reqMsg.Question[0].Qtype == dns.TypePTR {
-			respMsg := &dns.Msg{
-				MsgHdr: dns.MsgHdr{
-					Id:                 reqMsg.Id,
-					Response:           true,
-					RecursionAvailable: true,
-					Rcode:              dns.RcodeNameError,
-				},
-				Question: reqMsg.Question,
-			}
-			return nil, respMsg, nil
-		}
-
-		return nil, nil, nil
-	}
-	app.DNSMITM.ResponseHook = func(clientAddr net.Addr, reqMsg dns.Msg, respMsg dns.Msg, network string) (*dns.Msg, error) {
-		// TODO: Make it optional
-		var idx int
-		for _, a := range respMsg.Answer {
-			if a.Header().Rrtype == dns.TypeAAAA {
-				continue
-			}
-			respMsg.Answer[idx] = a
-			idx++
-		}
-		respMsg.Answer = respMsg.Answer[:idx]
-
-		app.handleMessage(respMsg, clientAddr, &network)
-
-		return &respMsg, nil
-	}
-
-	app.Records = records.New()
-
-	link, err := netlink.LinkByName(app.Config.LinkName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to find link %s: %w", app.Config.LinkName, err)
-	}
-	app.Link = link
-
-	nh4, err := netfilterHelper.New(false)
-	if err != nil {
-		return nil, fmt.Errorf("netfilter helper init fail: %w", err)
-	}
-	app.NetfilterHelper4 = nh4
-	err = app.NetfilterHelper4.CleanIPTables(app.Config.ChainPrefix)
-	if err != nil {
-		return nil, fmt.Errorf("failed to clear iptables: %w", err)
-	}
-
-	nh6, err := netfilterHelper.New(true)
-	if err != nil {
-		return nil, fmt.Errorf("netfilter helper init fail: %w", err)
-	}
-	app.NetfilterHelper6 = nh6
-	err = app.NetfilterHelper6.CleanIPTables(app.Config.ChainPrefix)
-	if err != nil {
-		return nil, fmt.Errorf("failed to clear iptables: %w", err)
-	}
-
-	for _, group := range config.Groups {
-		err = app.AddGroup(&group)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return app, nil
+func New() *App {
+	return &App{config: DefaultAppConfig}
 }
