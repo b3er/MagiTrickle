@@ -1,36 +1,40 @@
 name: Build and Package OPKG
 
 on:
+  push:
+    branches:
+      - develop
+      - main
   release:
     types: [published]
 
 jobs:
   build:
-    name: Build for ${{ matrix.arch }}
+    name: Build for "${{ matrix.target }}"
     runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
-          - arch: mipsel-3.4
+          - target: mipsel-3.4
             goos: linux
             goarch: mipsle
             gomips: softfloat
-          - arch: mips-3.4
+          - target: mips-3.4
             goos: linux
             goarch: mips
             gomips: softfloat
-          - arch: aarch64-3.10
+          - target: aarch64-3.10
             goos: linux
             goarch: arm64
-          - arch: armv7-3.2
+          - target: armv7-3.2
             goos: linux
             goarch: arm
             goarm: 7
-          - arch: armv7-2.6
+          - target: armv7-2.6
             goos: linux
             goarch: arm
             goarm: 7
-          - arch: armv5-3.2
+          - target: armv5-3.2
             goos: linux
             goarch: arm
             goarm: 5
@@ -53,13 +57,30 @@ jobs:
 
       - name: Build and Package
         run: |
-          ARCH=${{ matrix.arch }} GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} GOMIPS=${{ matrix.gomips }} GOARM=${{ matrix.goarm }} make
+          TARGET=${{ matrix.target }} GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} GOMIPS=${{ matrix.gomips }} GOARM=${{ matrix.goarm }} make
+
+      - name: Fetching file list for artifact
+        if: ${{ github.event_name != 'release' }}
+        id: create_file_list
+        run: |
+          echo 'file_list<<EOF' >> $GITHUB_OUTPUT
+          find . -name "magitrickle_*_${{ matrix.target }}.ipk" -print >> $GITHUB_OUTPUT
+          echo 'EOF' >> $GITHUB_OUTPUT
+
+      - name: Upload artifact
+        if: ${{ github.event_name != 'release' }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.target }}
+          path: ${{ steps.create_file_list.outputs.file_list }}
+          if-no-files-found: error
 
       - name: Upload asset to release
+        if: ${{ github.event_name == 'release' }}
         uses: https://gitea.com/actions/release-action@main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: |-
-            .build/magitrickle_*_${{ matrix.arch }}.ipk
+            ./.build/magitrickle_*_${{ matrix.target }}.ipk
           api_key: '${{secrets.RELEASE_TOKEN}}'
