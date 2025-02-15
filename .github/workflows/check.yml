@@ -5,6 +5,10 @@ on:
     branches:
       - develop
       - main
+    paths-ignore:
+      - '**.md'
+      - '.github/**'
+      - '!.github/workflows/check.yml'
 
 jobs:
   check:
