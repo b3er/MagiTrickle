@@ -8,7 +8,7 @@ on:
     paths-ignore:
       - '**.md'
       - '.github/**'
-      - '!.github/workflows/build-for-release.yml'
+      - '!.github/workflows/build.yml'
   release:
     types: [published]
 
