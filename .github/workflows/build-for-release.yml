@@ -73,18 +73,17 @@ jobs:
 
       - name: Upload artifact
         if: ${{ github.event_name != 'release' }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.target }}
           path: ${{ steps.create_file_list.outputs.file_list }}
           if-no-files-found: error
+          compression-level: 0
 
       - name: Upload asset to release
         if: ${{ github.event_name == 'release' }}
-        uses: https://gitea.com/actions/release-action@main
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v2
         with:
           files: |-
             ./.build/magitrickle_*_${{ matrix.target }}.ipk
-          api_key: '${{secrets.RELEASE_TOKEN}}'
+          token: ${{ secrets.RELEASE_TOKEN }}
