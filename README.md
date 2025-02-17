@@ -1,4 +1,10 @@
-# MagiTrickle
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Ponywka/MagiTrickle/master/img/logo256.png" alt="MagiTrickle logo"/>
+</p>
+
+MagiTrickle
+=======
+
 
 MagiTrickle - Маршрутизация трафика на основе DNS запросов для роутеров Keenetic (под управлением [Entware](https://github.com/The-BB/Entware-Keenetic)).
 
