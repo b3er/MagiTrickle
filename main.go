@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"magitrickle/group"
 	"magitrickle/models"
 	"magitrickle/netfilter-helper"
+	"magitrickle/pkg/magitrickle-api"
 	"magitrickle/records"
 
 	"github.com/miekg/dns"
@@ -254,62 +256,23 @@ func (a *App) start(ctx context.Context) (err error) {
 	/*
 		Socket (for netfilter.d events)
 	*/
-	socketPath := "/opt/var/run/magitrickle.sock"
-	err = os.Remove(socketPath)
+	err = os.Remove(magitrickleAPI.SocketPath)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("failed to remove existed UNIX socket: %w", err)
 	}
-	socket, err := net.Listen("unix", socketPath)
+	socket, err := net.Listen("unix", magitrickleAPI.SocketPath)
 	if err != nil {
 		return fmt.Errorf("error while serve UNIX socket: %v", err)
 	}
 	defer func() {
 		_ = socket.Close()
-		_ = os.Remove(socketPath)
+		_ = os.Remove(magitrickleAPI.SocketPath)
 	}()
 
 	go func() {
-		for {
-			if newCtx.Err() != nil {
-				return
-			}
-
-			conn, err := socket.Accept()
-			if err != nil {
-				if !strings.Contains(err.Error(), "use of closed network connection") {
-					log.Error().Err(err).Msg("error while listening unix socket")
-				}
-				break
-			}
-
-			go func(conn net.Conn) {
-				defer func() { _ = conn.Close() }()
-
-				buf := make([]byte, 1024)
-				n, err := conn.Read(buf)
-				if err != nil {
-					return
-				}
-
-				args := strings.Split(string(buf[:n]), ":")
-				if len(args) == 3 && args[0] == "netfilter.d" {
-					log.Debug().Str("table", args[2]).Msg("netfilter.d event")
-					err = a.dnsOverrider4.NetfilterDHook(args[2])
-					if err != nil {
-						log.Error().Err(err).Msg("error while fixing iptables after netfilter.d")
-					}
-					err = a.dnsOverrider6.NetfilterDHook(args[2])
-					if err != nil {
-						log.Error().Err(err).Msg("error while fixing iptables after netfilter.d")
-					}
-					for _, group := range a.groups {
-						err := group.NetfilterDHook(args[2])
-						if err != nil {
-							log.Error().Err(err).Msg("error while fixing iptables after netfilter.d")
-						}
-					}
-				}
-			}(conn)
+		err := http.Serve(socket, a.apiHandler())
+		if err != nil {
+			errChan <- fmt.Errorf("failed to serve UNIX socket: %v", err)
 		}
 	}()
 
