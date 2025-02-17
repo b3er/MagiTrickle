@@ -1,6 +1,2 @@
 #!/bin/sh
-SOCKET_PATH="/opt/var/run/magitrickle.sock"
-if [ ! -S "$SOCKET_PATH" ]; then
-    exit
-fi
-echo -n "netfilter.d:${type}:${table}" | socat - UNIX-CONNECT:"${SOCKET_PATH}"
+magitrickle app hook netfilter.d --type "${type}" --table "${table}"
