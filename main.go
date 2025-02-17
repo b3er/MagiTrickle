@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"magitrickle/dns-mitm-proxy"
-	"magitrickle/group"
 	"magitrickle/models"
 	"magitrickle/netfilter-helper"
 	"magitrickle/pkg/magitrickle-api"
@@ -52,18 +51,15 @@ var DefaultAppConfig = models.App{
 }
 
 type App struct {
-	config            models.App
-	unprocessedGroups []models.Group
+	config models.App
 
-	dnsMITM   *dnsMitmProxy.DNSMITMProxy
-	nfHelper4 *netfilterHelper.NetfilterHelper
-	nfHelper6 *netfilterHelper.NetfilterHelper
-	records   *records.Records
-	groups    []*group.Group
+	dnsMITM  *dnsMitmProxy.DNSMITMProxy
+	nfHelper *netfilterHelper.NetfilterHelper
+	records  *records.Records
+	groups   []*Group
 
-	isRunning     bool
-	dnsOverrider4 *netfilterHelper.PortRemap
-	dnsOverrider6 *netfilterHelper.PortRemap
+	isRunning    bool
+	dnsOverrider *netfilterHelper.PortRemap
 }
 
 func (a *App) handleLink(event netlink.LinkUpdate) {
@@ -105,6 +101,20 @@ func (a *App) start(ctx context.Context) (err error) {
 		UpstreamDNSAddress: a.config.DNSProxy.Upstream.Address,
 		UpstreamDNSPort:    a.config.DNSProxy.Upstream.Port,
 		RequestHook: func(clientAddr net.Addr, reqMsg dns.Msg, network string) (*dns.Msg, *dns.Msg, error) {
+			var clientAddrStr, networkStr string
+			if clientAddr != nil {
+				clientAddrStr = clientAddr.String()
+			}
+			for _, q := range reqMsg.Question {
+				log.Trace().
+					Str("name", q.Name).
+					Int("qtype", int(q.Qtype)).
+					Int("qclass", int(q.Qtype)).
+					Str("clientAddr", clientAddrStr).
+					Str("network", networkStr).
+					Msg("requested record")
+			}
+
 			if a.config.DNSProxy.DisableFakePTR {
 				return nil, nil, nil
 			}
@@ -147,25 +157,15 @@ func (a *App) start(ctx context.Context) (err error) {
 	}
 	a.records = records.New()
 
-	nh4, err := netfilterHelper.New(false)
+	a.nfHelper, err = netfilterHelper.New(a.config.Netfilter.IPTables.ChainPrefix)
 	if err != nil {
 		return fmt.Errorf("netfilter helper init fail: %w", err)
 	}
-	err = nh4.CleanIPTables(a.config.Netfilter.IPTables.ChainPrefix)
-	if err != nil {
-		return fmt.Errorf("failed to clear iptables: %w", err)
-	}
-	a.nfHelper4 = nh4
 
-	nh6, err := netfilterHelper.New(true)
-	if err != nil {
-		return fmt.Errorf("netfilter helper init fail: %w", err)
-	}
-	err = nh6.CleanIPTables(a.config.Netfilter.IPTables.ChainPrefix)
+	err = a.nfHelper.CleanIPTables()
 	if err != nil {
 		return fmt.Errorf("failed to clear iptables: %w", err)
 	}
-	a.nfHelper6 = nh6
 
 	newCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -216,31 +216,17 @@ func (a *App) start(ctx context.Context) (err error) {
 	}
 
 	if !a.config.DNSProxy.DisableRemap53 {
-		a.dnsOverrider4 = a.nfHelper4.PortRemap(fmt.Sprintf("%sDNSOR", a.config.Netfilter.IPTables.ChainPrefix), 53, a.config.DNSProxy.Host.Port, addrList)
-		err = a.dnsOverrider4.Enable()
+		a.dnsOverrider = a.nfHelper.PortRemap("DNSOR", 53, a.config.DNSProxy.Host.Port, addrList)
+		err = a.dnsOverrider.Enable()
 		if err != nil {
-			return fmt.Errorf("failed to override DNS (IPv4): %v", err)
+			return fmt.Errorf("failed to override DNS: %v", err)
 		}
-		defer func() { _ = a.dnsOverrider4.Disable() }()
-
-		a.dnsOverrider6 = a.nfHelper6.PortRemap(fmt.Sprintf("%sDNSOR", a.config.Netfilter.IPTables.ChainPrefix), 53, a.config.DNSProxy.Host.Port, addrList)
-		err = a.dnsOverrider6.Enable()
-		if err != nil {
-			return fmt.Errorf("failed to override DNS (IPv6): %v", err)
-		}
-		defer func() { _ = a.dnsOverrider6.Disable() }()
+		defer func() { _ = a.dnsOverrider.Disable() }()
 	}
 
 	/*
 		Groups
 	*/
-
-	for _, group := range a.unprocessedGroups {
-		err := a.AddGroup(group)
-		if err != nil {
-			return err
-		}
-	}
 	for _, group := range a.groups {
 		err = group.Enable()
 		if err != nil {
@@ -249,7 +235,7 @@ func (a *App) start(ctx context.Context) (err error) {
 	}
 	defer func() {
 		for _, group := range a.groups {
-			_ = group.Destroy()
+			_ = group.Disable()
 		}
 	}()
 
@@ -341,7 +327,7 @@ func (a *App) AddGroup(groupModel models.Group) error {
 		dup[rule.ID] = struct{}{}
 	}
 
-	grp, err := group.NewGroup(groupModel, a.nfHelper4, a.config.Netfilter.IPTables.ChainPrefix, a.config.Netfilter.IPSet.TablePrefix)
+	grp, err := NewGroup(groupModel, a)
 	if err != nil {
 		return fmt.Errorf("failed to create group: %w", err)
 	}
@@ -523,7 +509,16 @@ func (a *App) ImportConfig(cfg models.Config) error {
 	}
 	a.config.Netfilter.IPSet.AdditionalTTL = cfg.App.Netfilter.IPSet.AdditionalTTL
 
-	a.unprocessedGroups = cfg.Groups
+	for _, group := range a.groups {
+		_ = group.Disable()
+	}
+	a.groups = a.groups[:0]
+	for _, group := range cfg.Groups {
+		err := a.AddGroup(group)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }

@@ -1,4 +1,4 @@
-package group
+package magitrickle
 
 import (
 	"fmt"
@@ -9,7 +9,6 @@ import (
 	"magitrickle/netfilter-helper"
 	"magitrickle/records"
 
-	"github.com/coreos/go-iptables/iptables"
 	"github.com/rs/zerolog/log"
 	"github.com/vishvananda/netlink"
 )
@@ -18,7 +17,7 @@ type Group struct {
 	models.Group
 
 	enabled     bool
-	iptables    *iptables.IPTables
+	app         *App
 	ipset       *netfilterHelper.IPSet
 	ipsetToLink *netfilterHelper.IPSetToLink
 }
@@ -45,14 +44,27 @@ func (g *Group) Enable() error {
 		}
 	}()
 
+	var err error
+	ipsetName := fmt.Sprintf("%s%8x", g.app.config.Netfilter.IPSet.TablePrefix, g.ID)
+	g.ipset, err = g.app.nfHelper.IPSet(ipsetName)
+	if err != nil {
+		return fmt.Errorf("failed to initialize ipset: %w", err)
+	}
+
+	g.ipsetToLink = g.app.nfHelper.IPSetToLink(g.ID.String(), g.Interface, ipsetName)
+
 	if g.FixProtect {
-		err := g.iptables.AppendUnique("filter", "_NDM_SL_FORWARD", "-o", g.Interface, "-m", "state", "--state", "NEW", "-j", "_NDM_SL_PROTECT")
+		err := g.app.nfHelper.IPTables4.AppendUnique("filter", "_NDM_SL_FORWARD", "-o", g.Interface, "-m", "state", "--state", "NEW", "-j", "_NDM_SL_PROTECT")
+		if err != nil {
+			return fmt.Errorf("failed to fix protect: %w", err)
+		}
+		err = g.app.nfHelper.IPTables6.AppendUnique("filter", "_NDM_SL_FORWARD", "-o", g.Interface, "-j", "_NDM_SL_PROTECT")
 		if err != nil {
 			return fmt.Errorf("failed to fix protect: %w", err)
 		}
 	}
 
-	err := g.ipsetToLink.Enable()
+	err = g.ipsetToLink.Enable()
 	if err != nil {
 		return err
 	}
@@ -63,35 +75,35 @@ func (g *Group) Enable() error {
 }
 
 func (g *Group) Disable() []error {
-	var errs []error
-
 	if !g.enabled {
 		return nil
 	}
 
+	var errs []error
+
 	if g.FixProtect {
-		err := g.iptables.Delete("filter", "_NDM_SL_FORWARD", "-o", g.Interface, "-m", "state", "--state", "NEW", "-j", "_NDM_SL_PROTECT")
+		err := g.app.nfHelper.IPTables4.Delete("filter", "_NDM_SL_FORWARD", "-o", g.Interface, "-m", "state", "--state", "NEW", "-j", "_NDM_SL_PROTECT")
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed to remove fix protect: %w", err))
+		}
+		err = g.app.nfHelper.IPTables6.Delete("filter", "_NDM_SL_FORWARD", "-o", g.Interface, "-j", "_NDM_SL_PROTECT")
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to remove fix protect: %w", err))
 		}
 	}
 
-	err := g.ipsetToLink.Disable()
-	if err != nil {
-		errs = append(errs, err...)
+	iptErrs := g.ipsetToLink.Disable()
+	if iptErrs != nil {
+		errs = append(errs, iptErrs...)
 	}
 
-	g.enabled = false
-
-	return errs
-}
-
-func (g *Group) Destroy() []error {
-	errs := g.Disable()
 	err := g.ipset.Destroy()
 	if err != nil {
 		errs = append(errs, err)
 	}
+
+	g.enabled = false
+
 	return errs
 }
 
@@ -172,33 +184,32 @@ func (g *Group) Sync(records *records.Records) error {
 	return nil
 }
 
-func (g *Group) NetfilterDHook(table string) error {
+func (g *Group) NetfilterDHook(iptType, table string) error {
 	if g.enabled && g.FixProtect && table == "filter" {
-		err := g.iptables.AppendUnique("filter", "_NDM_SL_FORWARD", "-o", g.Interface, "-m", "state", "--state", "NEW", "-j", "_NDM_SL_PROTECT")
-		if err != nil {
-			return fmt.Errorf("failed to fix protect: %w", err)
+		if iptType == "" || iptType == "iptables" {
+			err := g.app.nfHelper.IPTables4.AppendUnique("filter", "_NDM_SL_FORWARD", "-o", g.Interface, "-m", "state", "--state", "NEW", "-j", "_NDM_SL_PROTECT")
+			if err != nil {
+				return fmt.Errorf("failed to fix protect: %w", err)
+			}
+		}
+		if iptType == "" || iptType == "ip6tables" {
+			err := g.app.nfHelper.IPTables6.AppendUnique("filter", "_NDM_SL_FORWARD", "-o", g.Interface, "-m", "state", "--state", "NEW", "-j", "_NDM_SL_PROTECT")
+			if err != nil {
+				return fmt.Errorf("failed to fix protect: %w", err)
+			}
 		}
 	}
 
-	return g.ipsetToLink.NetfilterDHook(table)
+	return g.ipsetToLink.NetfilterDHook(iptType, table)
 }
 
 func (g *Group) LinkUpdateHook(event netlink.LinkUpdate) error {
 	return g.ipsetToLink.LinkUpdateHook(event)
 }
 
-func NewGroup(group models.Group, nh4 *netfilterHelper.NetfilterHelper, chainPrefix, ipsetNamePrefix string) (*Group, error) {
-	ipsetName := fmt.Sprintf("%s%8x", ipsetNamePrefix, group.ID)
-	ipset, err := nh4.IPSet(ipsetName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize ipset: %w", err)
-	}
-
-	ipsetToLink := nh4.IPSetToLink(fmt.Sprintf("%s%8x", chainPrefix, group.ID), group.Interface, ipsetName)
+func NewGroup(group models.Group, app *App) (*Group, error) {
 	return &Group{
-		Group:       group,
-		iptables:    nh4.IPTables,
-		ipset:       ipset,
-		ipsetToLink: ipsetToLink,
+		Group: group,
+		app:   app,
 	}, nil
 }

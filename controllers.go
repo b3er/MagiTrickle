@@ -18,16 +18,12 @@ func (a *App) apiNetfilterDHook(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 	}
 	log.Debug().Str("type", nfh.Type).Str("table", nfh.Table).Msg("netfilter.d event")
-	err = a.dnsOverrider4.NetfilterDHook(nfh.Table)
-	if err != nil {
-		log.Error().Err(err).Msg("error while fixing iptables after netfilter.d")
-	}
-	err = a.dnsOverrider6.NetfilterDHook(nfh.Table)
+	err = a.dnsOverrider.NetfilterDHook(nfh.Type, nfh.Table)
 	if err != nil {
 		log.Error().Err(err).Msg("error while fixing iptables after netfilter.d")
 	}
 	for _, group := range a.groups {
-		err := group.NetfilterDHook(nfh.Table)
+		err := group.NetfilterDHook(nfh.Type, nfh.Table)
 		if err != nil {
 			log.Error().Err(err).Msg("error while fixing iptables after netfilter.d")
 		}
