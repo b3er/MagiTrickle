@@ -12,7 +12,7 @@ import (
 
 	"magitrickle"
 	"magitrickle/constant"
-	"magitrickle/models"
+	"magitrickle/models/config"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -70,16 +70,14 @@ func main() {
 	}
 	defer removePIDFile()
 
-	cfg := models.Config{}
+	app := magitrickle.New()
+
 	cfgFile, err := os.ReadFile(cfgFileLocation)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
 			log.Fatal().Err(err).Msg("failed to read config.yaml")
 		}
-		cfg = models.Config{
-			ConfigVersion: "0.1.0",
-			App:           magitrickle.DefaultAppConfig,
-		}
+		cfg := app.ExportConfig()
 		out, err := yaml.Marshal(cfg)
 		if err != nil {
 			log.Fatal().Err(err).Msg("failed to serialize config.yaml")
@@ -93,39 +91,15 @@ func main() {
 			log.Fatal().Err(err).Msg("failed to save config.yaml")
 		}
 	} else {
+		cfg := config.Config{}
 		err = yaml.Unmarshal(cfgFile, &cfg)
 		if err != nil {
 			log.Fatal().Err(err).Msg("failed to parse config.yaml")
 		}
-	}
-
-	switch cfg.App.LogLevel {
-	case "trace":
-		zerolog.SetGlobalLevel(zerolog.TraceLevel)
-	case "debug":
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	case "info":
-		zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	case "warn":
-		zerolog.SetGlobalLevel(zerolog.WarnLevel)
-	case "error":
-		zerolog.SetGlobalLevel(zerolog.ErrorLevel)
-	case "fatal":
-		zerolog.SetGlobalLevel(zerolog.FatalLevel)
-	case "panic":
-		zerolog.SetGlobalLevel(zerolog.PanicLevel)
-	case "nolevel":
-		zerolog.SetGlobalLevel(zerolog.NoLevel)
-	case "disabled":
-		zerolog.SetGlobalLevel(zerolog.Disabled)
-	default:
-		zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	}
-
-	app := magitrickle.New()
-	err = app.ImportConfig(cfg)
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to import config")
+		err = app.ImportConfig(cfg)
+		if err != nil {
+			log.Fatal().Err(err).Msg("failed to import config")
+		}
 	}
 
 	log.Info().Msg("starting service")

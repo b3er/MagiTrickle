@@ -14,7 +14,7 @@ import (
 )
 
 type Group struct {
-	models.Group
+	*models.Group
 
 	enabled     bool
 	app         *App
@@ -207,7 +207,7 @@ func (g *Group) LinkUpdateHook(event netlink.LinkUpdate) error {
 	return g.ipsetToLink.LinkUpdateHook(event)
 }
 
-func NewGroup(group models.Group, app *App) (*Group, error) {
+func NewGroup(group *models.Group, app *App) (*Group, error) {
 	return &Group{
 		Group: group,
 		app:   app,

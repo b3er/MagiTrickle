@@ -12,15 +12,20 @@ import (
 
 	"magitrickle/dns-mitm-proxy"
 	"magitrickle/models"
+	"magitrickle/models/config"
 	"magitrickle/netfilter-helper"
 	"magitrickle/pkg/magitrickle-api"
 	"magitrickle/records"
 
 	"github.com/miekg/dns"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
 )
+
+//	@title		MagiTrickle API
+//	@version	0.1
 
 var (
 	ErrAlreadyRunning           = errors.New("already running")
@@ -29,7 +34,7 @@ var (
 	ErrConfigUnsupportedVersion = errors.New("config unsupported version")
 )
 
-var DefaultAppConfig = models.App{
+var defaultAppConfig = models.App{
 	DNSProxy: models.DNSProxy{
 		Host:            models.DNSProxyServer{Address: "[::]", Port: 3553},
 		Upstream:        models.DNSProxyServer{Address: "127.0.0.1", Port: 53},
@@ -97,6 +102,29 @@ func (a *App) handleLink(event netlink.LinkUpdate) {
 }
 
 func (a *App) start(ctx context.Context) (err error) {
+	switch a.config.LogLevel {
+	case "trace":
+		zerolog.SetGlobalLevel(zerolog.TraceLevel)
+	case "debug":
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	case "info":
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	case "warn":
+		zerolog.SetGlobalLevel(zerolog.WarnLevel)
+	case "error":
+		zerolog.SetGlobalLevel(zerolog.ErrorLevel)
+	case "fatal":
+		zerolog.SetGlobalLevel(zerolog.FatalLevel)
+	case "panic":
+		zerolog.SetGlobalLevel(zerolog.PanicLevel)
+	case "nolevel":
+		zerolog.SetGlobalLevel(zerolog.NoLevel)
+	case "disabled":
+		zerolog.SetGlobalLevel(zerolog.Disabled)
+	default:
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	}
+
 	a.dnsMITM = &dnsMitmProxy.DNSMITMProxy{
 		UpstreamDNSAddress: a.config.DNSProxy.Upstream.Address,
 		UpstreamDNSPort:    a.config.DNSProxy.Upstream.Port,
@@ -313,7 +341,7 @@ func (a *App) Start(ctx context.Context) (err error) {
 	return err
 }
 
-func (a *App) AddGroup(groupModel models.Group) error {
+func (a *App) AddGroup(groupModel *models.Group) error {
 	for _, group := range a.groups {
 		if groupModel.ID == group.ID {
 			return ErrGroupIDConflict
@@ -481,60 +509,152 @@ func (a *App) handleMessage(msg dns.Msg, clientAddr net.Addr, network *string) {
 	}
 }
 
-func (a *App) ImportConfig(cfg models.Config) error {
+func (a *App) ImportConfig(cfg config.Config) error {
 	if !strings.HasPrefix(cfg.ConfigVersion, "0.1.") {
 		return ErrConfigUnsupportedVersion
 	}
 
-	if cfg.App.DNSProxy.Upstream.Address != "" {
-		a.config.DNSProxy.Upstream.Address = cfg.App.DNSProxy.Upstream.Address
-	}
-	if cfg.App.DNSProxy.Upstream.Port != 0 {
-		a.config.DNSProxy.Upstream.Port = cfg.App.DNSProxy.Upstream.Port
-	}
-	if cfg.App.DNSProxy.Host.Address != "" {
-		a.config.DNSProxy.Host.Address = cfg.App.DNSProxy.Host.Address
-	}
-	if cfg.App.DNSProxy.Host.Port != 0 {
-		a.config.DNSProxy.Host.Port = cfg.App.DNSProxy.Host.Port
-	}
-	a.config.DNSProxy.DisableRemap53 = cfg.App.DNSProxy.DisableRemap53
-	a.config.DNSProxy.DisableFakePTR = cfg.App.DNSProxy.DisableFakePTR
-	a.config.DNSProxy.DisableDropAAAA = cfg.App.DNSProxy.DisableDropAAAA
-	if cfg.App.Netfilter.IPTables.ChainPrefix != "" {
-		a.config.Netfilter.IPTables.ChainPrefix = cfg.App.Netfilter.IPTables.ChainPrefix
-	}
-	if cfg.App.Netfilter.IPSet.TablePrefix != "" {
-		a.config.Netfilter.IPSet.TablePrefix = cfg.App.Netfilter.IPSet.TablePrefix
-	}
-	a.config.Netfilter.IPSet.AdditionalTTL = cfg.App.Netfilter.IPSet.AdditionalTTL
+	if cfg.App != nil {
+		if cfg.App.DNSProxy != nil {
+			if cfg.App.DNSProxy.Upstream != nil {
+				if cfg.App.DNSProxy.Upstream.Address != nil {
+					a.config.DNSProxy.Upstream.Address = *cfg.App.DNSProxy.Upstream.Address
+				}
+				if cfg.App.DNSProxy.Upstream.Port != nil {
+					a.config.DNSProxy.Upstream.Port = *cfg.App.DNSProxy.Upstream.Port
+				}
+			}
+			if cfg.App.DNSProxy.Host != nil {
+				if cfg.App.DNSProxy.Host.Address != nil {
+					a.config.DNSProxy.Host.Address = *cfg.App.DNSProxy.Host.Address
+				}
+				if cfg.App.DNSProxy.Host.Port != nil {
+					a.config.DNSProxy.Host.Port = *cfg.App.DNSProxy.Host.Port
+				}
+			}
+			if cfg.App.DNSProxy.DisableRemap53 != nil {
+				a.config.DNSProxy.DisableRemap53 = *cfg.App.DNSProxy.DisableRemap53
+			}
+			if cfg.App.DNSProxy.DisableFakePTR != nil {
+				a.config.DNSProxy.DisableFakePTR = *cfg.App.DNSProxy.DisableFakePTR
+			}
+			if cfg.App.DNSProxy.DisableDropAAAA != nil {
+				a.config.DNSProxy.DisableDropAAAA = *cfg.App.DNSProxy.DisableDropAAAA
+			}
+		}
 
-	for _, group := range a.groups {
-		_ = group.Disable()
+		if cfg.App.Netfilter != nil {
+			if cfg.App.Netfilter.IPTables != nil {
+				if cfg.App.Netfilter.IPTables.ChainPrefix != nil {
+					a.config.Netfilter.IPTables.ChainPrefix = *cfg.App.Netfilter.IPTables.ChainPrefix
+				}
+			}
+			if cfg.App.Netfilter.IPSet != nil {
+				if cfg.App.Netfilter.IPSet.TablePrefix != nil {
+					a.config.Netfilter.IPSet.TablePrefix = *cfg.App.Netfilter.IPSet.TablePrefix
+				}
+				if cfg.App.Netfilter.IPSet.AdditionalTTL != nil {
+					a.config.Netfilter.IPSet.AdditionalTTL = *cfg.App.Netfilter.IPSet.AdditionalTTL
+				}
+			}
+		}
+
+		if cfg.App.Link != nil {
+			a.config.Link = *cfg.App.Link
+		}
+
+		if cfg.App.LogLevel != nil {
+			a.config.LogLevel = *cfg.App.LogLevel
+		}
 	}
-	a.groups = a.groups[:0]
-	for _, group := range cfg.Groups {
-		err := a.AddGroup(group)
-		if err != nil {
-			return err
+
+	if cfg.Groups != nil {
+		for _, group := range a.groups {
+			_ = group.Disable()
+		}
+		a.groups = a.groups[:0]
+
+		for _, group := range *cfg.Groups {
+			rules := make([]*models.Rule, len(group.Rules))
+			for idx, rule := range group.Rules {
+				rules[idx] = &models.Rule{
+					ID:     rule.ID,
+					Name:   rule.Name,
+					Type:   rule.Type,
+					Rule:   rule.Rule,
+					Enable: rule.Enable,
+				}
+			}
+			err := a.AddGroup(&models.Group{
+				ID:         group.ID,
+				Name:       group.Name,
+				Interface:  group.Interface,
+				FixProtect: group.FixProtect,
+				Rules:      rules,
+			})
+			if err != nil {
+				return err
+			}
 		}
 	}
 
 	return nil
 }
 
-func (a *App) ExportConfig() models.Config {
-	groups := make([]models.Group, len(a.groups))
+func (a *App) ExportConfig() config.Config {
+	groups := make([]config.Group, len(a.groups))
 	for idx, group := range a.groups {
-		groups[idx] = group.Group
+		groupCfg := config.Group{
+			ID:         group.ID,
+			Name:       group.Name,
+			Interface:  group.Interface,
+			FixProtect: group.FixProtect,
+			Rules:      make([]config.Rule, len(group.Rules)),
+		}
+		for idx, rule := range group.Rules {
+			groupCfg.Rules[idx] = config.Rule{
+				ID:     rule.ID,
+				Name:   rule.Name,
+				Type:   rule.Type,
+				Rule:   rule.Rule,
+				Enable: rule.Enable,
+			}
+		}
+		groups[idx] = groupCfg
 	}
-	return models.Config{
+
+	return config.Config{
 		ConfigVersion: "0.1.0",
-		App:           a.config,
-		Groups:        groups,
+		App: &config.App{
+			DNSProxy: &config.DNSProxy{
+				Host: &config.DNSProxyServer{
+					Address: &a.config.DNSProxy.Host.Address,
+					Port:    &a.config.DNSProxy.Host.Port,
+				},
+				Upstream: &config.DNSProxyServer{
+					Address: &a.config.DNSProxy.Upstream.Address,
+					Port:    &a.config.DNSProxy.Upstream.Port,
+				},
+				DisableRemap53:  &a.config.DNSProxy.DisableRemap53,
+				DisableFakePTR:  &a.config.DNSProxy.DisableFakePTR,
+				DisableDropAAAA: &a.config.DNSProxy.DisableDropAAAA,
+			},
+			Netfilter: &config.Netfilter{
+				IPTables: &config.IPTables{
+					ChainPrefix: &a.config.Netfilter.IPTables.ChainPrefix,
+				},
+				IPSet: &config.IPSet{
+					TablePrefix:   &a.config.Netfilter.IPSet.TablePrefix,
+					AdditionalTTL: &a.config.Netfilter.IPSet.AdditionalTTL,
+				},
+			},
+			Link:     &a.config.Link,
+			LogLevel: &a.config.LogLevel,
+		},
+		Groups: &groups,
 	}
 }
 
 func New() *App {
-	return &App{config: DefaultAppConfig}
+	return &App{config: defaultAppConfig}
 }
