@@ -7,7 +7,6 @@ import (
 
 	"magitrickle/models"
 	"magitrickle/netfilter-helper"
-	"magitrickle/records"
 
 	"github.com/rs/zerolog/log"
 	"github.com/vishvananda/netlink"
@@ -107,11 +106,11 @@ func (g *Group) Disable() []error {
 	return errs
 }
 
-func (g *Group) Sync(records *records.Records) error {
+func (g *Group) Sync() error {
 	now := time.Now()
 
 	addresses := make(map[string]uint32)
-	knownDomains := records.ListKnownDomains()
+	knownDomains := g.app.records.ListKnownDomains()
 	for _, domain := range g.Rules {
 		if !domain.IsEnabled() {
 			continue
@@ -122,7 +121,7 @@ func (g *Group) Sync(records *records.Records) error {
 				continue
 			}
 
-			domainAddresses := records.GetARecords(domainName)
+			domainAddresses := g.app.records.GetARecords(domainName)
 			for _, address := range domainAddresses {
 				ttl := uint32(now.Sub(address.Deadline).Seconds())
 				if oldTTL, ok := addresses[string(address.Address)]; !ok || ttl > oldTTL {

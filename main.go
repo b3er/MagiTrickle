@@ -364,7 +364,14 @@ func (a *App) AddGroup(groupModel *models.Group) error {
 	log.Debug().Str("id", grp.ID.String()).Str("name", grp.Name).Msg("added group")
 
 	if a.isRunning {
-		return grp.Sync(a.records)
+		err = grp.Enable()
+		if err != nil {
+			return fmt.Errorf("failed to enable group: %w", err)
+		}
+		err = grp.Sync()
+		if err != nil {
+			return fmt.Errorf("failed to sync group: %w", err)
+		}
 	}
 	return nil
 }
