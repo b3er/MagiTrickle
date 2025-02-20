@@ -125,6 +125,58 @@ func (a *App) apiPutGroups(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// apiCreateGroup
+//
+//	@Summary		Создать группу
+//	@Description	Создает группу
+//	@Tags			groups
+//	@Accept			json
+//	@Produce		json
+//	@Param			json	body		types.GroupReq	true	"Тело запроса"
+//	@Success		200		{object}	types.GroupRes
+//	@Failure		400		{object}	types.ErrorRes
+//	@Failure		500		{object}	types.ErrorRes
+//	@Router			/api/v1/groups [post]
+func (a *App) apiCreateGroup(w http.ResponseWriter, r *http.Request) {
+	req, err := readJson[types.GroupReq](r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+	}
+
+	var rules []*models.Rule
+	if req.Rules != nil {
+		rules = make([]*models.Rule, len(*req.Rules))
+		for idx, rule := range *req.Rules {
+			id := types.RandomID()
+			if rule.ID != nil {
+				id = *rule.ID
+			}
+			rules[idx] = &models.Rule{
+				ID:     id,
+				Name:   rule.Name,
+				Type:   rule.Type,
+				Rule:   rule.Rule,
+				Enable: rule.Enable,
+			}
+		}
+	}
+
+	id := types.RandomID()
+	if req.ID != nil {
+		id = *req.ID
+	}
+	err = a.AddGroup(&models.Group{
+		ID:         id,
+		Name:       req.Name,
+		Interface:  req.Interface,
+		FixProtect: req.FixProtect,
+		Rules:      rules,
+	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+	}
+}
+
 // apiGetGroup
 //
 //	@Summary		Получить группу
@@ -168,7 +220,7 @@ func (a *App) apiPutGroup(w http.ResponseWriter, r *http.Request) {
 	enabled := group.enabled
 	if enabled {
 		errs := group.Disable()
-		if err != nil {
+		if len(errs) != 0 {
 			writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to disable group: %v", errs).Error())
 			return
 		}
@@ -208,6 +260,31 @@ func (a *App) apiPutGroup(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+}
+
+// apiDeleteGroup
+//
+//	@Summary		Удалить группу
+//	@Description	Удаляет запрошенную группу
+//	@Tags			groups
+//	@Produce		json
+//	@Param			groupID	path	string	true	"ID группы"
+//	@Success		200
+//	@Failure		404	{object}	types.ErrorRes
+//	@Failure		500	{object}	types.ErrorRes
+//	@Router			/api/v1/groups/{groupID} [delete]
+func (a *App) apiDeleteGroup(w http.ResponseWriter, r *http.Request) {
+	groupIdx, _ := strconv.Atoi(r.Header.Get("groupIdx"))
+	group := a.groups[groupIdx]
+	enabled := group.enabled
+	if enabled {
+		errs := group.Disable()
+		if len(errs) != 0 {
+			writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to disable group: %v", errs).Error())
+			return
+		}
+	}
+	a.groups = append(a.groups[:groupIdx], a.groups[groupIdx+1:]...)
 }
 
 // apiGetRules
@@ -280,6 +357,51 @@ func (a *App) apiPutRules(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// apiCreateRule
+//
+//	@Summary		Создать правило
+//	@Description	Создает правило
+//	@Tags			rules
+//	@Accept			json
+//	@Produce		json
+//	@Param			groupID	path		string			true	"ID группы"
+//	@Param			json	body		types.RuleReq	true	"Тело запроса"
+//	@Success		200		{object}	types.RuleRes
+//	@Failure		400		{object}	types.ErrorRes
+//	@Failure		404		{object}	types.ErrorRes
+//	@Failure		500		{object}	types.ErrorRes
+//	@Router			/api/v1/groups/{groupID}/rules [post]
+func (a *App) apiCreateRule(w http.ResponseWriter, r *http.Request) {
+	req, err := readJson[types.RuleReq](r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+	}
+
+	groupIdx, _ := strconv.Atoi(r.Header.Get("groupIdx"))
+	group := a.groups[groupIdx]
+	enabled := group.enabled
+
+	id := types.RandomID()
+	if req.ID != nil {
+		id = *req.ID
+	}
+	group.Rules = append(group.Rules, &models.Rule{
+		ID:     id,
+		Name:   req.Name,
+		Type:   req.Type,
+		Rule:   req.Rule,
+		Enable: req.Enable,
+	})
+
+	if enabled {
+		err = group.Sync()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to sync group: %w", err).Error())
+			return
+		}
+	}
+}
+
 // apiGetRule
 //
 //	@Summary		Получить правило
@@ -340,6 +462,36 @@ func (a *App) apiPutRule(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// apiDeleteRule
+//
+//	@Summary		Удалить правило
+//	@Description	Удаляет запрошенное правило
+//	@Tags			rules
+//	@Produce		json
+//	@Param			groupID	path	string	true	"ID группы"
+//	@Param			ruleID	path	string	true	"ID правила"
+//	@Success		200
+//	@Failure		404	{object}	types.ErrorRes
+//	@Failure		500	{object}	types.ErrorRes
+//	@Router			/api/v1/groups/{groupID}/rules/{ruleID} [delete]
+func (a *App) apiDeleteRule(w http.ResponseWriter, r *http.Request) {
+	groupIdx, _ := strconv.Atoi(r.Header.Get("groupIdx"))
+	group := a.groups[groupIdx]
+	enabled := group.enabled
+
+	ruleIdx, _ := strconv.Atoi(r.Header.Get("ruleIdx"))
+
+	group.Rules = append(group.Rules[:ruleIdx], group.Rules[ruleIdx+1:]...)
+
+	if enabled {
+		err := group.Sync()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to sync group: %v", err).Error())
+			return
+		}
+	}
+}
+
 func (a *App) apiHandler() http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.Recoverer)
@@ -347,6 +499,7 @@ func (a *App) apiHandler() http.Handler {
 		r.Route("/groups", func(r chi.Router) {
 			r.Get("/", a.apiGetGroups)
 			r.Put("/", a.apiPutGroups)
+			r.Post("/", a.apiCreateGroup)
 			r.Route("/{groupID}", func(r chi.Router) {
 				r.Use(func(next http.Handler) http.Handler {
 					fn := func(w http.ResponseWriter, r *http.Request) {
@@ -370,9 +523,11 @@ func (a *App) apiHandler() http.Handler {
 				})
 				r.Get("/", a.apiGetGroup)
 				r.Put("/", a.apiPutGroup)
+				r.Delete("/", a.apiDeleteGroup)
 				r.Route("/rules", func(r chi.Router) {
 					r.Get("/", a.apiGetRules)
 					r.Put("/", a.apiPutRules)
+					r.Post("/", a.apiCreateRule)
 					r.Route("/{ruleID}", func(r chi.Router) {
 						r.Use(func(next http.Handler) http.Handler {
 							fn := func(w http.ResponseWriter, r *http.Request) {
@@ -398,6 +553,7 @@ func (a *App) apiHandler() http.Handler {
 						})
 						r.Get("/", a.apiGetRule)
 						r.Put("/", a.apiPutRule)
+						r.Delete("/", a.apiDeleteRule)
 					})
 				})
 			})
