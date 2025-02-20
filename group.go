@@ -44,7 +44,7 @@ func (g *Group) Enable() error {
 	}()
 
 	var err error
-	ipsetName := fmt.Sprintf("%s%8x", g.app.config.Netfilter.IPSet.TablePrefix, g.ID)
+	ipsetName := fmt.Sprintf("%s%s", g.app.config.Netfilter.IPSet.TablePrefix, g.ID)
 	g.ipset, err = g.app.nfHelper.IPSet(ipsetName)
 	if err != nil {
 		return fmt.Errorf("failed to initialize ipset: %w", err)
