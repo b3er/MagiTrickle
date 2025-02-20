@@ -2,6 +2,7 @@ package magitrickle
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"magitrickle/models"
@@ -21,6 +22,15 @@ func writeJson(w http.ResponseWriter, httpCode int, data interface{}) {
 
 func writeError(w http.ResponseWriter, httpCode int, e string) {
 	writeJson(w, httpCode, types.ErrorRes{Error: e})
+}
+
+func readJson[T any](r *http.Request) (T, error) {
+	var req T
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		err = fmt.Errorf("failed to parse request: %w", err)
+	}
+	return req, err
 }
 
 func toGroupsRes(groups []*models.Group, withRules bool) types.GroupsRes {

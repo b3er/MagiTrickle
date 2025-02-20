@@ -26,10 +26,9 @@ import (
 //	@Failure		500	{object}	types.ErrorRes
 //	@Router			/api/v1/system/hooks/netfilterd [post]
 func (a *App) apiNetfilterDHook(w http.ResponseWriter, r *http.Request) {
-	var req types.NetfilterDHookReq
-	err := json.NewDecoder(r.Body).Decode(&req)
+	req, err := readJson[types.NetfilterDHookReq](r)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
+		writeError(w, http.StatusBadRequest, err.Error())
 	}
 	log.Debug().Str("type", req.Type).Str("table", req.Table).Msg("netfilter.d event")
 	err = a.dnsOverrider.NetfilterDHook(req.Type, req.Table)
