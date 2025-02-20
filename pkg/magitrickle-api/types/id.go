@@ -1,6 +1,7 @@
 package types
 
 import (
+	"crypto/rand"
 	"encoding/hex"
 	"errors"
 )
@@ -33,4 +34,13 @@ func ParseID(idStr string) (ID, error) {
 	var id ID
 	err := id.UnmarshalText([]byte(idStr))
 	return id, err
+}
+
+func RandomID() ID {
+	var id ID
+	_, err := rand.Read(id[:])
+	if err != nil {
+		panic(err)
+	}
+	return id
 }
