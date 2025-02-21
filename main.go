@@ -10,8 +10,10 @@ import (
 	"path"
 	"path/filepath"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"magitrickle/dns-mitm-proxy"
@@ -28,6 +30,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
+	"gopkg.in/yaml.v3"
 )
 
 //	@title		MagiTrickle API
@@ -41,8 +44,43 @@ var (
 	ErrConfigUnsupportedVersion = errors.New("config unsupported version")
 )
 
-const skinsFolderLocation = "/opt/usr/share/magitrickle/skins"
 const noSkinFoundPlaceholder = "<!DOCTYPE html><html><head><title>MagiTrickle</title></head><body><h1>MagiTrickle</h1><p>Please install MagiTrickle skin before using WebUI!</p></body></html>"
+
+const skinsFolderLocation = "/opt/usr/share/magitrickle/skins"
+const cfgFolderLocation = "/opt/var/lib/magitrickle"
+const cfgFileLocation = cfgFolderLocation + "/config.yaml"
+const pidFileLocation = "/opt/var/run/magitrickle.pid"
+
+func checkPIDFile() error {
+	data, err := os.ReadFile(pidFileLocation)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
+	pid, err := strconv.Atoi(string(data))
+	if err != nil {
+		return errors.New("invalid PID file content")
+	}
+
+	if err := syscall.Kill(pid, 0); err == nil {
+		return fmt.Errorf("process %d is already running", pid)
+	}
+
+	_ = os.Remove(pidFileLocation)
+	return nil
+}
+
+func createPIDFile() error {
+	pid := os.Getpid()
+	return os.WriteFile(pidFileLocation, []byte(strconv.Itoa(pid)), 0644)
+}
+
+func removePIDFile() {
+	_ = os.Remove(pidFileLocation)
+}
 
 var defaultAppConfig = models.App{
 	DNSProxy: models.DNSProxy{
@@ -115,6 +153,17 @@ func (a *App) Start(ctx context.Context) (err error) {
 
 // основной метод инициализации и запуска всех сервисов
 func (a *App) start(ctx context.Context) error {
+	err := checkPIDFile()
+	if err != nil {
+		return fmt.Errorf("failed to check PID file: %w", err)
+	}
+
+	err = createPIDFile()
+	if err != nil {
+		return fmt.Errorf("failed to create PID file: %w", err)
+	}
+	defer removePIDFile()
+
 	a.setupLogging()
 	a.initDNSMITM()
 
@@ -820,7 +869,36 @@ func (a *App) ListInterfaces() ([]net.Interface, error) {
 	return filteredInterfaces, nil
 }
 
-// конструктор приложения с конфигурацией по умолчанию
-func New() *App {
-	return &App{config: defaultAppConfig}
+// конструктор приложения
+func New() (*App, error) {
+	app := &App{config: defaultAppConfig}
+	cfgFile, err := os.ReadFile(cfgFileLocation)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("failed to read config file: %w", err)
+		}
+		out, err := yaml.Marshal(app.ExportConfig())
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal config file: %w", err)
+		}
+		err = os.MkdirAll(cfgFolderLocation, os.ModePerm)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create config folder: %w", err)
+		}
+		err = os.WriteFile(cfgFileLocation, out, 0600)
+		if err != nil {
+			return nil, fmt.Errorf("failed to write config file: %w", err)
+		}
+	} else {
+		cfg := config.Config{}
+		err = yaml.Unmarshal(cfgFile, &cfg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal config file: %w", err)
+		}
+		err = app.ImportConfig(cfg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to import config file: %w", err)
+		}
+	}
+	return app, nil
 }
