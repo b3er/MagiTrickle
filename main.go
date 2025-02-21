@@ -7,6 +7,8 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path"
+	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"sync/atomic"
@@ -39,6 +41,9 @@ var (
 	ErrConfigUnsupportedVersion = errors.New("config unsupported version")
 )
 
+const skinsFolderLocation = "/opt/usr/share/magitrickle/skins"
+const noSkinFoundPlaceholder = "<!DOCTYPE html><html><head><title>MagiTrickle</title></head><body><h1>MagiTrickle</h1><p>Please install MagiTrickle skin before using WebUI!</p></body></html>"
+
 var defaultAppConfig = models.App{
 	DNSProxy: models.DNSProxy{
 		Host:            models.DNSProxyServer{Address: "[::]", Port: 3553},
@@ -53,6 +58,7 @@ var defaultAppConfig = models.App{
 			Address: "[::]",
 			Port:    8080,
 		},
+		Skin: "default",
 	},
 	Netfilter: models.Netfilter{
 		IPTables: models.IPTables{
@@ -299,6 +305,53 @@ func (a *App) setupHTTP(errChan chan error) (*http.Server, error) {
 		r := chi.NewRouter()
 		r.Use(middleware.Recoverer)
 		r.Route("/api", a.apiHandler)
+		r.Get("/*", func(w http.ResponseWriter, r *http.Request) {
+			originalFilePath := path.Clean(r.URL.Path)
+			filePath := path.Join(skinsFolderLocation, a.config.HTTPWeb.Skin, originalFilePath)
+
+			for i := 0; i < 2; i++ {
+				stat, err := os.Stat(filePath)
+				if err != nil {
+					if os.IsNotExist(err) {
+						if originalFilePath == "/" {
+							w.WriteHeader(http.StatusNotFound)
+							w.Write([]byte(noSkinFoundPlaceholder))
+							return
+						}
+						writeError(w, http.StatusNotFound, "file not found")
+						return
+					}
+					writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to stat file: %v", err).Error())
+					return
+				}
+				if stat.IsDir() {
+					filePath = path.Join(filePath, "index.html")
+					continue
+				}
+				break
+			}
+
+			fileData, err := os.ReadFile(filePath)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to stat file: %v", err).Error())
+				return
+			}
+
+			ext := filepath.Ext(filePath)
+			switch ext {
+			case ".html":
+				w.Header().Set("Content-Type", "text/html")
+			case ".css":
+				w.Header().Set("Content-Type", "text/css")
+			case ".js":
+				w.Header().Set("Content-Type", "application/javascript")
+			default:
+				w.Header().Set("Content-Type", "text/plain")
+			}
+
+			w.WriteHeader(http.StatusOK)
+			w.Write(fileData)
+		})
 		return r
 	}()}
 	go func() {
@@ -554,6 +607,9 @@ func (a *App) ImportConfig(cfg config.Config) error {
 					a.config.HTTPWeb.Host.Port = *cfg.App.HTTPWeb.Host.Port
 				}
 			}
+			if cfg.App.HTTPWeb.Skin != nil {
+				a.config.HTTPWeb.Skin = *cfg.App.HTTPWeb.Skin
+			}
 		}
 
 		if cfg.App.DNSProxy != nil {
@@ -676,6 +732,7 @@ func (a *App) ExportConfig() config.Config {
 					Address: &a.config.HTTPWeb.Host.Address,
 					Port:    &a.config.HTTPWeb.Host.Port,
 				},
+				Skin: &a.config.HTTPWeb.Skin,
 			},
 			DNSProxy: &config.DNSProxy{
 				Host: &config.DNSProxyServer{

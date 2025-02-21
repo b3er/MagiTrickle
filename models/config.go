@@ -16,6 +16,7 @@ type App struct {
 type HTTPWeb struct {
 	Enabled bool
 	Host    HTTPWebServer
+	Skin    string
 }
 
 type HTTPWebServer struct {

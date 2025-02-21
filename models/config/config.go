@@ -17,6 +17,7 @@ type App struct {
 type HTTPWeb struct {
 	Enabled *bool          `yaml:"enabled"`
 	Host    *HTTPWebServer `yaml:"host"`
+	Skin    *string        `yaml:"skin"`
 }
 
 type HTTPWebServer struct {
