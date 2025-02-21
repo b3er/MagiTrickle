@@ -19,6 +19,8 @@ import (
 	"magitrickle/pkg/magitrickle-api"
 	"magitrickle/records"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/miekg/dns"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -28,6 +30,7 @@ import (
 
 //	@title		MagiTrickle API
 //	@version	0.1
+//	@basePath	/api
 
 var (
 	ErrAlreadyRunning           = errors.New("already running")
@@ -43,6 +46,13 @@ var defaultAppConfig = models.App{
 		DisableRemap53:  false,
 		DisableFakePTR:  false,
 		DisableDropAAAA: false,
+	},
+	HTTPWeb: models.HTTPWeb{
+		Enabled: true,
+		Host: models.HTTPWebServer{
+			Address: "[::]",
+			Port:    8080,
+		},
 	},
 	Netfilter: models.Netfilter{
 		IPTables: models.IPTables{
@@ -146,13 +156,20 @@ func (a *App) start(ctx context.Context) error {
 		}
 	}()
 
-	socket, err := a.setupUnixSocketAPI(errChan)
+	socketServer, err := a.setupUnixSocket(errChan)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		_ = socket.Close()
-		_ = os.Remove(magitrickleAPI.SocketPath)
+		_ = socketServer.Close()
+	}()
+
+	httpServer, err := a.setupHTTP(errChan)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = httpServer.Close()
 	}()
 
 	linkUpdateChannel, linkUpdateDone, err := subscribeLinkUpdates()
@@ -248,7 +265,7 @@ func (a *App) getInterfaceAddresses() ([]netlink.Addr, error) {
 	return addrList, nil
 }
 
-func (a *App) setupUnixSocketAPI(errChan chan error) (net.Listener, error) {
+func (a *App) setupUnixSocket(errChan chan error) (*http.Server, error) {
 	if err := os.Remove(magitrickleAPI.SocketPath); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, fmt.Errorf("failed to remove existing UNIX socket: %w", err)
 	}
@@ -256,12 +273,42 @@ func (a *App) setupUnixSocketAPI(errChan chan error) (net.Listener, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error while serving UNIX socket: %v", err)
 	}
+	srv := &http.Server{Handler: func() http.Handler {
+		r := chi.NewRouter()
+		r.Use(middleware.Recoverer)
+		r.Route("/api", a.apiHandler)
+		return r
+	}()}
 	go func() {
-		if err := http.Serve(socket, a.apiHandler()); err != nil {
+		err := srv.Serve(socket)
+		if err != nil && err != http.ErrServerClosed {
 			errChan <- fmt.Errorf("failed to serve UNIX socket: %v", err)
 		}
+		_ = socket.Close()
+		_ = os.Remove(magitrickleAPI.SocketPath)
 	}()
-	return socket, nil
+	return srv, nil
+}
+
+func (a *App) setupHTTP(errChan chan error) (*http.Server, error) {
+	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", a.config.HTTPWeb.Host.Address, a.config.HTTPWeb.Host.Port))
+	if err != nil {
+		return nil, fmt.Errorf("error while listening HTTP: %v", err)
+	}
+	srv := &http.Server{Handler: func() http.Handler {
+		r := chi.NewRouter()
+		r.Use(middleware.Recoverer)
+		r.Route("/api", a.apiHandler)
+		return r
+	}()}
+	go func() {
+		err := srv.Serve(listener)
+		if err != nil && err != http.ErrServerClosed {
+			errChan <- fmt.Errorf("failed to serve HTTP: %v", err)
+		}
+		listener.Close()
+	}()
+	return srv, nil
 }
 
 func subscribeLinkUpdates() (chan netlink.LinkUpdate, chan struct{}, error) {
@@ -495,6 +542,20 @@ func (a *App) ImportConfig(cfg config.Config) error {
 	}
 
 	if cfg.App != nil {
+		if cfg.App.HTTPWeb != nil {
+			if cfg.App.HTTPWeb.Enabled != nil {
+				a.config.HTTPWeb.Enabled = *cfg.App.HTTPWeb.Enabled
+			}
+			if cfg.App.HTTPWeb.Host != nil {
+				if cfg.App.HTTPWeb.Host.Address != nil {
+					a.config.HTTPWeb.Host.Address = *cfg.App.HTTPWeb.Host.Address
+				}
+				if cfg.App.HTTPWeb.Host.Port != nil {
+					a.config.HTTPWeb.Host.Port = *cfg.App.HTTPWeb.Host.Port
+				}
+			}
+		}
+
 		if cfg.App.DNSProxy != nil {
 			if cfg.App.DNSProxy.Upstream != nil {
 				if cfg.App.DNSProxy.Upstream.Address != nil {
@@ -609,6 +670,13 @@ func (a *App) ExportConfig() config.Config {
 	return config.Config{
 		ConfigVersion: "0.1.0",
 		App: &config.App{
+			HTTPWeb: &config.HTTPWeb{
+				Enabled: &a.config.HTTPWeb.Enabled,
+				Host: &config.HTTPWebServer{
+					Address: &a.config.HTTPWeb.Host.Address,
+					Port:    &a.config.HTTPWeb.Host.Port,
+				},
+			},
 			DNSProxy: &config.DNSProxy{
 				Host: &config.DNSProxyServer{
 					Address: &a.config.DNSProxy.Host.Address,

@@ -1,41 +1,51 @@
 package models
 
 type Config struct {
-	ConfigVersion string  `yaml:"configVersion"`
-	App           App     `yaml:"app"`
-	Groups        []Group `yaml:"groups"`
+	App    App
+	Groups []Group
 }
 
 type App struct {
-	DNSProxy  DNSProxy  `yaml:"dnsProxy"`
-	Netfilter Netfilter `yaml:"netfilter"`
-	Link      []string  `yaml:"link"`
-	LogLevel  string    `yaml:"logLevel"`
+	HTTPWeb   HTTPWeb
+	DNSProxy  DNSProxy
+	Netfilter Netfilter
+	Link      []string
+	LogLevel  string
+}
+
+type HTTPWeb struct {
+	Enabled bool
+	Host    HTTPWebServer
+}
+
+type HTTPWebServer struct {
+	Address string
+	Port    uint16
 }
 
 type DNSProxy struct {
-	Host            DNSProxyServer `yaml:"host"`
-	Upstream        DNSProxyServer `yaml:"upstream"`
-	DisableRemap53  bool           `yaml:"disableRemap53"`
-	DisableFakePTR  bool           `yaml:"disableFakePTR"`
-	DisableDropAAAA bool           `yaml:"disableDropAAAA"`
+	Host            DNSProxyServer
+	Upstream        DNSProxyServer
+	DisableRemap53  bool
+	DisableFakePTR  bool
+	DisableDropAAAA bool
 }
 
 type DNSProxyServer struct {
-	Address string `yaml:"address"`
-	Port    uint16 `yaml:"port"`
+	Address string
+	Port    uint16
 }
 
 type Netfilter struct {
-	IPTables IPTables `yaml:"iptables"`
-	IPSet    IPSet    `yaml:"ipset"`
+	IPTables IPTables
+	IPSet    IPSet
 }
 
 type IPTables struct {
-	ChainPrefix string `yaml:"chainPrefix"`
+	ChainPrefix string
 }
 
 type IPSet struct {
-	TablePrefix   string `yaml:"tablePrefix"`
-	AdditionalTTL uint32 `yaml:"additionalTTL"`
+	TablePrefix   string
+	AdditionalTTL uint32
 }

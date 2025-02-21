@@ -9,7 +9,6 @@ import (
 	"magitrickle/pkg/magitrickle-api/types"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rs/zerolog/log"
 )
 
@@ -24,7 +23,7 @@ import (
 //	@Success		200
 //	@Failure		400	{object}	types.ErrorRes
 //	@Failure		500	{object}	types.ErrorRes
-//	@Router			/api/v1/system/hooks/netfilterd [post]
+//	@Router			/v1/system/hooks/netfilterd [post]
 func (a *App) apiNetfilterDHook(w http.ResponseWriter, r *http.Request) {
 	req, err := readJson[types.NetfilterDHookReq](r)
 	if err != nil {
@@ -52,7 +51,7 @@ func (a *App) apiNetfilterDHook(w http.ResponseWriter, r *http.Request) {
 //	@Param			with_rules	query		bool	false	"Возвращать группы с их правилами"
 //	@Success		200			{object}	types.GroupsRes
 //	@Failure		500			{object}	types.ErrorRes
-//	@Router			/api/v1/groups [get]
+//	@Router			/v1/groups [get]
 func (a *App) apiGetGroups(w http.ResponseWriter, r *http.Request) {
 	withRules := r.URL.Query().Get("with_rules") == "true"
 	groups := make([]*models.Group, len(a.groups))
@@ -73,7 +72,7 @@ func (a *App) apiGetGroups(w http.ResponseWriter, r *http.Request) {
 //	@Success		200		{object}	types.GroupsRes
 //	@Failure		400		{object}	types.ErrorRes
 //	@Failure		500		{object}	types.ErrorRes
-//	@Router			/api/v1/groups [put]
+//	@Router			/v1/groups [put]
 func (a *App) apiPutGroups(w http.ResponseWriter, r *http.Request) {
 	req, err := readJson[types.GroupsReq](r)
 	if err != nil {
@@ -142,7 +141,7 @@ func (a *App) apiPutGroups(w http.ResponseWriter, r *http.Request) {
 //	@Success		200		{object}	types.GroupRes
 //	@Failure		400		{object}	types.ErrorRes
 //	@Failure		500		{object}	types.ErrorRes
-//	@Router			/api/v1/groups [post]
+//	@Router			/v1/groups [post]
 func (a *App) apiCreateGroup(w http.ResponseWriter, r *http.Request) {
 	req, err := readJson[types.GroupReq](r)
 	if err != nil {
@@ -197,7 +196,7 @@ func (a *App) apiCreateGroup(w http.ResponseWriter, r *http.Request) {
 //	@Success		200			{object}	types.GroupRes
 //	@Failure		404			{object}	types.ErrorRes
 //	@Failure		500			{object}	types.ErrorRes
-//	@Router			/api/v1/groups/{groupID} [get]
+//	@Router			/v1/groups/{groupID} [get]
 func (a *App) apiGetGroup(w http.ResponseWriter, r *http.Request) {
 	groupIdx, _ := strconv.Atoi(r.Header.Get("groupIdx"))
 	withRules := r.URL.Query().Get("with_rules") == "true"
@@ -217,7 +216,7 @@ func (a *App) apiGetGroup(w http.ResponseWriter, r *http.Request) {
 //	@Failure		400		{object}	types.ErrorRes
 //	@Failure		404		{object}	types.ErrorRes
 //	@Failure		500		{object}	types.ErrorRes
-//	@Router			/api/v1/groups/{groupID} [put]
+//	@Router			/v1/groups/{groupID} [put]
 func (a *App) apiPutGroup(w http.ResponseWriter, r *http.Request) {
 	req, err := readJson[types.GroupReq](r)
 	if err != nil {
@@ -283,7 +282,7 @@ func (a *App) apiPutGroup(w http.ResponseWriter, r *http.Request) {
 //	@Success		200
 //	@Failure		404	{object}	types.ErrorRes
 //	@Failure		500	{object}	types.ErrorRes
-//	@Router			/api/v1/groups/{groupID} [delete]
+//	@Router			/v1/groups/{groupID} [delete]
 func (a *App) apiDeleteGroup(w http.ResponseWriter, r *http.Request) {
 	groupIdx, _ := strconv.Atoi(r.Header.Get("groupIdx"))
 	group := a.groups[groupIdx]
@@ -308,7 +307,7 @@ func (a *App) apiDeleteGroup(w http.ResponseWriter, r *http.Request) {
 //	@Success		200		{object}	types.RulesRes
 //	@Failure		404		{object}	types.ErrorRes
 //	@Failure		500		{object}	types.ErrorRes
-//	@Router			/api/v1/groups/{groupID}/rules [get]
+//	@Router			/v1/groups/{groupID}/rules [get]
 func (a *App) apiGetRules(w http.ResponseWriter, r *http.Request) {
 	groupIdx, _ := strconv.Atoi(r.Header.Get("groupIdx"))
 	writeJson(w, http.StatusOK, toRulesRes(a.groups[groupIdx].Group.Rules))
@@ -327,7 +326,7 @@ func (a *App) apiGetRules(w http.ResponseWriter, r *http.Request) {
 //	@Failure		400		{object}	types.ErrorRes
 //	@Failure		404		{object}	types.ErrorRes
 //	@Failure		500		{object}	types.ErrorRes
-//	@Router			/api/v1/groups/{groupID}/rules [put]
+//	@Router			/v1/groups/{groupID}/rules [put]
 func (a *App) apiPutRules(w http.ResponseWriter, r *http.Request) {
 	req, err := readJson[types.RulesReq](r)
 	if err != nil {
@@ -383,7 +382,7 @@ func (a *App) apiPutRules(w http.ResponseWriter, r *http.Request) {
 //	@Failure		400		{object}	types.ErrorRes
 //	@Failure		404		{object}	types.ErrorRes
 //	@Failure		500		{object}	types.ErrorRes
-//	@Router			/api/v1/groups/{groupID}/rules [post]
+//	@Router			/v1/groups/{groupID}/rules [post]
 func (a *App) apiCreateRule(w http.ResponseWriter, r *http.Request) {
 	req, err := readJson[types.RuleReq](r)
 	if err != nil {
@@ -429,7 +428,7 @@ func (a *App) apiCreateRule(w http.ResponseWriter, r *http.Request) {
 //	@Success		200		{object}	types.RuleRes
 //	@Failure		404		{object}	types.ErrorRes
 //	@Failure		500		{object}	types.ErrorRes
-//	@Router			/api/v1/groups/{groupID}/rules/{ruleID} [get]
+//	@Router			/v1/groups/{groupID}/rules/{ruleID} [get]
 func (a *App) apiGetRule(w http.ResponseWriter, r *http.Request) {
 	groupIdx, _ := strconv.Atoi(r.Header.Get("groupIdx"))
 	ruleIdx, _ := strconv.Atoi(r.Header.Get("ruleIdx"))
@@ -450,7 +449,7 @@ func (a *App) apiGetRule(w http.ResponseWriter, r *http.Request) {
 //	@Failure		400		{object}	types.ErrorRes
 //	@Failure		404		{object}	types.ErrorRes
 //	@Failure		500		{object}	types.ErrorRes
-//	@Router			/api/v1/groups/{groupID}/rules/{ruleID} [put]
+//	@Router			/v1/groups/{groupID}/rules/{ruleID} [put]
 func (a *App) apiPutRule(w http.ResponseWriter, r *http.Request) {
 	req, err := readJson[types.RuleReq](r)
 	if err != nil {
@@ -491,7 +490,7 @@ func (a *App) apiPutRule(w http.ResponseWriter, r *http.Request) {
 //	@Success		200
 //	@Failure		404	{object}	types.ErrorRes
 //	@Failure		500	{object}	types.ErrorRes
-//	@Router			/api/v1/groups/{groupID}/rules/{ruleID} [delete]
+//	@Router			/v1/groups/{groupID}/rules/{ruleID} [delete]
 func (a *App) apiDeleteRule(w http.ResponseWriter, r *http.Request) {
 	groupIdx, _ := strconv.Atoi(r.Header.Get("groupIdx"))
 	group := a.groups[groupIdx]
@@ -510,10 +509,8 @@ func (a *App) apiDeleteRule(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *App) apiHandler() http.Handler {
-	r := chi.NewRouter()
-	r.Use(middleware.Recoverer)
-	r.Route("/api/v1", func(r chi.Router) {
+func (a *App) apiHandler(r chi.Router) {
+	r.Route("/v1", func(r chi.Router) {
 		r.Route("/groups", func(r chi.Router) {
 			r.Get("/", a.apiGetGroups)
 			r.Put("/", a.apiPutGroups)
@@ -582,6 +579,4 @@ func (a *App) apiHandler() http.Handler {
 			})
 		})
 	})
-
-	return r
 }

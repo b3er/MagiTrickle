@@ -7,10 +7,21 @@ type Config struct {
 }
 
 type App struct {
+	HTTPWeb   *HTTPWeb   `yaml:"httpWeb"`
 	DNSProxy  *DNSProxy  `yaml:"dnsProxy"`
 	Netfilter *Netfilter `yaml:"netfilter"`
 	Link      *[]string  `yaml:"link"`
 	LogLevel  *string    `yaml:"logLevel"`
+}
+
+type HTTPWeb struct {
+	Enabled *bool          `yaml:"enabled"`
+	Host    *HTTPWebServer `yaml:"host"`
+}
+
+type HTTPWebServer struct {
+	Address *string `yaml:"address"`
+	Port    *uint16 `yaml:"port"`
 }
 
 type DNSProxy struct {
