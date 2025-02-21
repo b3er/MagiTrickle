@@ -7,7 +7,9 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"runtime/debug"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"magitrickle/dns-mitm-proxy"
@@ -56,41 +58,43 @@ var defaultAppConfig = models.App{
 }
 
 type App struct {
-	config       models.App
-	dnsMITM      *dnsMitmProxy.DNSMITMProxy
-	nfHelper     *netfilterHelper.NetfilterHelper
-	records      *records.Records
-	groups       []*Group
-	isRunning    bool
+	config   models.App
+	dnsMITM  *dnsMitmProxy.DNSMITMProxy
+	nfHelper *netfilterHelper.NetfilterHelper
+	records  *records.Records
+	groups   []*Group
+	// TODO: доделать
+	enabled      atomic.Bool
 	dnsOverrider *netfilterHelper.PortRemap
 }
 
 // публичный метод для запуска приложения
 func (a *App) Start(ctx context.Context) (err error) {
-    if a.isRunning {
-        return ErrAlreadyRunning
-    }
-    a.isRunning = true
-    defer func() { a.isRunning = false }()
+	if !a.enabled.CompareAndSwap(false, true) {
+		return ErrAlreadyRunning
+	}
+	defer func() { a.enabled.Store(false) }()
 
-    // восстанавливаемся из паники и пробрасываем ошибку наружу
-    defer func() {
-        if r := recover(); r != nil {
-            var recErr error
-            if errVal, ok := r.(error); ok {
-                recErr = fmt.Errorf("recovered error: %w", errVal)
-            } else {
-                recErr = fmt.Errorf("recovered error: %v", r)
-            }
-            log.Error().Err(recErr).Msg("panic recovered")
+	// восстанавливаемся из паники и пробрасываем ошибку наружу
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Fprintf(os.Stderr, "panic: %s\n", debug.Stack())
 
-            // переписываем err, чтобы вернуть его наружу
-            err = recErr
-        }
-    }()
+			var recErr error
+			if errVal, ok := r.(error); ok {
+				recErr = fmt.Errorf("recovered error: %w", errVal)
+			} else {
+				recErr = fmt.Errorf("recovered error: %v", r)
+			}
+			log.Error().Err(recErr).Msg("panic recovered")
 
-    err = a.start(ctx)
-    return err
+			// переписываем err, чтобы вернуть его наружу
+			err = recErr
+		}
+	}()
+
+	err = a.start(ctx)
+	return err
 }
 
 // основной метод инициализации и запуска всех сервисов
@@ -98,7 +102,7 @@ func (a *App) start(ctx context.Context) error {
 	a.setupLogging()
 	a.initDNSMITM()
 
-	nfHelper, err := netfilterHelper.New(a.config.Netfilter.IPTables.ChainPrefix)
+	nfHelper, err := netfilterHelper.New(a.config.Netfilter.IPTables.ChainPrefix, a.config.Netfilter.IPSet.TablePrefix)
 	if err != nil {
 		return fmt.Errorf("netfilter helper init fail: %w", err)
 	}
@@ -660,7 +664,7 @@ func (a *App) AddGroup(groupModel *models.Group) error {
 	log.Debug().Str("id", grp.ID.String()).Str("name", grp.Name).Msg("added group")
 
 	// Если приложение уже запущено – сразу включаем группу и синхронизируем.
-	if a.isRunning {
+	if a.enabled.Load() {
 		if err = grp.Enable(); err != nil {
 			return fmt.Errorf("failed to enable group: %w", err)
 		}

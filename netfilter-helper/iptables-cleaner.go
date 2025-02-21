@@ -1,6 +1,7 @@
 package netfilterHelper
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -57,13 +58,8 @@ func (nh *NetfilterHelper) cleanIPTables(ipt *iptables.IPTables) error {
 }
 
 func (nh *NetfilterHelper) CleanIPTables() error {
-	err := nh.cleanIPTables(nh.IPTables4)
-	if err != nil {
-		return err
-	}
-	err = nh.cleanIPTables(nh.IPTables6)
-	if err != nil {
-		return err
-	}
-	return nil
+	var errs []error
+	errs = append(errs, nh.cleanIPTables(nh.IPTables4))
+	errs = append(errs, nh.cleanIPTables(nh.IPTables6))
+	return errors.Join(errs...)
 }

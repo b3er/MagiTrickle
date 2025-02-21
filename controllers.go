@@ -123,6 +123,12 @@ func (a *App) apiPutGroups(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusInternalServerError, err.Error())
 		}
 	}
+
+	groups := make([]*models.Group, len(a.groups))
+	for idx, group := range a.groups {
+		groups[idx] = group.Group
+	}
+	writeJson(w, http.StatusOK, toGroupsRes(groups, true))
 }
 
 // apiCreateGroup
@@ -165,16 +171,19 @@ func (a *App) apiCreateGroup(w http.ResponseWriter, r *http.Request) {
 	if req.ID != nil {
 		id = *req.ID
 	}
-	err = a.AddGroup(&models.Group{
+	group := &models.Group{
 		ID:         id,
 		Name:       req.Name,
 		Interface:  req.Interface,
 		FixProtect: req.FixProtect,
 		Rules:      rules,
-	})
+	}
+	err = a.AddGroup(group)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 	}
+
+	writeJson(w, http.StatusOK, toGroupRes(group, true))
 }
 
 // apiGetGroup
@@ -217,11 +226,11 @@ func (a *App) apiPutGroup(w http.ResponseWriter, r *http.Request) {
 
 	groupIdx, _ := strconv.Atoi(r.Header.Get("groupIdx"))
 	group := a.groups[groupIdx]
-	enabled := group.enabled
+	enabled := group.enabled.Load()
 	if enabled {
-		errs := group.Disable()
-		if len(errs) != 0 {
-			writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to disable group: %v", errs).Error())
+		err = group.Disable()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to disable group: %w", err).Error())
 			return
 		}
 	}
@@ -260,6 +269,8 @@ func (a *App) apiPutGroup(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+
+	writeJson(w, http.StatusOK, toGroupRes(group.Group, true))
 }
 
 // apiDeleteGroup
@@ -276,11 +287,11 @@ func (a *App) apiPutGroup(w http.ResponseWriter, r *http.Request) {
 func (a *App) apiDeleteGroup(w http.ResponseWriter, r *http.Request) {
 	groupIdx, _ := strconv.Atoi(r.Header.Get("groupIdx"))
 	group := a.groups[groupIdx]
-	enabled := group.enabled
+	enabled := group.enabled.Load()
 	if enabled {
-		errs := group.Disable()
-		if len(errs) != 0 {
-			writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to disable group: %v", errs).Error())
+		err := group.Disable()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to disable group: %w", err).Error())
 			return
 		}
 	}
@@ -329,7 +340,7 @@ func (a *App) apiPutRules(w http.ResponseWriter, r *http.Request) {
 
 	groupIdx, _ := strconv.Atoi(r.Header.Get("groupIdx"))
 	group := a.groups[groupIdx]
-	enabled := group.enabled
+	enabled := group.enabled.Load()
 
 	var rules []*models.Rule
 	rules = make([]*models.Rule, len(*req.Rules))
@@ -355,6 +366,8 @@ func (a *App) apiPutRules(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+
+	writeJson(w, http.StatusOK, toRulesRes(rules))
 }
 
 // apiCreateRule
@@ -379,19 +392,20 @@ func (a *App) apiCreateRule(w http.ResponseWriter, r *http.Request) {
 
 	groupIdx, _ := strconv.Atoi(r.Header.Get("groupIdx"))
 	group := a.groups[groupIdx]
-	enabled := group.enabled
+	enabled := group.enabled.Load()
 
 	id := types.RandomID()
 	if req.ID != nil {
 		id = *req.ID
 	}
-	group.Rules = append(group.Rules, &models.Rule{
+	rule := &models.Rule{
 		ID:     id,
 		Name:   req.Name,
 		Type:   req.Type,
 		Rule:   req.Rule,
 		Enable: req.Enable,
-	})
+	}
+	group.Rules = append(group.Rules, rule)
 
 	if enabled {
 		err = group.Sync()
@@ -400,6 +414,8 @@ func (a *App) apiCreateRule(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+
+	writeJson(w, http.StatusOK, toRuleRes(rule))
 }
 
 // apiGetRule
@@ -443,7 +459,7 @@ func (a *App) apiPutRule(w http.ResponseWriter, r *http.Request) {
 
 	groupIdx, _ := strconv.Atoi(r.Header.Get("groupIdx"))
 	group := a.groups[groupIdx]
-	enabled := group.enabled
+	enabled := group.enabled.Load()
 
 	ruleIdx, _ := strconv.Atoi(r.Header.Get("ruleIdx"))
 	rule := group.Group.Rules[ruleIdx]
@@ -460,6 +476,8 @@ func (a *App) apiPutRule(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+
+	writeJson(w, http.StatusOK, toRuleRes(rule))
 }
 
 // apiDeleteRule
@@ -477,7 +495,7 @@ func (a *App) apiPutRule(w http.ResponseWriter, r *http.Request) {
 func (a *App) apiDeleteRule(w http.ResponseWriter, r *http.Request) {
 	groupIdx, _ := strconv.Atoi(r.Header.Get("groupIdx"))
 	group := a.groups[groupIdx]
-	enabled := group.enabled
+	enabled := group.enabled.Load()
 
 	ruleIdx, _ := strconv.Atoi(r.Header.Get("ruleIdx"))
 

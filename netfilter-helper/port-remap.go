@@ -1,28 +1,31 @@
 package netfilterHelper
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
+	"sync"
+	"sync/atomic"
 
 	"github.com/coreos/go-iptables/iptables"
 	"github.com/vishvananda/netlink"
 )
 
 type PortRemap struct {
-	ChainName string
-	Addresses []netlink.Addr
-	From      uint16
-	To        uint16
+	enabled atomic.Bool
+	locker  sync.Mutex
 
-	enabled bool
-	nh      *NetfilterHelper
+	chainName string
+	addresses []netlink.Addr
+	from      uint16
+	to        uint16
+	nh        *NetfilterHelper
 }
 
 func (r *PortRemap) insertIPTablesRules(ipt *iptables.IPTables, table string) error {
 	if table == "" || table == "nat" {
-		preroutingChain := r.nh.ChainPrefix + r.ChainName + "_PRR"
-		err := ipt.NewChain("nat", preroutingChain)
+		err := ipt.NewChain("nat", r.chainName)
 		if err != nil {
 			// If not "AlreadyExists"
 			if eerr, eok := err.(*iptables.Error); !(eok && eerr.ExitStatus() == 1) {
@@ -30,27 +33,27 @@ func (r *PortRemap) insertIPTablesRules(ipt *iptables.IPTables, table string) er
 			}
 		}
 
-		for _, addr := range r.Addresses {
+		for _, addr := range r.addresses {
 			if !((ipt.Proto() == iptables.ProtocolIPv4 && len(addr.IP) == net.IPv4len) || (ipt.Proto() == iptables.ProtocolIPv6 && len(addr.IP) == net.IPv6len)) {
 				continue
 			}
 
 			if ipt.Proto() != iptables.ProtocolIPv6 {
 				for _, iptablesArgs := range [][]string{
-					{"-p", "tcp", "-d", addr.IP.String(), "--dport", fmt.Sprintf("%d", r.From), "-j", "REDIRECT", "--to-port", fmt.Sprintf("%d", r.To)},
-					{"-p", "udp", "-d", addr.IP.String(), "--dport", fmt.Sprintf("%d", r.From), "-j", "REDIRECT", "--to-port", fmt.Sprintf("%d", r.To)},
+					{"-p", "tcp", "-d", addr.IP.String(), "--dport", fmt.Sprintf("%d", r.from), "-j", "REDIRECT", "--to-port", fmt.Sprintf("%d", r.to)},
+					{"-p", "udp", "-d", addr.IP.String(), "--dport", fmt.Sprintf("%d", r.from), "-j", "REDIRECT", "--to-port", fmt.Sprintf("%d", r.to)},
 				} {
-					err = ipt.AppendUnique("nat", preroutingChain, iptablesArgs...)
+					err = ipt.AppendUnique("nat", r.chainName, iptablesArgs...)
 					if err != nil {
 						return fmt.Errorf("failed to append rule: %w", err)
 					}
 				}
 			} else {
 				for _, iptablesArgs := range [][]string{
-					{"-p", "tcp", "-d", addr.IP.String(), "--dport", strconv.Itoa(int(r.From)), "-j", "DNAT", "--to-destination", fmt.Sprintf(":%d", r.To)},
-					{"-p", "udp", "-d", addr.IP.String(), "--dport", strconv.Itoa(int(r.From)), "-j", "DNAT", "--to-destination", fmt.Sprintf(":%d", r.To)},
+					{"-p", "tcp", "-d", addr.IP.String(), "--dport", strconv.Itoa(int(r.from)), "-j", "DNAT", "--to-destination", fmt.Sprintf(":%d", r.to)},
+					{"-p", "udp", "-d", addr.IP.String(), "--dport", strconv.Itoa(int(r.from)), "-j", "DNAT", "--to-destination", fmt.Sprintf(":%d", r.to)},
 				} {
-					err = ipt.AppendUnique("nat", preroutingChain, iptablesArgs...)
+					err = ipt.AppendUnique("nat", r.chainName, iptablesArgs...)
 					if err != nil {
 						return fmt.Errorf("failed to append rule: %w", err)
 					}
@@ -58,7 +61,7 @@ func (r *PortRemap) insertIPTablesRules(ipt *iptables.IPTables, table string) er
 			}
 		}
 
-		err = ipt.InsertUnique("nat", "PREROUTING", 1, "-j", preroutingChain)
+		err = ipt.InsertUnique("nat", "PREROUTING", 1, "-j", r.chainName)
 		if err != nil {
 			return fmt.Errorf("failed to linking chain: %w", err)
 		}
@@ -67,25 +70,43 @@ func (r *PortRemap) insertIPTablesRules(ipt *iptables.IPTables, table string) er
 	return nil
 }
 
-func (r *PortRemap) deleteIPTablesRules(ipt *iptables.IPTables) []error {
+func (r *PortRemap) deleteIPTablesRules(ipt *iptables.IPTables) error {
 	var errs []error
 
-	preroutingChain := r.nh.ChainPrefix + r.ChainName + "_PRR"
-	err := ipt.DeleteIfExists("nat", "PREROUTING", "-j", preroutingChain)
+	err := ipt.ClearChain("nat", r.chainName)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("failed to clear chain: %w", err))
+	}
+
+	err = ipt.DeleteIfExists("nat", "PREROUTING", "-j", r.chainName)
 	if err != nil {
 		errs = append(errs, fmt.Errorf("failed to unlinking chain: %w", err))
 	}
 
-	err = ipt.ClearAndDeleteChain("nat", preroutingChain)
+	err = ipt.DeleteChain("nat", r.chainName)
 	if err != nil {
 		errs = append(errs, fmt.Errorf("failed to delete chain: %w", err))
 	}
 
-	return errs
+	return errors.Join(errs...)
 }
 
 func (r *PortRemap) enable() error {
-	err := r.insertIPTablesRules(r.nh.IPTables4, "")
+	if !r.enabled.CompareAndSwap(false, true) {
+		return nil
+	}
+
+	err := r.deleteIPTablesRules(r.nh.IPTables4)
+	if err != nil {
+		return err
+	}
+
+	err = r.insertIPTablesRules(r.nh.IPTables4, "")
+	if err != nil {
+		return err
+	}
+
+	err = r.deleteIPTablesRules(r.nh.IPTables6)
 	if err != nil {
 		return err
 	}
@@ -95,52 +116,48 @@ func (r *PortRemap) enable() error {
 		return err
 	}
 
-	r.enabled = true
 	return nil
 }
 
 func (r *PortRemap) Enable() error {
-	if r.enabled {
-		return nil
-	}
+	r.locker.Lock()
+	defer r.locker.Unlock()
 
-	err := r.nh.IPTables4.ClearChain("nat", r.ChainName)
+	err := r.enable()
 	if err != nil {
-		return fmt.Errorf("failed to clear chain: %w", err)
+		r.disable()
 	}
 
-	err = r.enable()
-	if err != nil {
-		r.Disable()
-		return err
-	}
-
-	err = r.nh.IPTables6.ClearChain("nat", r.ChainName)
-	if err != nil {
-		return fmt.Errorf("failed to clear chain: %w", err)
-	}
-
-	err = r.enable()
-	if err != nil {
-		r.Disable()
-		return err
-	}
-
-	return nil
+	return err
 }
 
-func (r *PortRemap) Disable() []error {
+func (r *PortRemap) disable() error {
+	if !r.enabled.Load() {
+		return nil
+	}
+	defer r.enabled.Store(false)
+
 	var errs []error
-	errs = append(errs, r.deleteIPTablesRules(r.nh.IPTables4)...)
-	errs = append(errs, r.deleteIPTablesRules(r.nh.IPTables6)...)
-	r.enabled = false
-	return errs
+	errs = append(errs, r.deleteIPTablesRules(r.nh.IPTables4))
+	errs = append(errs, r.deleteIPTablesRules(r.nh.IPTables6))
+	return errors.Join(errs...)
+}
+
+func (r *PortRemap) Disable() error {
+	r.locker.Lock()
+	defer r.locker.Unlock()
+
+	return r.disable()
 }
 
 func (r *PortRemap) NetfilterDHook(iptType, table string) error {
-	if !r.enabled {
+	r.locker.Lock()
+	defer r.locker.Unlock()
+
+	if !r.enabled.Load() {
 		return nil
 	}
+
 	if iptType == "" || iptType == "iptables" {
 		err := r.insertIPTablesRules(r.nh.IPTables4, table)
 		if err != nil {
@@ -153,15 +170,16 @@ func (r *PortRemap) NetfilterDHook(iptType, table string) error {
 			return err
 		}
 	}
+
 	return nil
 }
 
 func (nh *NetfilterHelper) PortRemap(name string, from, to uint16, addr []netlink.Addr) *PortRemap {
 	return &PortRemap{
 		nh:        nh,
-		ChainName: name,
-		Addresses: addr,
-		From:      from,
-		To:        to,
+		chainName: nh.ChainPrefix + name,
+		addresses: addr,
+		from:      from,
+		to:        to,
 	}
 }

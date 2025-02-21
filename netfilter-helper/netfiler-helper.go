@@ -7,11 +7,12 @@ import (
 
 type NetfilterHelper struct {
 	ChainPrefix string
+	IpsetPrefix string
 	IPTables4   *iptables.IPTables
 	IPTables6   *iptables.IPTables
 }
 
-func New(chainPrefix string) (*NetfilterHelper, error) {
+func New(chainPrefix, ipsetPrefix string) (*NetfilterHelper, error) {
 	ipt4, err := iptables.New(iptables.IPFamily(iptables.ProtocolIPv4))
 	if err != nil {
 		return nil, fmt.Errorf("iptables init fail: %w", err)
@@ -24,6 +25,7 @@ func New(chainPrefix string) (*NetfilterHelper, error) {
 
 	return &NetfilterHelper{
 		ChainPrefix: chainPrefix,
+		IpsetPrefix: ipsetPrefix,
 		IPTables4:   ipt4,
 		IPTables6:   ipt6,
 	}, nil
