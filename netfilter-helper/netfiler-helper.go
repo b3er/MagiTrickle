@@ -6,23 +6,27 @@ import (
 )
 
 type NetfilterHelper struct {
-	IPTables *iptables.IPTables
+	ChainPrefix string
+	IpsetPrefix string
+	IPTables4   *iptables.IPTables
+	IPTables6   *iptables.IPTables
 }
 
-func New(isIPv6 bool) (*NetfilterHelper, error) {
-	var proto iptables.Protocol
-	if !isIPv6 {
-		proto = iptables.ProtocolIPv4
-	} else {
-		proto = iptables.ProtocolIPv6
-	}
-
-	ipt, err := iptables.New(iptables.IPFamily(proto))
+func New(chainPrefix, ipsetPrefix string) (*NetfilterHelper, error) {
+	ipt4, err := iptables.New(iptables.IPFamily(iptables.ProtocolIPv4))
 	if err != nil {
 		return nil, fmt.Errorf("iptables init fail: %w", err)
 	}
 
+	ipt6, err := iptables.New(iptables.IPFamily(iptables.ProtocolIPv6))
+	if err != nil {
+		return nil, fmt.Errorf("ip6tables init fail: %w", err)
+	}
+
 	return &NetfilterHelper{
-		IPTables: ipt,
+		ChainPrefix: chainPrefix,
+		IpsetPrefix: ipsetPrefix,
+		IPTables4:   ipt4,
+		IPTables6:   ipt6,
 	}, nil
 }

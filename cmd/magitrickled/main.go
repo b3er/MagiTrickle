@@ -2,57 +2,17 @@ package main
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"os"
 	"os/signal"
-	"strconv"
 	"sync"
 	"syscall"
 
 	"magitrickle"
 	"magitrickle/constant"
-	"magitrickle/models"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"gopkg.in/yaml.v3"
 )
-
-const cfgFolderLocation = "/opt/var/lib/magitrickle"
-const cfgFileLocation = cfgFolderLocation + "/config.yaml"
-const pidFileLocation = "/opt/var/run/magitrickle.pid"
-
-func checkPIDFile() error {
-	data, err := os.ReadFile(pidFileLocation)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-
-	pid, err := strconv.Atoi(string(data))
-	if err != nil {
-		return errors.New("invalid PID file content")
-	}
-
-	if err := syscall.Kill(pid, 0); err == nil {
-		return fmt.Errorf("process %d is already running", pid)
-	}
-
-	_ = os.Remove(pidFileLocation)
-	return nil
-}
-
-func createPIDFile() error {
-	pid := os.Getpid()
-	return os.WriteFile(pidFileLocation, []byte(strconv.Itoa(pid)), 0644)
-}
-
-func removePIDFile() {
-	_ = os.Remove(pidFileLocation)
-}
 
 func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
@@ -61,71 +21,9 @@ func main() {
 		Str("commit", constant.Commit).
 		Msg("starting MagiTrickle daemon")
 
-	if err := checkPIDFile(); err != nil {
+	app, err := magitrickle.New()
+	if err != nil {
 		log.Fatal().Err(err).Msg("failed to start MagiTrickle daemon")
-	}
-
-	if err := createPIDFile(); err != nil {
-		log.Fatal().Err(err).Msg("failed to create PID file")
-	}
-	defer removePIDFile()
-
-	cfg := models.Config{}
-	cfgFile, err := os.ReadFile(cfgFileLocation)
-	if err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			log.Fatal().Err(err).Msg("failed to read config.yaml")
-		}
-		cfg = models.Config{
-			ConfigVersion: "0.1.0",
-			App:           magitrickle.DefaultAppConfig,
-		}
-		out, err := yaml.Marshal(cfg)
-		if err != nil {
-			log.Fatal().Err(err).Msg("failed to serialize config.yaml")
-		}
-		err = os.MkdirAll(cfgFolderLocation, os.ModePerm)
-		if err != nil {
-			log.Fatal().Err(err).Msg("failed to create config directory")
-		}
-		err = os.WriteFile(cfgFileLocation, out, 0600)
-		if err != nil {
-			log.Fatal().Err(err).Msg("failed to save config.yaml")
-		}
-	} else {
-		err = yaml.Unmarshal(cfgFile, &cfg)
-		if err != nil {
-			log.Fatal().Err(err).Msg("failed to parse config.yaml")
-		}
-	}
-
-	switch cfg.App.LogLevel {
-	case "trace":
-		zerolog.SetGlobalLevel(zerolog.TraceLevel)
-	case "debug":
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	case "info":
-		zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	case "warn":
-		zerolog.SetGlobalLevel(zerolog.WarnLevel)
-	case "error":
-		zerolog.SetGlobalLevel(zerolog.ErrorLevel)
-	case "fatal":
-		zerolog.SetGlobalLevel(zerolog.FatalLevel)
-	case "panic":
-		zerolog.SetGlobalLevel(zerolog.PanicLevel)
-	case "nolevel":
-		zerolog.SetGlobalLevel(zerolog.NoLevel)
-	case "disabled":
-		zerolog.SetGlobalLevel(zerolog.Disabled)
-	default:
-		zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	}
-
-	app := magitrickle.New()
-	err = app.ImportConfig(cfg)
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to import config")
 	}
 
 	log.Info().Msg("starting service")

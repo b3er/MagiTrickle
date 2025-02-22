@@ -18,7 +18,7 @@ type CNameRecord struct {
 }
 
 type Records struct {
-	mux     sync.RWMutex
+	locker  sync.Mutex
 	records map[string]interface{}
 }
 
@@ -27,17 +27,17 @@ func (r *Records) AddCNameRecord(domainName, alias string, ttl uint32) {
 		return
 	}
 
-	r.mux.Lock()
+	r.locker.Lock()
 	r.records[domainName] = &CNameRecord{
 		Alias:    alias,
 		Deadline: time.Now().Add(time.Duration(ttl) * time.Second),
 	}
-	r.mux.Unlock()
+	r.locker.Unlock()
 }
 
 func (r *Records) AddARecord(domainName string, addr net.IP, ttl uint32) {
-	r.mux.Lock()
-	defer r.mux.Unlock()
+	r.locker.Lock()
+	defer r.locker.Unlock()
 
 	deadline := time.Now().Add(time.Duration(ttl) * time.Second)
 
@@ -57,8 +57,8 @@ func (r *Records) AddARecord(domainName string, addr net.IP, ttl uint32) {
 }
 
 func (r *Records) GetAliases(domainName string) []string {
-	r.mux.Lock()
-	defer r.mux.Unlock()
+	r.locker.Lock()
+	defer r.locker.Unlock()
 	r.cleanupRecords()
 
 	domains := make(map[string]struct{})
@@ -97,8 +97,8 @@ func (r *Records) GetAliases(domainName string) []string {
 }
 
 func (r *Records) GetARecords(domainName string) []*ARecord {
-	r.mux.Lock()
-	defer r.mux.Unlock()
+	r.locker.Lock()
+	defer r.locker.Unlock()
 	r.cleanupRecords()
 
 	loopDetect := make(map[string]struct{})
@@ -120,8 +120,8 @@ func (r *Records) GetARecords(domainName string) []*ARecord {
 }
 
 func (r *Records) ListKnownDomains() []string {
-	r.mux.Lock()
-	defer r.mux.Unlock()
+	r.locker.Lock()
+	defer r.locker.Unlock()
 	r.cleanupRecords()
 
 	domainsList := make([]string, len(r.records))

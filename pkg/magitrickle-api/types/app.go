@@ -1,6 +1,6 @@
 package types
 
 type NetfilterDHookReq struct {
-	Type  string `json:"type"`
-	Table string `json:"table"`
+	Type  string `json:"type" example:"iptables"`
+	Table string `json:"table" example:"nat"`
 }

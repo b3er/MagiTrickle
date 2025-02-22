@@ -2,9 +2,8 @@ name: Build and Package OPKG
 
 on:
   push:
-    branches:
-      - develop
-      - main
+    branches-ignore:
+      - 'refs/tags/*'
     paths-ignore:
       - '**.md'
       - '.github/**'

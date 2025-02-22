@@ -3,8 +3,6 @@ name: Checking
 on:
   pull_request:
     branches:
-      - develop
-      - main
     paths-ignore:
       - '**.md'
       - '.github/**'
