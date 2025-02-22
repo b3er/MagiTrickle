@@ -2,7 +2,6 @@ package magitrickle
 
 import (
 	"fmt"
-	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -55,20 +54,15 @@ func (a *App) apiNetfilterDHook(w http.ResponseWriter, r *http.Request) {
 //	@Failure		500	{object}	types.ErrorRes
 //	@Router			/v1/system/interfaces [get]
 func (a *App) apiListInterfaces(w http.ResponseWriter, r *http.Request) {
-	interfacesRes := make([]types.InterfaceRes, 0)
-
-	interfaces, err := net.Interfaces()
+	interfaces, err := a.ListInterfaces()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to get interfaces: %w", err).Error())
 		return
 	}
 
-	for _, iface := range interfaces {
-		if iface.Flags&net.FlagPointToPoint == 0 {
-			continue
-		}
-
-		interfacesRes = append(interfacesRes, types.InterfaceRes{ID: iface.Name})
+	interfacesRes := make([]types.InterfaceRes, len(interfaces))
+	for idx, iface := range interfaces {
+		interfacesRes[idx] = types.InterfaceRes{ID: iface.Name}
 	}
 
 	writeJson(w, http.StatusOK, types.InterfacesRes{Interfaces: interfacesRes})
