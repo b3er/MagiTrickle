@@ -35,7 +35,6 @@ import (
 
 //	@title		MagiTrickle API
 //	@version	0.1
-//	@basePath	/api
 
 var (
 	ErrAlreadyRunning           = errors.New("already running")

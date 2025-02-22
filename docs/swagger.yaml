@@ -1,0 +1,570 @@
+definitions:
+  types.ErrorRes:
+    properties:
+      error:
+        example: something went wrong
+        type: string
+    type: object
+  types.GroupReq:
+    properties:
+      fixProtect:
+        example: false
+        type: boolean
+      id:
+        example: 0a1b2c3d
+        type: string
+      interface:
+        example: nwg0
+        type: string
+      name:
+        example: Routing
+        type: string
+      rules:
+        items:
+          $ref: '#/definitions/types.RuleReq'
+        type: array
+    type: object
+  types.GroupRes:
+    properties:
+      fixProtect:
+        example: false
+        type: boolean
+      id:
+        example: 0a1b2c3d
+        type: string
+      interface:
+        example: nwg0
+        type: string
+      name:
+        example: Routing
+        type: string
+      rules:
+        items:
+          $ref: '#/definitions/types.RuleRes'
+        type: array
+    type: object
+  types.GroupsReq:
+    properties:
+      groups:
+        items:
+          $ref: '#/definitions/types.GroupReq'
+        type: array
+    type: object
+  types.GroupsRes:
+    properties:
+      groups:
+        items:
+          $ref: '#/definitions/types.GroupRes'
+        type: array
+    type: object
+  types.InterfaceRes:
+    properties:
+      id:
+        example: nwg0
+        type: string
+    type: object
+  types.InterfacesRes:
+    properties:
+      interfaces:
+        items:
+          $ref: '#/definitions/types.InterfaceRes'
+        type: array
+    type: object
+  types.NetfilterDHookReq:
+    properties:
+      table:
+        example: nat
+        type: string
+      type:
+        example: iptables
+        type: string
+    type: object
+  types.RuleReq:
+    properties:
+      enable:
+        example: true
+        type: boolean
+      id:
+        example: 0a1b2c3d
+        type: string
+      name:
+        example: Example Domain
+        type: string
+      rule:
+        example: example.com
+        type: string
+      type:
+        example: domain
+        type: string
+    type: object
+  types.RuleRes:
+    properties:
+      enable:
+        example: true
+        type: boolean
+      id:
+        example: 0a1b2c3d
+        type: string
+      name:
+        example: Example Domain
+        type: string
+      rule:
+        example: example.com
+        type: string
+      type:
+        example: domain
+        type: string
+    type: object
+  types.RulesRes:
+    properties:
+      rules:
+        items:
+          $ref: '#/definitions/types.RuleRes'
+        type: array
+    type: object
+info:
+  contact: {}
+  title: MagiTrickle API
+  version: "0.1"
+paths:
+  /api/v1/groups:
+    get:
+      description: Возвращает список групп
+      parameters:
+      - description: Возвращать группы с их правилами
+        in: query
+        name: with_rules
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.GroupsRes'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorRes'
+      summary: Получить список групп
+      tags:
+      - groups
+    post:
+      consumes:
+      - application/json
+      description: Создает группу
+      parameters:
+      - description: Тело запроса
+        in: body
+        name: json
+        required: true
+        schema:
+          $ref: '#/definitions/types.GroupReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.GroupRes'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorRes'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorRes'
+      summary: Создать группу
+      tags:
+      - groups
+    put:
+      consumes:
+      - application/json
+      description: Обновляет список групп
+      parameters:
+      - description: Тело запроса
+        in: body
+        name: json
+        required: true
+        schema:
+          $ref: '#/definitions/types.GroupsReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.GroupsRes'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorRes'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorRes'
+      summary: Обновить список групп
+      tags:
+      - groups
+  /api/v1/groups/{groupID}:
+    delete:
+      description: Удаляет запрошенную группу
+      parameters:
+      - description: ID группы
+        in: path
+        name: groupID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/types.ErrorRes'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorRes'
+      summary: Удалить группу
+      tags:
+      - groups
+    get:
+      description: Возвращает запрошенную группу
+      parameters:
+      - description: ID группы
+        in: path
+        name: groupID
+        required: true
+        type: string
+      - description: Возвращать группу с её правилами
+        in: query
+        name: with_rules
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.GroupRes'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/types.ErrorRes'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorRes'
+      summary: Получить группу
+      tags:
+      - groups
+    put:
+      consumes:
+      - application/json
+      description: Обновляет запрошенную группу
+      parameters:
+      - description: ID группы
+        in: path
+        name: groupID
+        required: true
+        type: string
+      - description: Тело запроса
+        in: body
+        name: json
+        required: true
+        schema:
+          $ref: '#/definitions/types.GroupReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.GroupRes'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorRes'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/types.ErrorRes'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorRes'
+      summary: Обновить группу
+      tags:
+      - groups
+  /api/v1/groups/{groupID}/rules:
+    get:
+      description: Возвращает список правил
+      parameters:
+      - description: ID группы
+        in: path
+        name: groupID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.RulesRes'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/types.ErrorRes'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorRes'
+      summary: Получить список правил
+      tags:
+      - rules
+    post:
+      consumes:
+      - application/json
+      description: Создает правило
+      parameters:
+      - description: ID группы
+        in: path
+        name: groupID
+        required: true
+        type: string
+      - description: Тело запроса
+        in: body
+        name: json
+        required: true
+        schema:
+          $ref: '#/definitions/types.RuleReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.RuleRes'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorRes'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/types.ErrorRes'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorRes'
+      summary: Создать правило
+      tags:
+      - rules
+    put:
+      consumes:
+      - application/json
+      description: Обновляет список правил
+      parameters:
+      - description: ID группы
+        in: path
+        name: groupID
+        required: true
+        type: string
+      - description: Тело запроса
+        in: body
+        name: json
+        required: true
+        schema:
+          $ref: '#/definitions/types.RulesRes'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.RulesRes'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorRes'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/types.ErrorRes'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorRes'
+      summary: Обновить список правил
+      tags:
+      - rules
+  /api/v1/groups/{groupID}/rules/{ruleID}:
+    delete:
+      description: Удаляет запрошенное правило
+      parameters:
+      - description: ID группы
+        in: path
+        name: groupID
+        required: true
+        type: string
+      - description: ID правила
+        in: path
+        name: ruleID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/types.ErrorRes'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorRes'
+      summary: Удалить правило
+      tags:
+      - rules
+    get:
+      description: Возвращает запрошенное правило
+      parameters:
+      - description: ID группы
+        in: path
+        name: groupID
+        required: true
+        type: string
+      - description: ID правила
+        in: path
+        name: ruleID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.RuleRes'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/types.ErrorRes'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorRes'
+      summary: Получить правило
+      tags:
+      - rules
+    put:
+      consumes:
+      - application/json
+      description: Обновляет запрошенное правило
+      parameters:
+      - description: ID группы
+        in: path
+        name: groupID
+        required: true
+        type: string
+      - description: ID правила
+        in: path
+        name: ruleID
+        required: true
+        type: string
+      - description: Тело запроса
+        in: body
+        name: json
+        required: true
+        schema:
+          $ref: '#/definitions/types.RuleReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.RuleRes'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorRes'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/types.ErrorRes'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorRes'
+      summary: Обновить правило
+      tags:
+      - rules
+  /api/v1/system/config/save:
+    post:
+      description: Сохраняет текущую конфигурацию в постоянную память
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorRes'
+      summary: Сохранить конфигурацию
+      tags:
+      - config
+  /api/v1/system/hooks/netfilterd:
+    post:
+      consumes:
+      - application/json
+      description: Эмитирует хук эвента netfilter.d
+      parameters:
+      - description: Тело запроса
+        in: body
+        name: json
+        required: true
+        schema:
+          $ref: '#/definitions/types.NetfilterDHookReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorRes'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorRes'
+      summary: Хук эвента netfilter.d
+      tags:
+      - hooks
+  /api/v1/system/interfaces:
+    get:
+      description: Возвращает список интерфейсов
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.InterfacesRes'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorRes'
+      summary: Получить список интерфейсов
+      tags:
+      - config
+swagger: "2.0"

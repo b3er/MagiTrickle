@@ -27,9 +27,7 @@ MagiTrickle - Маршрутизация трафика на основе DNS з
 4. Поддержка автообновляемых "подпискок" на список доменных имён (готовые списки подключаемые несколькими кликами мышки). 
 
 ### Установка:
-Т.к. в данный момент нету никакого дружелюбного к пользователю интерфейсов - данное руководство рассчитано на тех, кому просто нужна маршрутизация на требуемые для него домены без отключения встроенного в Keenetic DNS сервера.
-
-Программа не была досканально протестирована, возможны очень редкие "вылеты". Максимально возможный риск заключается в том, что придётся перезапускать роутер, но шанс этого маловероятен.
+⚠️ Программа не была досканально протестирована, возможны очень редкие "вылеты". Максимально возможный риск заключается в том, что придётся перезапускать роутер, но шанс этого маловероятен.
 
 1. Устанавливаем пакет:
 ```bash
@@ -41,92 +39,40 @@ cp /opt/var/lib/magitrickle/config.yaml.example /opt/var/lib/magitrickle/config.
 ```
 3. Настраиваем конфиг (если не понимаете что делаете - не трогайте группу "app"!):
 ```yaml
-configVersion: 0.1.0
-app:                              # Настройки программы - не трогайте, если не знаете что к чему
-    dnsProxy:
-        host:
-            address: '[::]'       # Адрес, который будет слушать программа для приёма DNS запросов
-            port: 3553            # Порт
-        upstream:
-            address: 127.0.0.1    # Адрес, используемый для отправки DNS запросов
-            port: 53              # Порт
-        disableRemap53: false     # Флаг отключения перепривязки 53 порта
-        disableFakePTR: false     # Флаг отключения подделки PTR записи (без неё есть проблемы, может быть будет исправлено в будущем)
-        disableDropAAAA: false    # Флаг отключения откидывания AAAA записей
-    netfilter:
-        iptables:
-            chainPrefix: MT_      # Префикс для названий цепочек IPTables
-        ipset:
-            tablePrefix: mt_      # Префикс для названий таблиц IPSet
-            additionalTTL: 3600   # Дополнительный TTL (если от DNS пришел TTL 300, то к этому числу прибавится указанный TTL)
-    link:                         # Список адресов где будет подменяться DNS
-        - br0
-        - br1
-    logLevel: info                # Уровень логов (trace, debug, info, warn, error)
-groups:                           # Список групп
-  - id: d663876a                  # Уникальный ID группы (8 символов в диапозоне "0123456789abcdef")
-    name: Routing 1               # Человеко-читаемое имя (для будущего CLI и Web-GUI)
-    interface: nwg0               # Интерфейс, на который будет выполняться маршрутизация
-    fixProtect: false             # Подключение интерфейса в список для выхода в интернет (для неподдерживаемых Keenetic туннелей)
-    rules:                        # Список правил
-      - id: 6f34ee91              # Уникальный ID правила (8 символов в диапозоне "0123456789abcdef")
-        name: Wildcard Example    # Человеко-читаемое имя (для будущего CLI и Web-GUI)
-        type: wildcard            # Тип правила
-        rule: '*.example.com'     # Правило
-        enable: true              # Флаг активации
-      - id: 00ae5f7c
-        name: RegEx Example
-        type: regex
-        rule: '^.*.regex.example.com$'
-        enable: true
-  - id: d663876b
-    name: Routing 2
-    interface: nwg1
-    fixProtect: false
-    rules:
-      - id: 6120dc8a
-        name: Domain Example
-        type: domain
-        rule: 'domain.example.com'
-        enable: true
-```
-Примеры правил:
-* Domain (один домен без поддоменов)
-```yaml
-      - id: 6120dc8a
-        name: Domain Example
-        type: domain
-        rule: 'example.com'
-        enable: true
-```
-* Namespace (домен и все его поддомены)
-```yaml
-      - id: b9751782
-        name: Namespace Example
-        type: namespace
-        rule: 'example.com'
-        enable: true
-```
-* Wildcard
-```yaml
-      - id: 6f34ee91
-        name: Wildcard Example
-        type: wildcard
-        rule: '*.example.com'
-        enable: true
-```
-* RegEx
-```yaml
-      - id: 00ae5f7c
-        name: RegEx Example
-        type: regex
-        rule: '^.*.regex.example.com$'
-        enable: true
+configVersion: 0.1.1
+app:                          # Настройки программы - не трогайте, если не знаете что к чему
+  httpWeb:
+    enabled: true             # Включение HTTP сервера
+    host:
+      address: '[::]'         # Адрес, который будет слушать программа для приёма HTTP запросов
+      port: 8080              # Порт
+    skin: default             # Оболочка (по пути /opt/usr/bin/share/magitrickle/skins)
+  dnsProxy:
+    host:
+      address: '[::]'         # Адрес, который будет слушать программа для приёма DNS запросов
+      port: 3553              # Порт
+    upstream:
+      address: 127.0.0.1      # Адрес, используемый для отправки DNS запросов
+      port: 53                # Порт
+    disableRemap53: false     # Флаг отключения перепривязки 53 порта
+    disableFakePTR: false     # Флаг отключения подделки PTR записи (без неё есть проблемы, может быть будет исправлено в будущем)
+    disableDropAAAA: false    # Флаг отключения откидывания AAAA записей
+  netfilter:
+    iptables:
+      chainPrefix: MT_        # Префикс для названий цепочек IPTables
+    ipset:
+      tablePrefix: mt_        # Префикс для названий таблиц IPSet
+      additionalTTL: 3600     # Дополнительный TTL (если от DNS пришел TTL 300, то к этому числу прибавится указанный TTL)
+  link:                       # Список адресов где будет подменяться DNS
+    - br0
+    - br1
+  logLevel: info              # Уровень логов (trace, debug, info, warn, error)
 ```
 4. Запускаем сервис:
 ```bash
 /opt/etc/init.d/S99magitrickle start
 ```
+5. Добавляем адреса в панели сервиса по адресу `<IP_Роутера>:8080`
 
 ### Отладка
 Если вам нужна отладка, то останавливаем сервис и запускаем "демона" руками:

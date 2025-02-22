@@ -1,24 +1,29 @@
-configVersion: 0.1.0
 app:
-    dnsProxy:
-        host:
-            address: '[::]'
-            port: 3553
-        upstream:
-            address: 127.0.0.1
-            port: 53
-        disableRemap53: false
-        disableFakePTR: false
-        disableDropAAAA: false
-    netfilter:
-        iptables:
-            chainPrefix: MT_
-        ipset:
-            tablePrefix: mt_
-            additionalTTL: 3600
-    link:
-        - br0
-    logLevel: info
+  httpWeb:
+    enabled: true
+    host:
+      address: "[::]"
+      port: 8080
+    skin: default
+  dnsProxy:
+    host:
+      address: "[::]"
+      port: 3553
+    upstream:
+      address: 127.0.0.1
+      port: 53
+    disableRemap53: false
+    disableFakePTR: false
+    disableDropAAAA: false
+  netfilter:
+    iptables:
+      chainPrefix: MT_
+    ipset:
+      tablePrefix: mt_
+      additionalTTL: 3600
+  link:
+    - br0
+  logLevel: info
 groups:
   - id: d663876a
     name: Example
