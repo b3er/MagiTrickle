@@ -3,6 +3,7 @@ package dnsMitmProxy
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"net"
 	"time"
@@ -159,7 +160,12 @@ func (p DNSMITMProxy) ListenTCP(ctx context.Context, addr *net.TCPAddr) error {
 
 			resp, err := p.processReq(clientConn.RemoteAddr(), req, "tcp")
 			if err != nil {
-				log.Error().Err(err).Msg("failed to process request")
+				var networkErr net.Error
+				if errors.As(err, &networkErr) && networkErr.Timeout() {
+					log.Warn().Err(err).Msg("connection deadline exceeded")
+				} else {
+					log.Error().Err(err).Msg("failed to process request")
+				}
 				return
 			}
 
@@ -201,7 +207,12 @@ func (p DNSMITMProxy) ListenUDP(ctx context.Context, addr *net.UDPAddr) error {
 		go func(clientConn *net.UDPConn, clientAddr *net.UDPAddr) {
 			resp, err := p.processReq(clientAddr, req, "udp")
 			if err != nil {
-				log.Error().Err(err).Msg("failed to process request")
+				var networkErr net.Error
+				if errors.As(err, &networkErr) && networkErr.Timeout() {
+					log.Warn().Err(err).Msg("connection deadline exceeded")
+				} else {
+					log.Error().Err(err).Msg("failed to process request")
+				}
 				return
 			}
 
