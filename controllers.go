@@ -3,6 +3,7 @@ package magitrickle
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 
 	"magitrickle/models"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
+	"gopkg.in/yaml.v3"
 )
 
 // apiNetfilterDHook
@@ -39,6 +41,33 @@ func (a *App) apiNetfilterDHook(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Error().Err(err).Msg("error while fixing iptables after netfilter.d")
 		}
+	}
+}
+
+// apiSaveConfig
+//
+//	@Summary		Сохранить конфигурацию
+//	@Description	Сохраняет текущую конфигурацию в постоянную память
+//	@Tags			config
+//	@Produce		json
+//	@Success		200
+//	@Failure		500	{object}	types.ErrorRes
+//	@Router			/v1/system/config/save [post]
+func (a *App) apiSaveConfig(w http.ResponseWriter, r *http.Request) {
+	out, err := yaml.Marshal(a.ExportConfig())
+	if err != nil {
+		writeError(w, http.StatusBadRequest, fmt.Errorf("failed to marshal config file: %w", err).Error())
+		return
+	}
+	err = os.MkdirAll(cfgFolderLocation, os.ModePerm)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, fmt.Errorf("failed to create config folder: %w", err).Error())
+		return
+	}
+	err = os.WriteFile(cfgFileLocation, out, 0600)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, fmt.Errorf("failed to write config file: %w", err).Error())
+		return
 	}
 }
 
@@ -574,6 +603,9 @@ func (a *App) apiHandler(r chi.Router) {
 			})
 		})
 		r.Route("/system", func(r chi.Router) {
+			r.Route("/config", func(r chi.Router) {
+				r.Post("/save", a.apiSaveConfig)
+			})
 			r.Route("/hooks", func(r chi.Router) {
 				r.Post("/netfilterd", a.apiNetfilterDHook)
 			})

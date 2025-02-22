@@ -35,7 +35,7 @@
 <body>
 <div class="container">
     <h1>MagiTrickle (временный WebUI)</h1>
-    <button onclick="fetchGroups()">Обновить список</button><br/>
+    <button onclick="fetchGroups()">Обновить список</button><button onclick="saveConfig()">Сохранить текущую конфигурацию</button><br/>
     <div id="groups"></div>
     <h2>Создать группу</h2>
     <label for="groupCreateName">Имя группы:</label><input id="groupCreateName"><br/>
@@ -197,6 +197,14 @@
             return
         }
         await safeFetch(`${API_BASE}/groups/${groupId}/rules/${ruleId}`, { method: 'DELETE' });
+        fetchGroups();
+    }
+
+    async function saveConfig() {
+        if (!confirm('Вы уверены, что хотите сохранить текущую конфигурацию в постоянную память? Это перезапишет конфигурационный файл!')) {
+            return
+        }
+        await safeFetch(`${API_BASE}/system/config/save`, { method: 'POST' });
         fetchGroups();
     }
 
