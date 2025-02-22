@@ -298,9 +298,11 @@ func (g *Group) NetfilterDHook(iptType, table string) error {
 				return fmt.Errorf("failed to fix protect: %w", err)
 			}
 		}
+
+		return g.ipsetToLink.NetfilterDHook(iptType, table)
 	}
 
-	return g.ipsetToLink.NetfilterDHook(iptType, table)
+	return nil
 }
 
 func (g *Group) LinkUpdateHook(event netlink.LinkUpdate) error {
