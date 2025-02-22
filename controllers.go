@@ -145,15 +145,50 @@ func (a *App) apiPutGroups(w http.ResponseWriter, r *http.Request) {
 	for _, group := range a.groups {
 		_ = group.Disable()
 	}
-	a.groups = a.groups[:0]
 
-	for _, group := range *req.Groups {
+	groups := make([]*models.Group, len(*req.Groups))
+	for idx, group := range *req.Groups {
+		groupId := types.RandomID()
+		groupIdx := -1
+		if group.ID != nil {
+			var ok bool
+			for idx, aGroup := range a.groups {
+				if aGroup.ID == *group.ID {
+					ok = true
+					groupId = *group.ID
+					groupIdx = idx
+					break
+				}
+			}
+			if !ok {
+				writeError(w, http.StatusNotFound, fmt.Errorf("group not found").Error())
+				return
+			}
+		}
+
 		var rules []*models.Rule
 		if group.Rules != nil {
 			rules = make([]*models.Rule, len(*group.Rules))
 			for idx, rule := range *group.Rules {
 				id := types.RandomID()
 				if rule.ID != nil {
+					if groupIdx == -1 {
+						writeError(w, http.StatusNotFound, fmt.Errorf("rule not found").Error())
+						return
+					}
+					group := a.groups[groupIdx]
+					var ok bool
+					for _, ruleModel := range group.Rules {
+						if ruleModel.ID == *rule.ID {
+							ok = true
+							id = *rule.ID
+							break
+						}
+					}
+					if !ok {
+						writeError(w, http.StatusNotFound, fmt.Errorf("rule not found").Error())
+						return
+					}
 					id = *rule.ID
 				}
 				rules[idx] = &models.Rule{
@@ -166,25 +201,21 @@ func (a *App) apiPutGroups(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		id := types.RandomID()
-		if group.ID != nil {
-			id = *group.ID
-		}
-		err = a.AddGroup(&models.Group{
-			ID:         id,
+		groups[idx] = &models.Group{
+			ID:         groupId,
 			Name:       group.Name,
 			Interface:  group.Interface,
 			FixProtect: group.FixProtect,
 			Rules:      rules,
-		})
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
 		}
 	}
 
-	groups := make([]*models.Group, len(a.groups))
-	for idx, group := range a.groups {
-		groups[idx] = group.Group
+	a.groups = a.groups[:0]
+	for _, group := range groups {
+		err = a.AddGroup(group)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+		}
 	}
 	writeJson(w, http.StatusOK, toGroupsRes(groups, true))
 }
@@ -291,7 +322,18 @@ func (a *App) apiPutGroup(w http.ResponseWriter, r *http.Request) {
 		for idx, rule := range *req.Rules {
 			id := types.RandomID()
 			if rule.ID != nil {
-				id = *rule.ID
+				var ok bool
+				for _, ruleModel := range group.Rules {
+					if ruleModel.ID == *rule.ID {
+						ok = true
+						id = *rule.ID
+						break
+					}
+				}
+				if !ok {
+					writeError(w, http.StatusNotFound, fmt.Errorf("rule not found").Error())
+					return
+				}
 			}
 			rules[idx] = &models.Rule{
 				ID:     id,
@@ -397,7 +439,18 @@ func (a *App) apiPutRules(w http.ResponseWriter, r *http.Request) {
 	for idx, rule := range *req.Rules {
 		id := types.RandomID()
 		if rule.ID != nil {
-			id = *rule.ID
+			var ok bool
+			for _, ruleModel := range group.Rules {
+				if ruleModel.ID == *rule.ID {
+					ok = true
+					id = *rule.ID
+					break
+				}
+			}
+			if !ok {
+				writeError(w, http.StatusNotFound, fmt.Errorf("rule not found").Error())
+				return
+			}
 		}
 		rules[idx] = &models.Rule{
 			ID:     id,
