@@ -105,9 +105,9 @@
     }
 
     async function updateGroup(groupId) {
-        const name = document.getElementById(`group-${group.id}-name`).value;
-        const interfaceName = document.getElementById(`group-${group.id}-interface`).value;
-        const fixProtect = document.getElementById(`group-${group.id}-fixProtect`).checked;
+        const name = document.getElementById(`group-${groupId}-name`).value;
+        const interfaceName = document.getElementById(`group-${groupId}-interface`).value;
+        const fixProtect = document.getElementById(`group-${groupId}-fixProtect`).checked;
         await fetch(`${API_BASE}/groups/${groupId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
