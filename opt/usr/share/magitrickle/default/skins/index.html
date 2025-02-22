@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MagiTrickle (временный WebUI)</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 8px; }
+        .container { max-width: 800px; margin: auto; }
+        .group, .rule { border: 1px solid #ddd; padding: 4px; margin-bottom: 4px; }
+        .unsaved { border: 1px solid #f00; }
+        input, select { margin: 4px; padding: 4px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>MagiTrickle (временный WebUI)</h1>
+    <button onclick="fetchGroups()">Обновить список</button><br/>
+    <div id="groups"></div>
+    <h2>Создать группу</h2>
+    <label for="groupCreateName">Имя группы:</label><input id="groupCreateName"><br/>
+    <label for="groupCreateInterface">Интерфейс:</label><input id="groupCreateInterface" placeholder="Интерфейс"><br/>
+    <label for="groupCreateFixProtect">Пометить интерфейс для выхода в интернет</label><input id="groupCreateFixProtect" type="checkbox"><br/>
+    <button onclick="createGroup()">Создать</button>
+</div>
+
+<script>
+    const API_BASE = '/api/v1';
+
+    async function fetchGroups() {
+        const response = await fetch(`${API_BASE}/groups?with_rules=true`);
+        const data = await response.json();
+        const groupsDiv = document.getElementById('groups');
+        groupsDiv.innerHTML = '';
+        data.groups.forEach(group => {
+            const groupElement = document.createElement('div');
+            groupElement.id = `group-${group.id}`;
+            groupElement.classList.add('group');
+            groupElement.innerHTML = `
+                <label for="group-${group.id}-name">Имя группы:</label><input id="group-${group.id}-name" value="${group.name}" onchange="markUnsaved(this)"><br/>
+                <label for="group-${group.id}-interface">Интерфейс:</label><input id="group-${group.id}-interface" value="${group.interface}" onchange="markUnsaved(this)"><br/>
+                <label for="group-${group.id}-fixProtect">Пометить интерфейс для выхода в интернет</label><input id="group-${group.id}-fixProtect" type="checkbox" ${group.fixProtect ? 'checked' : ''} onchange="markUnsaved(this)"><br/>
+                <button onclick="updateGroup('${group.id}')">Сохранить</button><button onclick="deleteGroup('${group.id}')">Удалить</button><br/>
+                <h3>Правила</h3>
+                <div id="group-${group.id}-rules"></div>
+                <h3>Создать правило</h3>
+                <select id="group-${group.id}-ruleCreateType">
+                    <option value="namespace" selected>Namespace</option>
+                    <option value="wildcard">Wildcard</option>
+                    <option value="regex">Regex</option>
+                    <option value="domain">Domain</option>
+                </select>
+                <input id="group-${group.id}-ruleCreateName" placeholder="Имя правила">
+                <input id="group-${group.id}-ruleCreateRule" placeholder="Правило">
+                <input type="checkbox" id="group-${group.id}-ruleCreateEnable" checked>
+                <button onclick="createRule('${group.id}')">Создать</button><br/>
+            `;
+            groupsDiv.appendChild(groupElement);
+            group.rules.forEach(rule => {
+                const rulesDiv = document.getElementById(`group-${group.id}-rules`);
+                const ruleElement = document.createElement('div');
+                ruleElement.id = `group-${group.id}-rule-${rule.id}`;
+                ruleElement.classList.add('rule');
+                ruleElement.innerHTML = `
+                    <select id="group-${group.id}-rule-${rule.id}-type" onchange="markUnsaved(this)">
+                        <option value="namespace" ${rule.type === 'namespace' ? 'selected' : ''}>Namespace</option>
+                        <option value="wildcard" ${rule.type === 'wildcard' ? 'selected' : ''}>Wildcard</option>
+                        <option value="regex" ${rule.type === 'regex' ? 'selected' : ''}>Regex</option>
+                        <option value="domain" ${rule.type === 'domain' ? 'selected' : ''}>Domain</option>
+                    </select>
+                    <input id="group-${group.id}-rule-${rule.id}-name" value="${rule.name}" onchange="markUnsaved(this)" placeholder="Имя правила">
+                    <input id="group-${group.id}-rule-${rule.id}-rule" value="${rule.rule}" onchange="markUnsaved(this)" placeholder="Правило">
+                    <input id="group-${group.id}-rule-${rule.id}-enable" type="checkbox" ${rule.enable ? 'checked' : ''} onchange="markUnsaved(this)">
+                    <button onclick="updateRule('${group.id}', '${rule.id}')">Сохранить</button>
+                    <button onclick="deleteRule('${group.id}', '${rule.id}')">Удалить</button>
+                `;
+                rulesDiv.appendChild(ruleElement);
+            });
+        });
+    }
+
+    function markUnsaved(element) {
+        rule = element.closest(".rule")
+        if (rule != null) {
+            rule.classList.add('unsaved');
+            return
+        }
+        group = element.closest(".group")
+        if (group != null) {
+            group.classList.add('unsaved');
+            return
+        }
+    }
+
+    async function createGroup() {
+        const name = document.getElementById('groupCreateName').value;
+        const interfaceName = document.getElementById('groupCreateInterface').value;
+        const fixProtect = document.getElementById('groupCreateFixProtect').checked;
+        await fetch(`${API_BASE}/groups`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, interface: interfaceName, fixProtect })
+        });
+        fetchGroups();
+    }
+
+    async function updateGroup(groupId) {
+        const name = document.getElementById(`group-${group.id}-name`).value;
+        const interfaceName = document.getElementById(`group-${group.id}-interface`).value;
+        const fixProtect = document.getElementById(`group-${group.id}-fixProtect`).checked;
+        await fetch(`${API_BASE}/groups/${groupId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, interface: interfaceName, fixProtect })
+        });
+        fetchGroups();
+    }
+
+    async function deleteGroup(groupId) {
+        await fetch(`${API_BASE}/groups/${groupId}`, { method: 'DELETE' });
+        fetchGroups();
+    }
+
+    async function createRule(groupId) {
+        const name = document.getElementById(`group-${groupId}-ruleCreateName`).value;
+        const rule = document.getElementById(`group-${groupId}-ruleCreateRule`).value;
+        const type = document.getElementById(`group-${groupId}-ruleCreateType`).value;
+        const enable = document.getElementById(`group-${groupId}-ruleCreateEnable`).checked;
+        await fetch(`${API_BASE}/groups/${groupId}/rules`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, rule, type, enable })
+        });
+        fetchGroups();
+    }
+
+    async function updateRule(groupId, ruleId) {
+        const name = document.getElementById(`group-${groupId}-rule-${ruleId}-name`).value;
+        const rule = document.getElementById(`group-${groupId}-rule-${ruleId}-rule`).value;
+        const type = document.getElementById(`group-${groupId}-rule-${ruleId}-type`).value;
+        const enable = document.getElementById(`group-${groupId}-rule-${ruleId}-enable`).checked;
+        await fetch(`${API_BASE}/groups/${groupId}/rules/${ruleId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, rule, type, enable })
+        });
+        fetchGroups();
+    }
+
+    async function deleteRule(groupId, ruleId) {
+        await fetch(`${API_BASE}/groups/${groupId}/rules/${ruleId}`, { method: 'DELETE' });
+        fetchGroups();
+    }
+
+    fetchGroups();
+</script>
+</body>
+</html>
