@@ -105,6 +105,10 @@ func (g *Group) linkIfaceToIPSet() error {
 }
 
 func (g *Group) unlinkIfaceFromIPSet() error {
+	if g.ipsetToLink == nil {
+		return nil
+	}
+
 	err := g.ipsetToLink.Disable()
 	if err != nil {
 		return fmt.Errorf("failed to unlink ipset to interface: %w", err)
