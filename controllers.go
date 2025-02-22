@@ -2,6 +2,7 @@ package magitrickle
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -42,6 +43,35 @@ func (a *App) apiNetfilterDHook(w http.ResponseWriter, r *http.Request) {
 			log.Error().Err(err).Msg("error while fixing iptables after netfilter.d")
 		}
 	}
+}
+
+// apiListInterfaces
+//
+//	@Summary		Получить список интерфейсов
+//	@Description	Возвращает список интерфейсов
+//	@Tags			config
+//	@Produce		json
+//	@Success		200 {object}    types.InterfacesRes
+//	@Failure		500	{object}	types.ErrorRes
+//	@Router			/v1/system/interfaces [get]
+func (a *App) apiListInterfaces(w http.ResponseWriter, r *http.Request) {
+	interfacesRes := make([]types.InterfaceRes, 0)
+
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to get interfaces: %w", err).Error())
+		return
+	}
+
+	for _, iface := range interfaces {
+		if iface.Flags&net.FlagPointToPoint == 0 {
+			continue
+		}
+
+		interfacesRes = append(interfacesRes, types.InterfaceRes{ID: iface.Name})
+	}
+
+	writeJson(w, http.StatusOK, types.InterfacesRes{Interfaces: interfacesRes})
 }
 
 // apiSaveConfig
@@ -603,6 +633,7 @@ func (a *App) apiHandler(r chi.Router) {
 			})
 		})
 		r.Route("/system", func(r chi.Router) {
+			r.Get("/interfaces", a.apiListInterfaces)
 			r.Route("/config", func(r chi.Router) {
 				r.Post("/save", a.apiSaveConfig)
 			})

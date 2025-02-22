@@ -39,7 +39,7 @@
     <div id="groups"></div>
     <h2>Создать группу</h2>
     <label for="groupCreateName">Имя группы:</label><input id="groupCreateName"><br/>
-    <label for="groupCreateInterface">Интерфейс:</label><input id="groupCreateInterface" placeholder="Интерфейс"><br/>
+    <label for="groupCreateInterface">Интерфейс:</label><select id="groupCreateInterface"></select><br/>
     <label for="groupCreateFixProtect">Пометить интерфейс для выхода в интернет</label><input id="groupCreateFixProtect" type="checkbox"><br/>
     <button onclick="createGroup()">Создать</button>
 </div>
@@ -69,6 +69,18 @@
         }
     }
 
+    var interfaces = [];
+
+    async function fetchInterfaces() {
+        const interfaces = [];
+        const response = await safeFetch(`${API_BASE}/system/interfaces`);
+        const data = await response.json();
+        data.interfaces.forEach(interface => {
+            interfaces.push(interface.id)
+        })
+        return interfaces
+    }
+
     async function fetchGroups() {
         const response = await safeFetch(`${API_BASE}/groups?with_rules=true`);
         const data = await response.json();
@@ -80,7 +92,7 @@
             groupElement.classList.add('group');
             groupElement.innerHTML = `
                 <label for="group-${group.id}-name">Имя группы:</label><input id="group-${group.id}-name" value="${group.name}" onchange="markUnsaved(this)"><br/>
-                <label for="group-${group.id}-interface">Интерфейс:</label><input id="group-${group.id}-interface" value="${group.interface}" onchange="markUnsaved(this)"><br/>
+                <label for="group-${group.id}-interface">Интерфейс:</label><select id="group-${group.id}-interface" onchange="markUnsaved(this)"></select><br/>
                 <label for="group-${group.id}-fixProtect">Пометить интерфейс для выхода в интернет</label><input id="group-${group.id}-fixProtect" type="checkbox" ${group.fixProtect ? 'checked' : ''} onchange="markUnsaved(this)"><br/>
                 <button onclick="updateGroup('${group.id}')">Сохранить</button><button onclick="deleteGroup('${group.id}')">Удалить</button><br/>
                 <h3>Правила</h3>
@@ -98,6 +110,21 @@
                 <button onclick="createRule('${group.id}')">Создать</button><br/>
             `;
             groupsDiv.appendChild(groupElement);
+            const interfacesSelect = document.getElementById(`group-${group.id}-interface`);
+            interfaces.forEach(interface => {
+                const interfaceElement = document.createElement('option')
+                interfaceElement.value = interface
+                interfaceElement.innerText = interface
+                interfaceElement.selected = interface == group.interface
+                interfacesSelect.appendChild(interfaceElement)
+            })
+            if (!interfaces.includes(group.interface)) {
+                const interfaceElement = document.createElement('option')
+                interfaceElement.value = group.interface
+                interfaceElement.innerText = group.interface
+                interfaceElement.selected = true
+                interfacesSelect.appendChild(interfaceElement)
+            }
             group.rules.forEach(rule => {
                 const rulesDiv = document.getElementById(`group-${group.id}-rules`);
                 const ruleElement = document.createElement('div');
@@ -208,7 +235,18 @@
         fetchGroups();
     }
 
-    fetchGroups();
+    (async function() {
+        interfaces = await fetchInterfaces();
+        const interfacesSelect = document.getElementById(`groupCreateInterface`);
+        interfaces.forEach(interface => {
+            const interfaceElement = document.createElement('option')
+            interfaceElement.value = interface
+            interfaceElement.innerText = interface
+            interfacesSelect.appendChild(interfaceElement)
+        })
+        await fetchGroups();
+    })();
+
 </script>
 </body>
 </html>
