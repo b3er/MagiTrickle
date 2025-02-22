@@ -285,17 +285,19 @@ func (g *Group) NetfilterDHook(iptType, table string) error {
 	g.locker.Lock()
 	defer g.locker.Unlock()
 
-	if g.enabled.Load() && g.FixProtect && table == "filter" {
-		if iptType == "" || iptType == "iptables" {
-			err := g.app.nfHelper.IPTables4.AppendUnique("filter", "_NDM_SL_FORWARD", "-o", g.Interface, "-m", "state", "--state", "NEW", "-j", "_NDM_SL_PROTECT")
-			if err != nil {
-				return fmt.Errorf("failed to fix protect: %w", err)
+	if g.enabled.Load() {
+		if g.FixProtect && table == "filter" {
+			if iptType == "" || iptType == "iptables" {
+				err := g.app.nfHelper.IPTables4.AppendUnique("filter", "_NDM_SL_FORWARD", "-o", g.Interface, "-m", "state", "--state", "NEW", "-j", "_NDM_SL_PROTECT")
+				if err != nil {
+					return fmt.Errorf("failed to fix protect: %w", err)
+				}
 			}
-		}
-		if iptType == "" || iptType == "ip6tables" {
-			err := g.app.nfHelper.IPTables6.AppendUnique("filter", "_NDM_SL_FORWARD", "-o", g.Interface, "-m", "state", "--state", "NEW", "-j", "_NDM_SL_PROTECT")
-			if err != nil {
-				return fmt.Errorf("failed to fix protect: %w", err)
+			if iptType == "" || iptType == "ip6tables" {
+				err := g.app.nfHelper.IPTables6.AppendUnique("filter", "_NDM_SL_FORWARD", "-o", g.Interface, "-m", "state", "--state", "NEW", "-j", "_NDM_SL_PROTECT")
+				if err != nil {
+					return fmt.Errorf("failed to fix protect: %w", err)
+				}
 			}
 		}
 
