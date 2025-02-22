@@ -159,6 +159,9 @@
     }
 
     async function deleteGroup(groupId) {
+        if (!confirm('Вы уверены, что хотите удалить группу?')) {
+            return
+        }
         await safeFetch(`${API_BASE}/groups/${groupId}`, { method: 'DELETE' });
         fetchGroups();
     }
@@ -190,6 +193,9 @@
     }
 
     async function deleteRule(groupId, ruleId) {
+        if (!confirm('Вы уверены, что хотите удалить правило?')) {
+            return
+        }
         await safeFetch(`${API_BASE}/groups/${groupId}/rules/${ruleId}`, { method: 'DELETE' });
         fetchGroups();
     }
