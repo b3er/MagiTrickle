@@ -10,6 +10,26 @@
         .group, .rule { border: 1px solid #ddd; padding: 4px; margin-bottom: 4px; }
         .unsaved { border: 1px solid #f00; }
         input, select { margin: 4px; padding: 4px; }
+
+        #overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+        
+        #overlay span {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 20px;
+        }
     </style>
 </head>
 <body>
@@ -24,11 +44,33 @@
     <button onclick="createGroup()">Создать</button>
 </div>
 
+<div id="overlay">
+    <span>Загрузка...</span>
+</div>
+
 <script>
     const API_BASE = '/api/v1';
 
+    function showOverlay() {
+        document.getElementById('overlay').style.display = 'block';
+    }
+
+    function hideOverlay() {
+        document.getElementById('overlay').style.display = 'none';
+    }
+
+    async function safeFetch(url, options) {
+        showOverlay();
+        try {
+            const response = await fetch(url, options);
+            return response;
+        } finally {
+            hideOverlay();
+        }
+    }
+
     async function fetchGroups() {
-        const response = await fetch(`${API_BASE}/groups?with_rules=true`);
+        const response = await safeFetch(`${API_BASE}/groups?with_rules=true`);
         const data = await response.json();
         const groupsDiv = document.getElementById('groups');
         groupsDiv.innerHTML = '';
@@ -96,7 +138,7 @@
         const name = document.getElementById('groupCreateName').value;
         const interfaceName = document.getElementById('groupCreateInterface').value;
         const fixProtect = document.getElementById('groupCreateFixProtect').checked;
-        await fetch(`${API_BASE}/groups`, {
+        await safeFetch(`${API_BASE}/groups`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, interface: interfaceName, fixProtect })
@@ -108,7 +150,7 @@
         const name = document.getElementById(`group-${groupId}-name`).value;
         const interfaceName = document.getElementById(`group-${groupId}-interface`).value;
         const fixProtect = document.getElementById(`group-${groupId}-fixProtect`).checked;
-        await fetch(`${API_BASE}/groups/${groupId}`, {
+        await safeFetch(`${API_BASE}/groups/${groupId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, interface: interfaceName, fixProtect })
@@ -117,7 +159,7 @@
     }
 
     async function deleteGroup(groupId) {
-        await fetch(`${API_BASE}/groups/${groupId}`, { method: 'DELETE' });
+        await safeFetch(`${API_BASE}/groups/${groupId}`, { method: 'DELETE' });
         fetchGroups();
     }
 
@@ -126,7 +168,7 @@
         const rule = document.getElementById(`group-${groupId}-ruleCreateRule`).value;
         const type = document.getElementById(`group-${groupId}-ruleCreateType`).value;
         const enable = document.getElementById(`group-${groupId}-ruleCreateEnable`).checked;
-        await fetch(`${API_BASE}/groups/${groupId}/rules`, {
+        await safeFetch(`${API_BASE}/groups/${groupId}/rules`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, rule, type, enable })
@@ -139,7 +181,7 @@
         const rule = document.getElementById(`group-${groupId}-rule-${ruleId}-rule`).value;
         const type = document.getElementById(`group-${groupId}-rule-${ruleId}-type`).value;
         const enable = document.getElementById(`group-${groupId}-rule-${ruleId}-enable`).checked;
-        await fetch(`${API_BASE}/groups/${groupId}/rules/${ruleId}`, {
+        await safeFetch(`${API_BASE}/groups/${groupId}/rules/${ruleId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, rule, type, enable })
@@ -148,7 +190,7 @@
     }
 
     async function deleteRule(groupId, ruleId) {
-        await fetch(`${API_BASE}/groups/${groupId}/rules/${ruleId}`, { method: 'DELETE' });
+        await safeFetch(`${API_BASE}/groups/${groupId}/rules/${ruleId}`, { method: 'DELETE' });
         fetchGroups();
     }
 
