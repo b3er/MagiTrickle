@@ -211,12 +211,8 @@ func (a *App) apiCreateGroup(w http.ResponseWriter, r *http.Request) {
 	if req.Rules != nil {
 		rules = make([]*models.Rule, len(*req.Rules))
 		for idx, rule := range *req.Rules {
-			id := types.RandomID()
-			if rule.ID != nil {
-				id = *rule.ID
-			}
 			rules[idx] = &models.Rule{
-				ID:     id,
+				ID:     types.RandomID(),
 				Name:   rule.Name,
 				Type:   rule.Type,
 				Rule:   rule.Rule,
@@ -225,12 +221,8 @@ func (a *App) apiCreateGroup(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	id := types.RandomID()
-	if req.ID != nil {
-		id = *req.ID
-	}
 	group := &models.Group{
-		ID:         id,
+		ID:         types.RandomID(),
 		Name:       req.Name,
 		Interface:  req.Interface,
 		FixProtect: req.FixProtect,
@@ -452,12 +444,8 @@ func (a *App) apiCreateRule(w http.ResponseWriter, r *http.Request) {
 	group := a.groups[groupIdx]
 	enabled := group.enabled.Load()
 
-	id := types.RandomID()
-	if req.ID != nil {
-		id = *req.ID
-	}
 	rule := &models.Rule{
-		ID:     id,
+		ID:     types.RandomID(),
 		Name:   req.Name,
 		Type:   req.Type,
 		Rule:   req.Rule,
