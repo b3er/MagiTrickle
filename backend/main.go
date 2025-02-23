@@ -104,6 +104,8 @@ var defaultAppConfig = models.App{
 	Netfilter: models.Netfilter{
 		IPTables: models.IPTables{
 			ChainPrefix: "MT_",
+			DisableIPv4: false,
+			DisableIPv6: false,
 		},
 		IPSet: models.IPSet{
 			TablePrefix:   "mt_",
@@ -170,7 +172,7 @@ func (a *App) start(ctx context.Context) error {
 	a.setupLogging()
 	a.initDNSMITM()
 
-	nfHelper, err := netfilterHelper.New(a.config.Netfilter.IPTables.ChainPrefix, a.config.Netfilter.IPSet.TablePrefix)
+	nfHelper, err := netfilterHelper.New(a.config.Netfilter.IPTables.ChainPrefix, a.config.Netfilter.IPSet.TablePrefix, a.config.Netfilter.IPTables.DisableIPv4, a.config.Netfilter.IPTables.DisableIPv6)
 	if err != nil {
 		return fmt.Errorf("netfilter helper init fail: %w", err)
 	}
@@ -695,6 +697,12 @@ func (a *App) ImportConfig(cfg config.Config) error {
 				if cfg.App.Netfilter.IPTables.ChainPrefix != nil {
 					a.config.Netfilter.IPTables.ChainPrefix = *cfg.App.Netfilter.IPTables.ChainPrefix
 				}
+				if cfg.App.Netfilter.IPTables.DisableIPv4 != nil {
+					a.config.Netfilter.IPTables.DisableIPv4 = *cfg.App.Netfilter.IPTables.DisableIPv4
+				}
+				if cfg.App.Netfilter.IPTables.DisableIPv6 != nil {
+					a.config.Netfilter.IPTables.DisableIPv6 = *cfg.App.Netfilter.IPTables.DisableIPv6
+				}
 			}
 			if cfg.App.Netfilter.IPSet != nil {
 				if cfg.App.Netfilter.IPSet.TablePrefix != nil {
@@ -804,6 +812,8 @@ func (a *App) ExportConfig() config.Config {
 			Netfilter: &config.Netfilter{
 				IPTables: &config.IPTables{
 					ChainPrefix: &a.config.Netfilter.IPTables.ChainPrefix,
+					DisableIPv4: &a.config.Netfilter.IPTables.DisableIPv4,
+					DisableIPv6: &a.config.Netfilter.IPTables.DisableIPv6,
 				},
 				IPSet: &config.IPSet{
 					TablePrefix:   &a.config.Netfilter.IPSet.TablePrefix,

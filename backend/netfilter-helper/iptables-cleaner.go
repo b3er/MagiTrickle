@@ -9,6 +9,9 @@ import (
 )
 
 func (nh *NetfilterHelper) cleanIPTables(ipt *iptables.IPTables) error {
+	if ipt == nil {
+		return nil
+	}
 	jumpToChainPrefix := fmt.Sprintf("-j %s", nh.ChainPrefix)
 	for _, table := range []string{"nat", "mangle"} {
 		chainListToDelete := make([]string, 0)

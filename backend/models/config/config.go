@@ -45,6 +45,8 @@ type Netfilter struct {
 
 type IPTables struct {
 	ChainPrefix *string `yaml:"chainPrefix"`
+	DisableIPv4 *bool   `yaml:"disableIPv4"`
+	DisableIPv6 *bool   `yaml:"disableIPv6"`
 }
 
 type IPSet struct {
