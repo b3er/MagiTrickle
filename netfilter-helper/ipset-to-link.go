@@ -157,6 +157,10 @@ func (r *IPSetToLink) insertIPRoute() error {
 		}
 		return fmt.Errorf("error while getting interface: %w", err)
 	}
+	if iface.Attrs().Flags&net.FlagUp == 0 {
+		log.Warn().Str("iface", r.ifaceName).Msg("interface is down")
+		return nil
+	}
 
 	route := &netlink.Route{
 		LinkIndex: iface.Attrs().Index,
