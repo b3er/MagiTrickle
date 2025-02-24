@@ -30,14 +30,15 @@ func (a *App) apiNetfilterDHook(w http.ResponseWriter, r *http.Request) {
 	req, err := readJson[types.NetfilterDHookReq](r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 	log.Debug().Str("type", req.Type).Str("table", req.Table).Msg("netfilter.d event")
 	err = a.dnsOverrider.NetfilterDHook(req.Type, req.Table)
 	if err != nil {
 		log.Error().Err(err).Msg("error while fixing iptables after netfilter.d")
 	}
-	for _, group := range a.groups {
-		err := group.NetfilterDHook(req.Type, req.Table)
+	for _, groupWrapper := range a.groups {
+		err := groupWrapper.NetfilterDHook(req.Type, req.Table)
 		if err != nil {
 			log.Error().Err(err).Msg("error while fixing iptables after netfilter.d")
 		}
@@ -59,12 +60,10 @@ func (a *App) apiListInterfaces(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to get interfaces: %w", err).Error())
 		return
 	}
-
 	interfacesRes := make([]types.InterfaceRes, len(interfaces))
-	for idx, iface := range interfaces {
-		interfacesRes[idx] = types.InterfaceRes{ID: iface.Name}
+	for i, iface := range interfaces {
+		interfacesRes[i] = types.InterfaceRes{ID: iface.Name}
 	}
-
 	writeJson(w, http.StatusOK, types.InterfacesRes{Interfaces: interfacesRes})
 }
 
@@ -108,8 +107,8 @@ func (a *App) apiSaveConfig(w http.ResponseWriter, r *http.Request) {
 func (a *App) apiGetGroups(w http.ResponseWriter, r *http.Request) {
 	withRules := r.URL.Query().Get("with_rules") == "true"
 	groups := make([]*models.Group, len(a.groups))
-	for idx, group := range a.groups {
-		groups[idx] = group.Group
+	for i, groupWrapper := range a.groups {
+		groups[i] = groupWrapper.Group
 	}
 	writeJson(w, http.StatusOK, toGroupsRes(groups, withRules))
 }
@@ -130,88 +129,44 @@ func (a *App) apiPutGroups(w http.ResponseWriter, r *http.Request) {
 	req, err := readJson[types.GroupsReq](r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
+		return
 	}
-
 	if req.Groups == nil {
+		writeError(w, http.StatusBadRequest, "no groups in request")
 		return
 	}
 
-	for _, group := range a.groups {
-		_ = group.Disable()
+	for _, groupWrapper := range a.groups {
+		_ = groupWrapper.Disable()
 	}
 
-	groups := make([]*models.Group, len(*req.Groups))
-	for idx, group := range *req.Groups {
-		groupId := types.RandomID()
-		groupIdx := -1
-		if group.ID != nil {
-			var ok bool
-			for idx, aGroup := range a.groups {
-				if aGroup.ID == *group.ID {
-					ok = true
-					groupId = *group.ID
-					groupIdx = idx
+	newGroups := make([]*models.Group, 0, len(*req.Groups))
+	for _, gReq := range *req.Groups {
+		var existing *models.Group
+		if gReq.ID != nil {
+			for _, groupWrapper := range a.groups {
+				if groupWrapper.Group.ID == *gReq.ID {
+					existing = groupWrapper.Group
 					break
 				}
 			}
-			if !ok {
-				writeError(w, http.StatusNotFound, fmt.Errorf("group not found").Error())
-				return
-			}
 		}
-
-		var rules []*models.Rule
-		if group.Rules != nil {
-			rules = make([]*models.Rule, len(*group.Rules))
-			for idx, rule := range *group.Rules {
-				id := types.RandomID()
-				if rule.ID != nil {
-					if groupIdx == -1 {
-						writeError(w, http.StatusNotFound, fmt.Errorf("rule not found").Error())
-						return
-					}
-					group := a.groups[groupIdx]
-					var ok bool
-					for _, ruleModel := range group.Rules {
-						if ruleModel.ID == *rule.ID {
-							ok = true
-							id = *rule.ID
-							break
-						}
-					}
-					if !ok {
-						writeError(w, http.StatusNotFound, fmt.Errorf("rule not found").Error())
-						return
-					}
-					id = *rule.ID
-				}
-				rules[idx] = &models.Rule{
-					ID:     id,
-					Name:   rule.Name,
-					Type:   rule.Type,
-					Rule:   rule.Rule,
-					Enable: rule.Enable,
-				}
-			}
+		group, err := fromGroupReq(gReq, existing)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
 		}
-
-		groups[idx] = &models.Group{
-			ID:         groupId,
-			Name:       group.Name,
-			Interface:  group.Interface,
-			FixProtect: group.FixProtect,
-			Rules:      rules,
-		}
+		newGroups = append(newGroups, group)
 	}
 
 	a.groups = a.groups[:0]
-	for _, group := range groups {
-		err = a.AddGroup(group)
-		if err != nil {
+	for _, g := range newGroups {
+		if err := a.AddGroup(g); err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
+			return
 		}
 	}
-	writeJson(w, http.StatusOK, toGroupsRes(groups, true))
+	writeJson(w, http.StatusOK, toGroupsRes(newGroups, true))
 }
 
 // apiCreateGroup
@@ -230,34 +185,17 @@ func (a *App) apiCreateGroup(w http.ResponseWriter, r *http.Request) {
 	req, err := readJson[types.GroupReq](r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
+		return
 	}
-
-	var rules []*models.Rule
-	if req.Rules != nil {
-		rules = make([]*models.Rule, len(*req.Rules))
-		for idx, rule := range *req.Rules {
-			rules[idx] = &models.Rule{
-				ID:     types.RandomID(),
-				Name:   rule.Name,
-				Type:   rule.Type,
-				Rule:   rule.Rule,
-				Enable: rule.Enable,
-			}
-		}
-	}
-
-	group := &models.Group{
-		ID:         types.RandomID(),
-		Name:       req.Name,
-		Interface:  req.Interface,
-		FixProtect: req.FixProtect,
-		Rules:      rules,
-	}
-	err = a.AddGroup(group)
+	group, err := fromGroupReq(req, nil)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
 	}
-
+	if err := a.AddGroup(group); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	writeJson(w, http.StatusOK, toGroupRes(group, true))
 }
 
@@ -297,66 +235,37 @@ func (a *App) apiPutGroup(w http.ResponseWriter, r *http.Request) {
 	req, err := readJson[types.GroupReq](r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
+		return
 	}
-
 	groupIdx, _ := strconv.Atoi(r.Header.Get("groupIdx"))
-	group := a.groups[groupIdx]
-	enabled := group.enabled.Load()
+	groupWrapper := a.groups[groupIdx]
+
+	enabled := groupWrapper.enabled.Load()
 	if enabled {
-		err = group.Disable()
-		if err != nil {
+		if err := groupWrapper.Disable(); err != nil {
 			writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to disable group: %w", err).Error())
 			return
 		}
 	}
 
-	var rules []*models.Rule
-	if req.Rules != nil {
-		rules = make([]*models.Rule, len(*req.Rules))
-		for idx, rule := range *req.Rules {
-			id := types.RandomID()
-			if rule.ID != nil {
-				var ok bool
-				for _, ruleModel := range group.Rules {
-					if ruleModel.ID == *rule.ID {
-						ok = true
-						id = *rule.ID
-						break
-					}
-				}
-				if !ok {
-					writeError(w, http.StatusNotFound, fmt.Errorf("rule not found").Error())
-					return
-				}
-			}
-			rules[idx] = &models.Rule{
-				ID:     id,
-				Name:   rule.Name,
-				Type:   rule.Type,
-				Rule:   rule.Rule,
-				Enable: rule.Enable,
-			}
-		}
-		group.Rules = rules
+	updatedGroup, err := fromGroupReq(req, groupWrapper.Group)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
 	}
-	group.Name = req.Name
-	group.Interface = req.Interface
-	group.FixProtect = req.FixProtect
 
 	if enabled {
-		err = group.Enable()
-		if err != nil {
+		if err := groupWrapper.Enable(); err != nil {
 			writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to enable group: %w", err).Error())
 			return
 		}
-		err = group.Sync()
-		if err != nil {
+		if err := groupWrapper.Sync(); err != nil {
 			writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to sync group: %w", err).Error())
 			return
 		}
 	}
 
-	writeJson(w, http.StatusOK, toGroupRes(group.Group, true))
+	writeJson(w, http.StatusOK, toGroupRes(updatedGroup, true))
 }
 
 // apiDeleteGroup
@@ -372,11 +281,9 @@ func (a *App) apiPutGroup(w http.ResponseWriter, r *http.Request) {
 //	@Router			/api/v1/groups/{groupID} [delete]
 func (a *App) apiDeleteGroup(w http.ResponseWriter, r *http.Request) {
 	groupIdx, _ := strconv.Atoi(r.Header.Get("groupIdx"))
-	group := a.groups[groupIdx]
-	enabled := group.enabled.Load()
-	if enabled {
-		err := group.Disable()
-		if err != nil {
+	groupWrapper := a.groups[groupIdx]
+	if groupWrapper.enabled.Load() {
+		if err := groupWrapper.Disable(); err != nil {
 			writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to disable group: %w", err).Error())
 			return
 		}
@@ -418,53 +325,50 @@ func (a *App) apiPutRules(w http.ResponseWriter, r *http.Request) {
 	req, err := readJson[types.RulesReq](r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
-	}
-
-	if req.Rules == nil {
 		return
 	}
-
+	if req.Rules == nil {
+		writeError(w, http.StatusBadRequest, "no rules in request")
+		return
+	}
 	groupIdx, _ := strconv.Atoi(r.Header.Get("groupIdx"))
-	group := a.groups[groupIdx]
-	enabled := group.enabled.Load()
+	groupWrapper := a.groups[groupIdx]
+	enabled := groupWrapper.enabled.Load()
 
-	var rules []*models.Rule
-	rules = make([]*models.Rule, len(*req.Rules))
-	for idx, rule := range *req.Rules {
+	newRules := make([]*models.Rule, len(*req.Rules))
+	for i, ruleReq := range *req.Rules {
 		id := types.RandomID()
-		if rule.ID != nil {
-			var ok bool
-			for _, ruleModel := range group.Rules {
-				if ruleModel.ID == *rule.ID {
-					ok = true
-					id = *rule.ID
+		if ruleReq.ID != nil {
+			found := false
+			for _, rule := range groupWrapper.Group.Rules {
+				if rule.ID == *ruleReq.ID {
+					id = *ruleReq.ID
+					found = true
 					break
 				}
 			}
-			if !ok {
-				writeError(w, http.StatusNotFound, fmt.Errorf("rule not found").Error())
+			if !found {
+				writeError(w, http.StatusNotFound, "rule not found")
 				return
 			}
 		}
-		rules[idx] = &models.Rule{
+		newRules[i] = &models.Rule{
 			ID:     id,
-			Name:   rule.Name,
-			Type:   rule.Type,
-			Rule:   rule.Rule,
-			Enable: rule.Enable,
+			Name:   ruleReq.Name,
+			Type:   ruleReq.Type,
+			Rule:   ruleReq.Rule,
+			Enable: ruleReq.Enable,
 		}
 	}
-	group.Rules = rules
+	groupWrapper.Group.Rules = newRules
 
 	if enabled {
-		err = group.Sync()
-		if err != nil {
+		if err := groupWrapper.Sync(); err != nil {
 			writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to sync group: %w", err).Error())
 			return
 		}
 	}
-
-	writeJson(w, http.StatusOK, toRulesRes(rules))
+	writeJson(w, http.StatusOK, toRulesRes(newRules))
 }
 
 // apiCreateRule
@@ -485,29 +389,25 @@ func (a *App) apiCreateRule(w http.ResponseWriter, r *http.Request) {
 	req, err := readJson[types.RuleReq](r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
+		return
 	}
-
 	groupIdx, _ := strconv.Atoi(r.Header.Get("groupIdx"))
-	group := a.groups[groupIdx]
-	enabled := group.enabled.Load()
+	groupWrapper := a.groups[groupIdx]
+	enabled := groupWrapper.enabled.Load()
 
-	rule := &models.Rule{
-		ID:     types.RandomID(),
-		Name:   req.Name,
-		Type:   req.Type,
-		Rule:   req.Rule,
-		Enable: req.Enable,
+	rule, err := fromRuleReq(req, groupWrapper.Group.Rules)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
 	}
-	group.Rules = append(group.Rules, rule)
+	groupWrapper.Group.Rules = append(groupWrapper.Group.Rules, rule)
 
 	if enabled {
-		err = group.Sync()
-		if err != nil {
+		if err := groupWrapper.Sync(); err != nil {
 			writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to sync group: %w", err).Error())
 			return
 		}
 	}
-
 	writeJson(w, http.StatusOK, toRuleRes(rule))
 }
 
@@ -548,14 +448,14 @@ func (a *App) apiPutRule(w http.ResponseWriter, r *http.Request) {
 	req, err := readJson[types.RuleReq](r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
+		return
 	}
-
 	groupIdx, _ := strconv.Atoi(r.Header.Get("groupIdx"))
-	group := a.groups[groupIdx]
-	enabled := group.enabled.Load()
+	groupWrapper := a.groups[groupIdx]
+	enabled := groupWrapper.enabled.Load()
 
 	ruleIdx, _ := strconv.Atoi(r.Header.Get("ruleIdx"))
-	rule := group.Group.Rules[ruleIdx]
+	rule := groupWrapper.Group.Rules[ruleIdx]
 
 	rule.Name = req.Name
 	rule.Type = req.Type
@@ -563,13 +463,11 @@ func (a *App) apiPutRule(w http.ResponseWriter, r *http.Request) {
 	rule.Enable = req.Enable
 
 	if enabled {
-		err = group.Sync()
-		if err != nil {
+		if err := groupWrapper.Sync(); err != nil {
 			writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to sync group: %w", err).Error())
 			return
 		}
 	}
-
 	writeJson(w, http.StatusOK, toRuleRes(rule))
 }
 
@@ -587,21 +485,21 @@ func (a *App) apiPutRule(w http.ResponseWriter, r *http.Request) {
 //	@Router			/api/v1/groups/{groupID}/rules/{ruleID} [delete]
 func (a *App) apiDeleteRule(w http.ResponseWriter, r *http.Request) {
 	groupIdx, _ := strconv.Atoi(r.Header.Get("groupIdx"))
-	group := a.groups[groupIdx]
-	enabled := group.enabled.Load()
+	groupWrapper := a.groups[groupIdx]
+	enabled := groupWrapper.enabled.Load()
 
 	ruleIdx, _ := strconv.Atoi(r.Header.Get("ruleIdx"))
-
-	group.Rules = append(group.Rules[:ruleIdx], group.Rules[ruleIdx+1:]...)
+	groupWrapper.Group.Rules = append(groupWrapper.Group.Rules[:ruleIdx], groupWrapper.Group.Rules[ruleIdx+1:]...)
 
 	if enabled {
-		err := group.Sync()
-		if err != nil {
+		if err := groupWrapper.Sync(); err != nil {
 			writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to sync group: %v", err).Error())
 			return
 		}
 	}
 }
+
+// --- Маршрутизация ---
 
 func (a *App) apiHandler(r chi.Router) {
 	r.Route("/v1", func(r chi.Router) {
@@ -611,24 +509,22 @@ func (a *App) apiHandler(r chi.Router) {
 			r.Post("/", a.apiCreateGroup)
 			r.Route("/{groupID}", func(r chi.Router) {
 				r.Use(func(next http.Handler) http.Handler {
-					fn := func(w http.ResponseWriter, r *http.Request) {
+					return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 						groupID := chi.URLParam(r, "groupID")
 						id, err := types.ParseID(groupID)
 						if err != nil {
 							writeError(w, http.StatusBadRequest, "invalid group id")
 							return
 						}
-						for idx, group := range a.groups {
+						for i, group := range a.groups {
 							if group.ID == id {
-								r.Header.Set("groupIdx", strconv.Itoa(idx))
+								r.Header.Set("groupIdx", strconv.Itoa(i))
 								next.ServeHTTP(w, r)
 								return
 							}
 						}
 						writeError(w, http.StatusNotFound, "group not exist")
-						return
-					}
-					return http.HandlerFunc(fn)
+					})
 				})
 				r.Get("/", a.apiGetGroup)
 				r.Put("/", a.apiPutGroup)
@@ -639,15 +535,14 @@ func (a *App) apiHandler(r chi.Router) {
 					r.Post("/", a.apiCreateRule)
 					r.Route("/{ruleID}", func(r chi.Router) {
 						r.Use(func(next http.Handler) http.Handler {
-							fn := func(w http.ResponseWriter, r *http.Request) {
-								groupID := chi.URLParam(r, "ruleID")
-								id, err := types.ParseID(groupID)
+							return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+								ruleID := chi.URLParam(r, "ruleID")
+								id, err := types.ParseID(ruleID)
 								if err != nil {
 									writeError(w, http.StatusBadRequest, "invalid rule id")
 									return
 								}
 								groupIdx, _ := strconv.Atoi(r.Header.Get("groupIdx"))
-
 								for idx, rule := range a.groups[groupIdx].Rules {
 									if rule.ID == id {
 										r.Header.Set("ruleIdx", strconv.Itoa(idx))
@@ -656,9 +551,7 @@ func (a *App) apiHandler(r chi.Router) {
 									}
 								}
 								writeError(w, http.StatusNotFound, "rule not exist")
-								return
-							}
-							return http.HandlerFunc(fn)
+							})
 						})
 						r.Get("/", a.apiGetRule)
 						r.Put("/", a.apiPutRule)

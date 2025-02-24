@@ -16,11 +16,11 @@ import (
 	"syscall"
 	"time"
 
-	"magitrickle/dns-mitm-proxy"
+	dnsMitmProxy "magitrickle/dns-mitm-proxy"
 	"magitrickle/models"
 	"magitrickle/models/config"
-	"magitrickle/netfilter-helper"
-	"magitrickle/pkg/magitrickle-api"
+	netfilterHelper "magitrickle/netfilter-helper"
+	magitrickleAPI "magitrickle/pkg/magitrickle-api"
 	"magitrickle/records"
 
 	"github.com/go-chi/chi/v5"
@@ -121,7 +121,7 @@ type App struct {
 	dnsOverrider *netfilterHelper.PortRemap
 }
 
-// публичный метод для запуска приложения
+// Start – публичный метод для запуска приложения
 func (a *App) Start(ctx context.Context) (err error) {
 	if !a.enabled.CompareAndSwap(false, true) {
 		return ErrAlreadyRunning
@@ -150,7 +150,7 @@ func (a *App) Start(ctx context.Context) (err error) {
 	return err
 }
 
-// основной метод инициализации и запуска всех сервисов
+// start – основной метод инициализации и запуска всех сервисов
 func (a *App) start(ctx context.Context) error {
 	err := checkPIDFile()
 	if err != nil {
@@ -188,7 +188,7 @@ func (a *App) start(ctx context.Context) error {
 		return err
 	}
 
-	// если remap53 не отключён – переопределяем DNS-порт
+	// если переопределение DNS-порта (remap53) не отключено – выполняем его
 	if !a.config.DNSProxy.DisableRemap53 {
 		a.dnsOverrider = a.nfHelper.PortRemap("DNSOR", 53, a.config.DNSProxy.Host.Port, interfaceAddrs)
 		err = a.dnsOverrider.Enable()
@@ -344,6 +344,7 @@ func (a *App) setupUnixSocket(errChan chan error) (*http.Server, error) {
 	return srv, nil
 }
 
+// setupHTTP настраивает и запускает HTTP сервер для веб-интерфейса.
 func (a *App) setupHTTP(errChan chan error) (*http.Server, error) {
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", a.config.HTTPWeb.Host.Address, a.config.HTTPWeb.Host.Port))
 	if err != nil {
@@ -421,7 +422,7 @@ func subscribeLinkUpdates() (chan netlink.LinkUpdate, chan struct{}, error) {
 	return linkUpdateChannel, done, nil
 }
 
-// обработка входящих DNS запросов
+// dnsRequestHook обрабатывает входящие DNS-запросы
 func (a *App) dnsRequestHook(clientAddr net.Addr, reqMsg dns.Msg, network string) (*dns.Msg, *dns.Msg, error) {
 	var clientAddrStr string
 	if clientAddr != nil {
@@ -457,7 +458,7 @@ func (a *App) dnsRequestHook(clientAddr net.Addr, reqMsg dns.Msg, network string
 	return nil, nil, nil
 }
 
-// обработка ответов DNS и фильтрация записей типа AAAA
+// dnsResponseHook обрабатывает ответы DNS
 func (a *App) dnsResponseHook(clientAddr net.Addr, reqMsg dns.Msg, respMsg dns.Msg, network string) (*dns.Msg, error) {
 	defer a.handleMessage(respMsg, clientAddr, &network)
 
@@ -477,7 +478,7 @@ func (a *App) dnsResponseHook(clientAddr net.Addr, reqMsg dns.Msg, respMsg dns.M
 	return &respMsg, nil
 }
 
-// обработка событий изменения состояния интерфейсов
+// handleLink обрабатывает события изменения состояния сетевых интерфейсов
 func (a *App) handleLink(event netlink.LinkUpdate) {
 	switch event.Change {
 	case 0x00000001:
@@ -513,14 +514,14 @@ func (a *App) handleLink(event netlink.LinkUpdate) {
 	}
 }
 
-// обработка полученного DNS-сообщения
+// handleMessage обрабатывает полученное DNS-сообщение
 func (a *App) handleMessage(msg dns.Msg, clientAddr net.Addr, network *string) {
 	for _, rr := range msg.Answer {
 		a.handleRecord(rr, clientAddr, network)
 	}
 }
 
-// маршрутизация обработки записи в зависимости от её типа
+// handleRecord маршрутизирует обработку DNS-записи в зависимости от её типа (A или CNAME)
 func (a *App) handleRecord(rr dns.RR, clientAddr net.Addr, network *string) {
 	switch v := rr.(type) {
 	case *dns.A:
@@ -530,7 +531,6 @@ func (a *App) handleRecord(rr dns.RR, clientAddr net.Addr, network *string) {
 	}
 }
 
-// обработка A-записи
 func (a *App) processARecord(aRecord dns.A, clientAddr net.Addr, network *string) {
 	var clientAddrStr, networkStr string
 	if clientAddr != nil {
@@ -581,7 +581,6 @@ func (a *App) processARecord(aRecord dns.A, clientAddr net.Addr, network *string
 	}
 }
 
-// обработка CNAME-записи
 func (a *App) processCNameRecord(cNameRecord dns.CNAME, clientAddr net.Addr, network *string) {
 	var clientAddrStr, networkStr string
 	if clientAddr != nil {
@@ -636,7 +635,6 @@ func (a *App) processCNameRecord(cNameRecord dns.CNAME, clientAddr net.Addr, net
 	}
 }
 
-// импорт конфигурации из внешнего источника
 func (a *App) ImportConfig(cfg config.Config) error {
 	if !strings.HasPrefix(cfg.ConfigVersion, "0.1.") {
 		return ErrConfigUnsupportedVersion
@@ -748,7 +746,6 @@ func (a *App) ImportConfig(cfg config.Config) error {
 	return nil
 }
 
-// экспорт текущей конфигурации приложения
 func (a *App) ExportConfig() config.Config {
 	groups := make([]config.Group, len(a.groups))
 	for idx, group := range a.groups {
@@ -811,9 +808,7 @@ func (a *App) ExportConfig() config.Config {
 	}
 }
 
-// добавление группы с проверкой на конфликты
 func (a *App) AddGroup(groupModel *models.Group) error {
-	// Проверка на дублирование групп.
 	for _, group := range a.groups {
 		if groupModel.ID == group.ID {
 			return ErrGroupIDConflict
@@ -836,7 +831,7 @@ func (a *App) AddGroup(groupModel *models.Group) error {
 
 	log.Debug().Str("id", grp.ID.String()).Str("name", grp.Name).Msg("added group")
 
-	// Если приложение уже запущено – сразу включаем группу и синхронизируем.
+	// если приложение уже запущено – включаем группу и выполняем синхронизацию
 	if a.enabled.Load() {
 		if err = grp.Enable(); err != nil {
 			return fmt.Errorf("failed to enable group: %w", err)
@@ -848,7 +843,7 @@ func (a *App) AddGroup(groupModel *models.Group) error {
 	return nil
 }
 
-// получение списка подходящих сетевых интерфейсов
+// ListInterfaces возвращает список сетевых интерфейсов, удовлетворяющих заданным критериям
 func (a *App) ListInterfaces() ([]net.Interface, error) {
 	var filteredInterfaces []net.Interface
 
@@ -858,7 +853,6 @@ func (a *App) ListInterfaces() ([]net.Interface, error) {
 	}
 
 	for _, iface := range interfaces {
-		// Пример фильтрации: оставляем только интерфейсы с установленным флагом PointToPoint.
 		if iface.Flags&net.FlagPointToPoint == 0 {
 			continue
 		}
@@ -868,7 +862,7 @@ func (a *App) ListInterfaces() ([]net.Interface, error) {
 	return filteredInterfaces, nil
 }
 
-// конструктор приложения
+// New – конструктор приложения
 func New() (*App, error) {
 	app := &App{config: defaultAppConfig}
 	cfgFile, err := os.ReadFile(cfgFileLocation)
