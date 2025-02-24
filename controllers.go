@@ -51,7 +51,7 @@ func (a *App) apiNetfilterDHook(w http.ResponseWriter, r *http.Request) {
 //	@Description	Возвращает список интерфейсов
 //	@Tags			config
 //	@Produce		json
-//	@Success		200 {object}    types.InterfacesRes
+//	@Success		200	{object}	types.InterfacesRes
 //	@Failure		500	{object}	types.ErrorRes
 //	@Router			/api/v1/system/interfaces [get]
 func (a *App) apiListInterfaces(w http.ResponseWriter, r *http.Request) {
