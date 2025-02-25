@@ -15,27 +15,18 @@ jobs:
     strategy:
       matrix:
         include:
-          - arch: mipsel-3.4
-            goos: linux
+          - goos: linux
             goarch: mipsle
             gomips: softfloat
-          - arch: mips-3.4
-            goos: linux
+          - goos: linux
             goarch: mips
             gomips: softfloat
-          - arch: aarch64-3.10
-            goos: linux
+          - goos: linux
             goarch: arm64
-          - arch: armv7-3.2
-            goos: linux
+          - goos: linux
             goarch: arm
             goarm: 7
-          - arch: armv7-2.6
-            goos: linux
-            goarch: arm
-            goarm: 7
-          - arch: armv5-3.2
-            goos: linux
+          - goos: linux
             goarch: arm
             goarm: 5
     steps:
