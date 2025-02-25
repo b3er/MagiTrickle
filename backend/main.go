@@ -17,12 +17,12 @@ import (
 	"syscall"
 	"time"
 
+	"magitrickle/api"
 	"magitrickle/constant"
 	dnsMitmProxy "magitrickle/dns-mitm-proxy"
 	"magitrickle/models"
 	"magitrickle/models/config"
 	netfilterHelper "magitrickle/netfilter-helper"
-	magitrickleAPI "magitrickle/pkg/magitrickle-api"
 	"magitrickle/records"
 
 	"github.com/go-chi/chi/v5"
@@ -324,10 +324,10 @@ func (a *App) getInterfaceAddresses() ([]netlink.Addr, error) {
 }
 
 func (a *App) setupUnixSocket(errChan chan error) (*http.Server, error) {
-	if err := os.Remove(magitrickleAPI.SocketPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+	if err := os.Remove(api.SocketPath); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, fmt.Errorf("failed to remove existing UNIX socket: %w", err)
 	}
-	socket, err := net.Listen("unix", magitrickleAPI.SocketPath)
+	socket, err := net.Listen("unix", api.SocketPath)
 	if err != nil {
 		return nil, fmt.Errorf("error while serving UNIX socket: %v", err)
 	}
@@ -343,7 +343,7 @@ func (a *App) setupUnixSocket(errChan chan error) (*http.Server, error) {
 			errChan <- fmt.Errorf("failed to serve UNIX socket: %v", err)
 		}
 		_ = socket.Close()
-		_ = os.Remove(magitrickleAPI.SocketPath)
+		_ = os.Remove(api.SocketPath)
 	}()
 	return srv, nil
 }

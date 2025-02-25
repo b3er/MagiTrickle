@@ -5,15 +5,15 @@ import (
 	"log"
 	"os"
 
-	magitrickleAPI "magitrickle/pkg/magitrickle-api"
+	"magitrickle/api"
 
 	"github.com/spf13/cobra"
 )
 
-var magitrickleClient magitrickleAPI.Client
+var magitrickleClient api.Client
 
 func init() {
-	magitrickleClient = magitrickleAPI.NewClient()
+	magitrickleClient = api.NewClient()
 }
 
 func main() {

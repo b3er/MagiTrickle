@@ -1,7 +1,7 @@
 package config
 
 import (
-	"magitrickle/pkg/magitrickle-api/types"
+	"magitrickle/api/types"
 )
 
 type Group struct {

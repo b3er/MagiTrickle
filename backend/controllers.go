@@ -6,8 +6,8 @@ import (
 	"os"
 	"strconv"
 
+	"magitrickle/api/types"
 	"magitrickle/models"
-	"magitrickle/pkg/magitrickle-api/types"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"

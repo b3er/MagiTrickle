@@ -1,4 +1,4 @@
-package magitrickleAPI
+package api
 
 import (
 	"bytes"
@@ -8,7 +8,7 @@ import (
 	"net"
 	"net/http"
 
-	"magitrickle/pkg/magitrickle-api/types"
+	"magitrickle/api/types"
 )
 
 type Client struct {
