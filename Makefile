@@ -18,16 +18,23 @@ else
     PRERELEASE_POSTFIX = ~git$(PRERELEASE_DATE).$(COMMIT)
 endif
 
+PLATFORM ?= entware
 TARGET ?= mipsel-3.4
 GOOS ?= linux
 GOARCH ?= mipsle
 GOMIPS ?= softfloat
 GOARM ?=
 
+GO_FLAGS = GOOS=$(GOOS) GOARCH=$(GOARCH) GOMIPS=$(GOMIPS) GOARM=$(GOARM)
+GO_TAGS ?=
+ifeq ($(PLATFORM),entware)
+	GO_TAGS += entware
+endif
+
 BUILD_DIR = ./.build
 PKG_DIR = $(BUILD_DIR)/$(TARGET)
 BIN_DIR = $(PKG_DIR)/data/opt/bin
-PARAMS = -v -a -trimpath -ldflags="-X 'magitrickle/constant.Version=$(UPSTREAM_VERSION)$(PRERELEASE_POSTFIX)' -X 'magitrickle/constant.Commit=$(COMMIT)' -w -s"
+PARAMS = -v -a -trimpath -ldflags="-X 'magitrickle/constant.Version=$(UPSTREAM_VERSION)$(PRERELEASE_POSTFIX)' -X 'magitrickle/constant.Commit=$(COMMIT)' -w -s" -tags "$(GO_TAGS)"
 
 all: clear build package
 
@@ -36,12 +43,9 @@ clear:
 	rm -rf $(PKG_DIR)
 
 build_daemon:
-	GOOS=$(GOOS) GOARCH=$(GOARCH) GOMIPS=$(GOMIPS) GOARM=$(GOARM) go build $(PARAMS) -o $(BIN_DIR)/magitrickled ./cmd/magitrickled
+	$(GO_FLAGS) go build -C ./backend $(PARAMS) -o ../$(BIN_DIR)/magitrickled ./cmd/magitrickled
 
-build_cli:
-	GOOS=$(GOOS) GOARCH=$(GOARCH) GOMIPS=$(GOMIPS) GOARM=$(GOARM) go build $(PARAMS) -o $(BIN_DIR)/magitrickle ./cmd/magitrickle
-
-build: build_daemon build_cli
+build: build_daemon
 
 package:
 	mkdir -p $(PKG_DIR)/control
@@ -53,7 +57,7 @@ package:
 	echo 'Description: $(APP_DESCRIPTION)' >> $(PKG_DIR)/control/control
 	echo 'Section: net' >> $(PKG_DIR)/control/control
 	echo 'Priority: optional' >> $(PKG_DIR)/control/control
-	echo 'Depends: libc, iptables' >> $(PKG_DIR)/control/control
+	echo 'Depends: libc, iptables, socat' >> $(PKG_DIR)/control/control
 	cp -r ./opt $(PKG_DIR)/data/
 	tar -C $(PKG_DIR)/control -czvf $(PKG_DIR)/control.tar.gz .
 	tar -C $(PKG_DIR)/data -czvf $(PKG_DIR)/data.tar.gz .

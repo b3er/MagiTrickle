@@ -4,17 +4,17 @@ import (
 	"regexp"
 	"strings"
 
-	"magitrickle/pkg/magitrickle-api/types"
+	"magitrickle/api/types"
 
 	"github.com/IGLOU-EU/go-wildcard/v2"
 )
 
 type Rule struct {
-	ID     types.ID `yaml:"id"`
-	Name   string   `yaml:"name"`
-	Type   string   `yaml:"type"`
-	Rule   string   `yaml:"rule"`
-	Enable bool     `yaml:"enable"`
+	ID     types.ID
+	Name   string
+	Type   string
+	Rule   string
+	Enable bool
 }
 
 func (d *Rule) IsEnabled() bool {

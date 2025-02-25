@@ -10,34 +10,21 @@ on:
 
 jobs:
   check:
-    name: Finding suspicious constructs for ${{ matrix.arch }}
+    name: Finding suspicious constructs for ${{ matrix.goarch }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
-          - arch: mipsel-3.4
-            goos: linux
+          - goos: linux
             goarch: mipsle
             gomips: softfloat
-          - arch: mips-3.4
-            goos: linux
+          - goos: linux
             goarch: mips
             gomips: softfloat
-          - arch: aarch64-3.10
-            goos: linux
+          - goos: linux
             goarch: arm64
-          - arch: armv7-3.2
-            goos: linux
+          - goos: linux
             goarch: arm
-            goarm: 7
-          - arch: armv7-2.6
-            goos: linux
-            goarch: arm
-            goarm: 7
-          - arch: armv5-3.2
-            goos: linux
-            goarch: arm
-            goarm: 5
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -52,4 +39,23 @@ jobs:
 
       - name: Finding suspicious constructs
         run: |
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} GOMIPS=${{ matrix.gomips }} GOARM=${{ matrix.goarm }} go vet ./...
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} GOMIPS=${{ matrix.gomips }} GOARM=${{ matrix.goarm }} go vet -C ./backend ./...
+
+  test:
+    name: Testing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: '1.21'
+
+      - name: Testing
+        run: |
+          GOOS=linux go test -C ./backend ./...
