@@ -10,7 +10,7 @@ on:
 
 jobs:
   check:
-    name: Finding suspicious constructs for ${{ matrix.arch }}
+    name: Finding suspicious constructs for ${{ matrix.goarch }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -25,10 +25,6 @@ jobs:
             goarch: arm64
           - goos: linux
             goarch: arm
-            goarm: 7
-          - goos: linux
-            goarch: arm
-            goarm: 5
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
