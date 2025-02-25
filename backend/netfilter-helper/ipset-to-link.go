@@ -29,6 +29,9 @@ type IPSetToLink struct {
 }
 
 func (r *IPSetToLink) insertIPTablesRules(ipt *iptables.IPTables, table string) error {
+	if ipt == nil {
+		return nil
+	}
 	if table == "" || table == "mangle" {
 		err := ipt.NewChain("mangle", r.chainName)
 		if err != nil {
@@ -83,6 +86,9 @@ func (r *IPSetToLink) insertIPTablesRules(ipt *iptables.IPTables, table string) 
 }
 
 func (r *IPSetToLink) deleteIPTablesRules(ipt *iptables.IPTables) error {
+	if ipt == nil {
+		return nil
+	}
 	var errs []error
 
 	err := ipt.ClearChain("mangle", r.chainName)

@@ -39,8 +39,10 @@ type DNSProxyServer struct {
 }
 
 type Netfilter struct {
-	IPTables *IPTables `yaml:"iptables"`
-	IPSet    *IPSet    `yaml:"ipset"`
+	IPTables    *IPTables `yaml:"iptables"`
+	IPSet       *IPSet    `yaml:"ipset"`
+	DisableIPv4 *bool     `yaml:"disableIPv4"`
+	DisableIPv6 *bool     `yaml:"disableIPv6"`
 }
 
 type IPTables struct {

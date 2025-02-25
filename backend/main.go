@@ -109,6 +109,8 @@ var defaultAppConfig = models.App{
 			TablePrefix:   "mt_",
 			AdditionalTTL: 3600,
 		},
+		DisableIPv4: false,
+		DisableIPv6: false,
 	},
 	Link:     []string{"br0"},
 	LogLevel: "info",
@@ -170,7 +172,7 @@ func (a *App) start(ctx context.Context) error {
 	a.setupLogging()
 	a.initDNSMITM()
 
-	nfHelper, err := netfilterHelper.New(a.config.Netfilter.IPTables.ChainPrefix, a.config.Netfilter.IPSet.TablePrefix)
+	nfHelper, err := netfilterHelper.New(a.config.Netfilter.IPTables.ChainPrefix, a.config.Netfilter.IPSet.TablePrefix, a.config.Netfilter.DisableIPv4, a.config.Netfilter.DisableIPv6)
 	if err != nil {
 		return fmt.Errorf("netfilter helper init fail: %w", err)
 	}
@@ -704,6 +706,12 @@ func (a *App) ImportConfig(cfg config.Config) error {
 					a.config.Netfilter.IPSet.AdditionalTTL = *cfg.App.Netfilter.IPSet.AdditionalTTL
 				}
 			}
+			if cfg.App.Netfilter.DisableIPv4 != nil {
+				a.config.Netfilter.DisableIPv4 = *cfg.App.Netfilter.DisableIPv4
+			}
+			if cfg.App.Netfilter.DisableIPv6 != nil {
+				a.config.Netfilter.DisableIPv6 = *cfg.App.Netfilter.DisableIPv6
+			}
 		}
 
 		if cfg.App.Link != nil {
@@ -809,6 +817,8 @@ func (a *App) ExportConfig() config.Config {
 					TablePrefix:   &a.config.Netfilter.IPSet.TablePrefix,
 					AdditionalTTL: &a.config.Netfilter.IPSet.AdditionalTTL,
 				},
+				DisableIPv4: &a.config.Netfilter.DisableIPv4,
+				DisableIPv6: &a.config.Netfilter.DisableIPv6,
 			},
 			Link:     &a.config.Link,
 			LogLevel: &a.config.LogLevel,

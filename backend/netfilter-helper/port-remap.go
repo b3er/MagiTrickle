@@ -24,6 +24,9 @@ type PortRemap struct {
 }
 
 func (r *PortRemap) insertIPTablesRules(ipt *iptables.IPTables, table string) error {
+	if ipt == nil {
+		return nil
+	}
 	if table == "" || table == "nat" {
 		err := ipt.NewChain("nat", r.chainName)
 		if err != nil {
@@ -71,6 +74,9 @@ func (r *PortRemap) insertIPTablesRules(ipt *iptables.IPTables, table string) er
 }
 
 func (r *PortRemap) deleteIPTablesRules(ipt *iptables.IPTables) error {
+	if ipt == nil {
+		return nil
+	}
 	var errs []error
 
 	err := ipt.ClearChain("nat", r.chainName)

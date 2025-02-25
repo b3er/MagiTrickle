@@ -118,26 +118,34 @@ func (g *Group) unlinkIfaceFromIPSet() error {
 }
 
 func (g *Group) fixProtection() error {
-	err := g.app.nfHelper.IPTables4.AppendUnique("filter", "_NDM_SL_FORWARD", "-o", g.Interface, "-m", "state", "--state", "NEW", "-j", "_NDM_SL_PROTECT")
-	if err != nil {
-		return fmt.Errorf("failed to fix protect for IPv4: %w", err)
+	if g.app.nfHelper.IPTables4 != nil {
+		err := g.app.nfHelper.IPTables4.AppendUnique("filter", "_NDM_SL_FORWARD", "-o", g.Interface, "-m", "state", "--state", "NEW", "-j", "_NDM_SL_PROTECT")
+		if err != nil {
+			return fmt.Errorf("failed to fix protect for IPv4: %w", err)
+		}
 	}
-	err = g.app.nfHelper.IPTables6.AppendUnique("filter", "_NDM_SL_FORWARD", "-o", g.Interface, "-j", "_NDM_SL_PROTECT")
-	if err != nil {
-		return fmt.Errorf("failed to fix protect for IPv6: %w", err)
+	if g.app.nfHelper.IPTables6 != nil {
+		err := g.app.nfHelper.IPTables6.AppendUnique("filter", "_NDM_SL_FORWARD", "-o", g.Interface, "-j", "_NDM_SL_PROTECT")
+		if err != nil {
+			return fmt.Errorf("failed to fix protect for IPv6: %w", err)
+		}
 	}
 	return nil
 }
 
 func (g *Group) unfixProtection() error {
 	var errs []error
-	err := g.app.nfHelper.IPTables4.Delete("filter", "_NDM_SL_FORWARD", "-o", g.Interface, "-m", "state", "--state", "NEW", "-j", "_NDM_SL_PROTECT")
-	if err != nil {
-		errs = append(errs, fmt.Errorf("failed to remove fix protect: %w", err))
+	if g.app.nfHelper.IPTables4 != nil {
+		err := g.app.nfHelper.IPTables4.Delete("filter", "_NDM_SL_FORWARD", "-o", g.Interface, "-m", "state", "--state", "NEW", "-j", "_NDM_SL_PROTECT")
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed to remove fix protect: %w", err))
+		}
 	}
-	err = g.app.nfHelper.IPTables6.Delete("filter", "_NDM_SL_FORWARD", "-o", g.Interface, "-j", "_NDM_SL_PROTECT")
-	if err != nil {
-		errs = append(errs, fmt.Errorf("failed to remove fix protect: %w", err))
+	if g.app.nfHelper.IPTables6 != nil {
+		err := g.app.nfHelper.IPTables6.Delete("filter", "_NDM_SL_FORWARD", "-o", g.Interface, "-j", "_NDM_SL_PROTECT")
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed to remove fix protect: %w", err))
+		}
 	}
 	return errors.Join(errs...)
 }
@@ -288,15 +296,19 @@ func (g *Group) NetfilterDHook(iptType, table string) error {
 	if g.enabled.Load() {
 		if g.FixProtect && table == "filter" {
 			if iptType == "" || iptType == "iptables" {
-				err := g.app.nfHelper.IPTables4.AppendUnique("filter", "_NDM_SL_FORWARD", "-o", g.Interface, "-m", "state", "--state", "NEW", "-j", "_NDM_SL_PROTECT")
-				if err != nil {
-					return fmt.Errorf("failed to fix protect: %w", err)
+				if g.app.nfHelper.IPTables4 != nil {
+					err := g.app.nfHelper.IPTables4.AppendUnique("filter", "_NDM_SL_FORWARD", "-o", g.Interface, "-m", "state", "--state", "NEW", "-j", "_NDM_SL_PROTECT")
+					if err != nil {
+						return fmt.Errorf("failed to fix protect: %w", err)
+					}
 				}
 			}
 			if iptType == "" || iptType == "ip6tables" {
-				err := g.app.nfHelper.IPTables6.AppendUnique("filter", "_NDM_SL_FORWARD", "-o", g.Interface, "-m", "state", "--state", "NEW", "-j", "_NDM_SL_PROTECT")
-				if err != nil {
-					return fmt.Errorf("failed to fix protect: %w", err)
+				if g.app.nfHelper.IPTables6 != nil {
+					err := g.app.nfHelper.IPTables6.AppendUnique("filter", "_NDM_SL_FORWARD", "-o", g.Interface, "-m", "state", "--state", "NEW", "-j", "_NDM_SL_PROTECT")
+					if err != nil {
+						return fmt.Errorf("failed to fix protect: %w", err)
+					}
 				}
 			}
 		}
