@@ -38,7 +38,7 @@ func (a *App) apiNetfilterDHook(w http.ResponseWriter, r *http.Request) {
 		log.Error().Err(err).Msg("error while fixing iptables after netfilter.d")
 	}
 	for _, groupWrapper := range a.groups {
-		err := groupWrapper.NetfilterDHook(req.Type, req.Table)
+		err = groupWrapper.NetfilterDHook(req.Type, req.Table)
 		if err != nil {
 			log.Error().Err(err).Msg("error while fixing iptables after netfilter.d")
 		}
@@ -160,7 +160,7 @@ func (a *App) apiPutGroups(w http.ResponseWriter, r *http.Request) {
 
 	a.groups = a.groups[:0]
 	for _, g := range newGroups {
-		if err := a.AddGroup(g); err != nil {
+		if err = a.AddGroup(g); err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
@@ -191,7 +191,7 @@ func (a *App) apiCreateGroup(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if err := a.AddGroup(group); err != nil {
+	if err = a.AddGroup(group); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -241,7 +241,7 @@ func (a *App) apiPutGroup(w http.ResponseWriter, r *http.Request) {
 
 	enabled := groupWrapper.enabled.Load()
 	if enabled {
-		if err := groupWrapper.Disable(); err != nil {
+		if err = groupWrapper.Disable(); err != nil {
 			writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to disable group: %w", err).Error())
 			return
 		}
@@ -254,11 +254,11 @@ func (a *App) apiPutGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if enabled {
-		if err := groupWrapper.Enable(); err != nil {
+		if err = groupWrapper.Enable(); err != nil {
 			writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to enable group: %w", err).Error())
 			return
 		}
-		if err := groupWrapper.Sync(); err != nil {
+		if err = groupWrapper.Sync(); err != nil {
 			writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to sync group: %w", err).Error())
 			return
 		}
@@ -362,7 +362,7 @@ func (a *App) apiPutRules(w http.ResponseWriter, r *http.Request) {
 	groupWrapper.Group.Rules = newRules
 
 	if enabled {
-		if err := groupWrapper.Sync(); err != nil {
+		if err = groupWrapper.Sync(); err != nil {
 			writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to sync group: %w", err).Error())
 			return
 		}
@@ -402,7 +402,7 @@ func (a *App) apiCreateRule(w http.ResponseWriter, r *http.Request) {
 	groupWrapper.Group.Rules = append(groupWrapper.Group.Rules, rule)
 
 	if enabled {
-		if err := groupWrapper.Sync(); err != nil {
+		if err = groupWrapper.Sync(); err != nil {
 			writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to sync group: %w", err).Error())
 			return
 		}
@@ -462,7 +462,7 @@ func (a *App) apiPutRule(w http.ResponseWriter, r *http.Request) {
 	rule.Enable = req.Enable
 
 	if enabled {
-		if err := groupWrapper.Sync(); err != nil {
+		if err = groupWrapper.Sync(); err != nil {
 			writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to sync group: %w", err).Error())
 			return
 		}
