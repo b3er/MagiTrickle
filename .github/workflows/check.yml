@@ -10,7 +10,7 @@ on:
 
 jobs:
   check:
-    name: Finding suspicious constructs for ${{ matrix.goarch }}
+    name: Checking for ${{ matrix.goarch }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -40,3 +40,7 @@ jobs:
       - name: Finding suspicious constructs
         run: |
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} GOMIPS=${{ matrix.gomips }} GOARM=${{ matrix.goarm }} go vet -C ./backend ./...
+
+      - name: Testing
+        run: |
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} GOMIPS=${{ matrix.gomips }} GOARM=${{ matrix.goarm }} go test -C ./backend ./...
