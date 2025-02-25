@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -42,6 +43,8 @@ var (
 	ErrGroupIDConflict          = errors.New("group id conflict")
 	ErrRuleIDConflict           = errors.New("rule id conflict")
 	ErrConfigUnsupportedVersion = errors.New("config unsupported version")
+
+	colorRegExp, _ = regexp.Compile("^\\#[0-9a-f]{6}$")
 )
 
 const noSkinFoundPlaceholder = "<!DOCTYPE html><html><head><title>MagiTrickle</title></head><body><h1>MagiTrickle</h1><p>Please install MagiTrickle skin before using WebUI!</p></body></html>"
@@ -731,9 +734,13 @@ func (a *App) ImportConfig(cfg config.Config) error {
 					Enable: rule.Enable,
 				}
 			}
+			if !colorRegExp.MatchString(group.Color) {
+				group.Color = "#ffffff"
+			}
 			err := a.AddGroup(&models.Group{
 				ID:         group.ID,
 				Name:       group.Name,
+				Color:      group.Color,
 				Interface:  group.Interface,
 				FixProtect: group.FixProtect,
 				Rules:      rules,
@@ -753,6 +760,7 @@ func (a *App) ExportConfig() config.Config {
 		groupCfg := config.Group{
 			ID:         group.ID,
 			Name:       group.Name,
+			Color:      group.Color,
 			Interface:  group.Interface,
 			FixProtect: group.FixProtect,
 			Rules:      make([]config.Rule, len(group.Rules)),

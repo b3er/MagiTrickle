@@ -52,6 +52,9 @@ func fromGroupReq(req types.GroupReq, existingGroup *models.Group) (*models.Grou
 		}
 	}
 	group.Name = req.Name
+	if !colorRegExp.MatchString(req.Color) {
+		req.Color = "#ffffff"
+	}
 	group.Color = req.Color
 	group.Interface = req.Interface
 	group.FixProtect = req.FixProtect
