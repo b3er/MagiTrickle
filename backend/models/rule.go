@@ -10,11 +10,11 @@ import (
 )
 
 type Rule struct {
-	ID     types.ID `yaml:"id"`
-	Name   string   `yaml:"name"`
-	Type   string   `yaml:"type"`
-	Rule   string   `yaml:"rule"`
-	Enable bool     `yaml:"enable"`
+	ID     types.ID
+	Name   string
+	Type   string
+	Rule   string
+	Enable bool
 }
 
 func (d *Rule) IsEnabled() bool {
