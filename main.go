@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"magitrickle/constant"
 	dnsMitmProxy "magitrickle/dns-mitm-proxy"
 	"magitrickle/models"
 	"magitrickle/models/config"
@@ -45,10 +46,10 @@ var (
 
 const noSkinFoundPlaceholder = "<!DOCTYPE html><html><head><title>MagiTrickle</title></head><body><h1>MagiTrickle</h1><p>Please install MagiTrickle skin before using WebUI!</p></body></html>"
 
-const skinsFolderLocation = "/opt/usr/share/magitrickle/skins"
-const cfgFolderLocation = "/opt/var/lib/magitrickle"
+const skinsFolderLocation = constant.AppShareDir + "/skins"
+const cfgFolderLocation = constant.AppDataDir
 const cfgFileLocation = cfgFolderLocation + "/config.yaml"
-const pidFileLocation = "/opt/var/run/magitrickle.pid"
+const pidFileLocation = constant.RunDir + "/magitrickle.pid"
 
 func checkPIDFile() error {
 	data, err := os.ReadFile(pidFileLocation)

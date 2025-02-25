@@ -18,26 +18,32 @@ jobs:
     strategy:
       matrix:
         include:
-          - target: mipsel-3.4
+          - platform: entware
+            target: mipsel-3.4
             goos: linux
             goarch: mipsle
             gomips: softfloat
-          - target: mips-3.4
+          - platform: entware
+            target: mips-3.4
             goos: linux
             goarch: mips
             gomips: softfloat
-          - target: aarch64-3.10
+          - platform: entware
+            target: aarch64-3.10
             goos: linux
             goarch: arm64
-          - target: armv7-3.2
+          - platform: entware
+            target: armv7-3.2
             goos: linux
             goarch: arm
             goarm: 7
-          - target: armv7-2.6
+          - platform: entware
+            target: armv7-2.6
             goos: linux
             goarch: arm
             goarm: 7
-          - target: armv5-3.2
+          - platform: entware
+            target: armv5-3.2
             goos: linux
             goarch: arm
             goarm: 5
@@ -60,7 +66,7 @@ jobs:
 
       - name: Build and Package
         run: |
-          TARGET=${{ matrix.target }} GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} GOMIPS=${{ matrix.gomips }} GOARM=${{ matrix.goarm }} make
+          PLATFORM=${{ matrix.platform }} TARGET=${{ matrix.target }} GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} GOMIPS=${{ matrix.gomips }} GOARM=${{ matrix.goarm }} make
 
       - name: Fetching file list for artifact
         if: ${{ github.event_name != 'release' }}
