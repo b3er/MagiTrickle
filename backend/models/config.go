@@ -38,14 +38,14 @@ type DNSProxyServer struct {
 }
 
 type Netfilter struct {
-	IPTables IPTables
-	IPSet    IPSet
+	IPTables    IPTables
+	IPSet       IPSet
+	DisableIPv4 bool
+	DisableIPv6 bool
 }
 
 type IPTables struct {
 	ChainPrefix string
-	DisableIPv4 bool
-	DisableIPv6 bool
 }
 
 type IPSet struct {
