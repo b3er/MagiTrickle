@@ -43,10 +43,10 @@ clear:
 	rm -rf $(PKG_DIR)
 
 build_daemon:
-	$(GO_FLAGS) go build $(PARAMS) -o $(BIN_DIR)/magitrickled ./cmd/magitrickled
+	$(GO_FLAGS) go build -C ./backend $(PARAMS) -o ../$(BIN_DIR)/magitrickled ./cmd/magitrickled
 
 build_cli:
-	$(GO_FLAGS) go build $(PARAMS) -o $(BIN_DIR)/magitrickle ./cmd/magitrickle
+	$(GO_FLAGS) go build -C ./backend $(PARAMS) -o ../$(BIN_DIR)/magitrickle ./cmd/magitrickle
 
 build: build_daemon build_cli
 
