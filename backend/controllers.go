@@ -140,8 +140,8 @@ func (a *App) apiPutGroups(w http.ResponseWriter, r *http.Request) {
 		_ = groupWrapper.Disable()
 	}
 
-	newGroups := make([]*models.Group, 0, len(*req.Groups))
-	for _, gReq := range *req.Groups {
+	newGroups := make([]*models.Group, len(*req.Groups))
+	for idx, gReq := range *req.Groups {
 		var existing *models.Group
 		if gReq.ID != nil {
 			for _, groupWrapper := range a.groups {
@@ -151,12 +151,11 @@ func (a *App) apiPutGroups(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-		group, err := fromGroupReq(gReq, existing)
+		newGroups[idx], err = fromGroupReq(gReq, existing)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		newGroups = append(newGroups, group)
 	}
 
 	a.groups = a.groups[:0]
