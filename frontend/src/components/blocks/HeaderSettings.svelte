@@ -2,12 +2,12 @@
   import Select from "../common/Select.svelte";
   import { Locale, Github } from "../common/icons";
   import { t, getLocale, setLocale, locales } from "../../data/locale.svelte";
+  const version = import.meta.env.VITE_UPSTREAM_VERSION || '0.0.0'
 </script>
 
 <div class="container">
   <div class="version">
-    <!-- TODO: get version from api -->
-    <span>build: 0.0.1</span>
+    <span>build: {version}</span>
   </div>
   <!-- TODO: more links? -->
   <div class="links">

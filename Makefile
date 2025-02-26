@@ -53,7 +53,7 @@ build_frontend_legacy:
 
 build_frontend:
 	cd ./frontend && deno install
-	cd ./frontend && deno task build
+	cd ./frontend && VITE_UPSTREAM_VERSION=$(UPSTREAM_VERSION) deno task build
 	mkdir -p $(PKG_DIR)/data/opt/usr/share/magitrickle/skins/default
 	cp -r ./frontend/dist/* $(PKG_DIR)/data/opt/usr/share/magitrickle/skins/default/
 
