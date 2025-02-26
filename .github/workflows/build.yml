@@ -54,22 +54,7 @@ jobs:
       - name: Set up Deno
         uses: denoland/setup-deno@v2
         with:
-          deno-version: 'latest'
-
-      - name: Install frontend dependencies using Deno
-        run: |
-          cd frontend
-          deno install
-
-      - name: Build frontend with Deno
-        run: |
-          cd frontend
-          deno task build
-
-      - name: Copy frontend index.html
-        run: |
-          mkdir -p opt/usr/share/magitrickle/skins/default
-          cp frontend/dist/index.html opt/usr/share/magitrickle/skins/default/index.html
+          deno-version: '2.2.2'
 
       - name: Set up Go
         uses: actions/setup-go@v3
