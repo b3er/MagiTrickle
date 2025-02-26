@@ -1,6 +1,6 @@
 import { defineConfig } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
-import { viteSingleFile } from "vite-plugin-singlefile";
+import { ViteMinifyPlugin  } from "vite-plugin-minify";
 
 export default defineConfig(() => ({
   plugins: [
@@ -13,7 +13,7 @@ export default defineConfig(() => ({
         defaultHandler(warning);
       },
     }),
-    viteSingleFile(),
+    ViteMinifyPlugin(),
   ],
   build: {
     target: "esnext",
