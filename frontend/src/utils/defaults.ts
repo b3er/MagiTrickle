@@ -23,7 +23,7 @@ export function defaultRule(): Rule {
 }
 
 export function randomId(length = 8) {
-  const characters = "abcdefghijklmnopqrstuvwxyz0123456789";
+  const characters = "0123456789abcdef";
   let result = "";
 
   for (let i = 0; i < length; i++) {
