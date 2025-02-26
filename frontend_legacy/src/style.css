@@ -1,0 +1,43 @@
+body {
+  font-family: Arial, sans-serif;
+  padding: 8px;
+}
+
+.container {
+  max-width: 800px;
+  margin: auto;
+}
+
+.group, .rule {
+  border: 1px solid #ddd;
+  padding: 4px;
+  margin-bottom: 4px;
+}
+
+.unsaved {
+  border: 1px solid #f00;
+}
+
+input, select {
+  margin: 4px;
+  padding: 4px;
+}
+
+#overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+}
+
+#overlay span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 20px;
+}

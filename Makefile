@@ -45,13 +45,19 @@ clear:
 build_backend:
 	$(GO_FLAGS) go build -C ./backend $(PARAMS) -o ../$(BIN_DIR)/magitrickled ./cmd/magitrickled
 
+build_frontend_legacy:
+	cd ./frontend_legacy && deno install
+	cd ./frontend_legacy && deno task build
+	mkdir -p $(PKG_DIR)/data/opt/usr/share/magitrickle/skins/legacy
+	cp -r ./frontend_legacy/dist/* $(PKG_DIR)/data/opt/usr/share/magitrickle/skins/legacy/
+
 build_frontend:
 	cd ./frontend && deno install
 	cd ./frontend && deno task build
 	mkdir -p $(PKG_DIR)/data/opt/usr/share/magitrickle/skins/default
 	cp -r ./frontend/dist/* $(PKG_DIR)/data/opt/usr/share/magitrickle/skins/default/
 
-build: build_backend build_frontend
+build: build_backend build_frontend_legacy build_frontend
 
 package:
 	mkdir -p $(PKG_DIR)/control
