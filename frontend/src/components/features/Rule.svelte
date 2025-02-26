@@ -1,0 +1,196 @@
+<script lang="ts">
+  import type { Rule } from "../../types";
+  import Switch from "../common/Switch.svelte";
+  import Tooltip from "../common/Tooltip.svelte";
+  import { Delete, Grip } from "../common/icons";
+  import RuleTypeSelect from "./RuleTypeSelect.svelte";
+  import { dropzone, draggable } from "../actions/drag-and-drop";
+  import { VALIDATOP_MAP } from "../../utils/rule-validators";
+
+  type Props = {
+    rule: Rule;
+    rule_index: number;
+    group_index: number;
+    rule_id: string;
+    group_id: string;
+    onChangeIndex?: (
+      from_group_index: number,
+      from_rule_index: number,
+      to_group_index: number,
+      to_rule_index: number,
+    ) => void;
+    onDelete?: (from_group_index: number, from_rule_index: number) => void;
+    [key: string]: any;
+  };
+
+  let {
+    rule = $bindable(),
+    // group_rules = $bindable(),
+    rule_index,
+    group_index,
+    rule_id,
+    group_id,
+    onChangeIndex,
+    onDelete,
+    ...rest
+  }: Props = $props();
+
+  let input: HTMLInputElement;
+
+  function patternValidation() {
+    if (
+      input.value.length === 0 ||
+      (VALIDATOP_MAP[rule.type] && !VALIDATOP_MAP[rule.type](input.value))
+    ) {
+      input.classList.add("invalid");
+    } else {
+      input.classList.remove("invalid");
+    }
+  }
+
+  function ondropzone([group_index, rule_index]: [number, number], target: HTMLElement) {
+    window.dispatchEvent(
+      new CustomEvent("rule_drop", {
+        detail: {
+          from_group_index: group_index,
+          from_rule_index: rule_index,
+          to_group_index: +target.dataset.groupIndex!,
+          to_rule_index: +target.dataset.index!,
+        },
+      }),
+    );
+  }
+</script>
+
+<div
+  class="container rule"
+  data-index={rule_index}
+  data-group-index={group_index}
+  data-uuid={rule_id}
+  data-group-uuid={group_id}
+  {...rest}
+  use:draggable={[group_index, rule_index]}
+  use:dropzone={ondropzone}
+>
+  <div class="grip" data-index={rule_index} data-group-index={group_index}><Grip /></div>
+  <div class="name">
+    <input type="text" placeholder="rule name..." class="table-input" bind:value={rule.name} />
+  </div>
+  <div class="type">
+    <RuleTypeSelect bind:selected={rule.type} onSelectedChange={patternValidation} />
+  </div>
+  <div class="pattern">
+    <input
+      type="text"
+      placeholder="rule pattern..."
+      class="table-input pattern-input"
+      bind:value={rule.rule}
+      bind:this={input}
+      oninput={patternValidation}
+      onfocusout={patternValidation}
+    />
+  </div>
+  <div class="actions">
+    <Switch bind:checked={rule.enable} />
+    <Tooltip value="Delete Rule">
+      <div
+        class="action"
+        data-index={rule_index}
+        data-group-index={group_index}
+        onclick={() => onDelete?.(group_index, rule_index)}
+      >
+        <Delete size={20} />
+      </div>
+    </Tooltip>
+  </div>
+</div>
+
+<style>
+  .container {
+    display: grid;
+    grid-template-columns: 1.1rem 2.5fr 1fr 3fr 1fr;
+    gap: 0.5rem;
+    padding: 0.1rem;
+  }
+
+  .rule:global(.dragover) {
+    outline: 1px solid var(--accent);
+  }
+
+  .table-input {
+    & {
+      border: none;
+      background-color: transparent;
+      font-size: 1rem;
+      font-family: var(--font);
+      color: var(--text);
+      top: 0.1rem;
+      border-bottom: 1px solid transparent;
+      width: 100%;
+      position: relative;
+    }
+
+    &:focus-visible {
+      outline: none;
+      border-bottom: 1px solid var(--accent);
+    }
+  }
+
+  .name,
+  .type,
+  .pattern {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.1rem;
+  }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    justify-content: end;
+    gap: 0.5rem;
+  }
+
+  .action {
+    & {
+      color: var(--text-2);
+      background-color: transparent;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.4rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+    }
+
+    &:hover {
+      background-color: var(--bg-dark);
+      outline: 1px solid var(--bg-light-extra);
+      color: var(--text);
+    }
+  }
+
+  .grip {
+    & {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: grab;
+      color: var(--text-2);
+      position: relative;
+      top: -0.05rem;
+      left: 0.1rem;
+    }
+
+    &:hover {
+      color: var(--text);
+    }
+  }
+
+  :global(.pattern-input.invalid),
+  :global(.pattern-input.invalid:focus-visible) {
+    border-bottom: 1px solid var(--red);
+  }
+</style>

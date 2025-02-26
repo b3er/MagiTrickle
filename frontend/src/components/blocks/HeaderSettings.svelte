@@ -1,0 +1,77 @@
+<script lang="ts">
+  import Select from "../common/Select.svelte";
+  import { Locale, Github } from "../common/icons";
+  import { t, getLocale, setLocale } from "../../data/locale.svelte";
+
+  // TODO: i18n need impl
+  const locales = [
+    { label: "en", value: "en" },
+    { label: "ru", value: "ru" },
+  ];
+
+  //TODO: should be dynamic based on user locale and possible locales, save selection in localstorage
+  // let locale = $state(locales.find((item) => item.value === navigator.language)?.value ?? "en");
+</script>
+
+<div class="container">
+  <div class="version">
+    <!-- TODO: get version from api -->
+    <span>build: 0.0.1</span>
+  </div>
+  <!-- TODO: more links? -->
+  <div class="links">
+    <a target="_blank" rel="noopener noreferrer" href="https://github.com/Ponywka/MagiTrickle"
+      ><Github size={22} /></a
+    >
+  </div>
+  <div class="locale">
+    <Locale size={22} />
+    <Select
+      options={locales}
+      selected={getLocale()}
+      onSelectedChange={(value) => setLocale(value)}
+      style="width:55px"
+    />
+  </div>
+</div>
+
+<style>
+  .container {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 1.2rem;
+  }
+
+  .locale,
+  .links,
+  .version {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.1rem;
+  }
+
+  .links a {
+    & {
+      color: var(--text);
+      cursor: pointer;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    &:hover {
+      color: var(--accent);
+    }
+  }
+
+  .version span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: smaller;
+    color: var(--text-2);
+  }
+</style>
