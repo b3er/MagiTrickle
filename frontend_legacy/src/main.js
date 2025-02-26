@@ -52,11 +52,13 @@ class App {
 
     populateInterfaces(interfacesSelect, interfaces, selectedInterface = null) {
         interfaces.forEach(iface => {
-            interfacesSelect.appendChild(createElement("option", {
+            const option = createElement("option", {
                 value: iface,
-                // TODO: Fix Selected
-                selected: iface === selectedInterface ? "" : undefined,
-            }, iface));
+            }, iface)
+            if (iface === selectedInterface) {
+                option.selected = true
+            }
+            interfacesSelect.appendChild(option);
         });
         if (selectedInterface !== null && !interfaces.includes(selectedInterface)) {
             interfacesSelect.appendChild(createElement("option", {
