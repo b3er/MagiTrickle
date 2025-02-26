@@ -1,16 +1,7 @@
 <script lang="ts">
   import Select from "../common/Select.svelte";
   import { Locale, Github } from "../common/icons";
-  import { t, getLocale, setLocale } from "../../data/locale.svelte";
-
-  // TODO: i18n need impl
-  const locales = [
-    { label: "en", value: "en" },
-    { label: "ru", value: "ru" },
-  ];
-
-  //TODO: should be dynamic based on user locale and possible locales, save selection in localstorage
-  // let locale = $state(locales.find((item) => item.value === navigator.language)?.value ?? "en");
+  import { t, getLocale, setLocale, locales } from "../../data/locale.svelte";
 </script>
 
 <div class="container">
@@ -27,7 +18,7 @@
   <div class="locale">
     <Locale size={22} />
     <Select
-      options={locales}
+      options={Object.keys(locales).map((item) => ({ label: item, value: item }))}
       selected={getLocale()}
       onSelectedChange={(value) => setLocale(value)}
       style="width:55px"

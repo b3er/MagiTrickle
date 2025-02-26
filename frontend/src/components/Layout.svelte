@@ -3,7 +3,7 @@
   import Groups from "./blocks/Groups.svelte";
   import HeaderSettings from "./blocks/HeaderSettings.svelte";
   // import Logs from "./blocks/Logs.svelte";
-  import SettingsPage from "./blocks/Settings.svelte";
+  // import SettingsPage from "./blocks/Settings.svelte";
 
   let active_tab = $state("Groups");
 </script>
@@ -16,7 +16,7 @@
     <nav>
       <Tabs.List>
         <Tabs.Trigger value="Groups">Groups</Tabs.Trigger>
-        <Tabs.Trigger value="Settings">Settings</Tabs.Trigger>
+        <!-- <Tabs.Trigger value="Settings">Settings</Tabs.Trigger> -->
         <!-- <Tabs.Trigger value="Logs">Logs</Tabs.Trigger> -->
       </Tabs.List>
       <div class="header-settings">
@@ -27,9 +27,9 @@
       <Tabs.Content value="Groups">
         <Groups />
       </Tabs.Content>
-      <Tabs.Content value="Settings">
+      <!-- <Tabs.Content value="Settings">
         <SettingsPage />
-      </Tabs.Content>
+      </Tabs.Content> -->
       <!-- <Tabs.Content value="Logs">
         <Logs />
       </Tabs.Content> -->
