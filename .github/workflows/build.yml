@@ -54,10 +54,10 @@ jobs:
           fetch-depth: 0
 
 
-      - name: Set up Deno
-        uses: denoland/setup-deno@v2
+      - name: Set up Node.JS
+        uses: actions/setup-node@v4
         with:
-          deno-version: '2.2.2'
+          node-version: 22
 
       - name: Set up Go
         uses: actions/setup-go@v3

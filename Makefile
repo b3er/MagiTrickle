@@ -46,14 +46,14 @@ build_backend:
 	$(GO_FLAGS) go build -C ./backend $(PARAMS) -o ../$(BIN_DIR)/magitrickled ./cmd/magitrickled
 
 build_frontend_legacy:
-	cd ./frontend_legacy && deno install
-	cd ./frontend_legacy && deno task build
+	cd ./frontend_legacy && npm install
+	cd ./frontend_legacy && npm run build
 	mkdir -p $(PKG_DIR)/data/opt/usr/share/magitrickle/skins/legacy
 	cp -r ./frontend_legacy/dist/* $(PKG_DIR)/data/opt/usr/share/magitrickle/skins/legacy/
 
 build_frontend:
-	cd ./frontend && deno install
-	cd ./frontend && VITE_UPSTREAM_VERSION=$(UPSTREAM_VERSION) deno task build
+	cd ./frontend && npm install
+	cd ./frontend && VITE_UPSTREAM_VERSION=$(UPSTREAM_VERSION) npm run build
 	mkdir -p $(PKG_DIR)/data/opt/usr/share/magitrickle/skins/default
 	cp -r ./frontend/dist/* $(PKG_DIR)/data/opt/usr/share/magitrickle/skins/default/
 
