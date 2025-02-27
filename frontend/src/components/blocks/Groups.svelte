@@ -2,6 +2,7 @@
   import { Collapsible } from "bits-ui";
   import { scale, slide } from "svelte/transition";
   import { onDestroy, onMount, untrack, tick } from "svelte";
+  import { droppable, type DragDropState } from "@thisux/sveltednd";
 
   import type { Group, Rule } from "../../types";
   import { defaultGroup, defaultRule } from "../../utils/defaults";
@@ -50,7 +51,6 @@
 
   onMount(async () => {
     data = (await fetcher.get<{ groups: Group[] }>("/groups?with_rules=true"))?.groups ?? [];
-    console.log(data);
     window.addEventListener("rule_drop", onRuleDrop);
     window.addEventListener("beforeunload", unsavedChanges);
   });
@@ -108,7 +108,7 @@
     });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = "config.mtickle";
+    link.download = "config.mtrickle";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -145,14 +145,18 @@
     }
   }
 
-  function ondropzone([group_index, rule_index]: [number, number], target: HTMLElement) {
+  function handleDrop(state: DragDropState) {
+    const { sourceContainer, targetContainer } = state;
+    if (!targetContainer || sourceContainer === targetContainer) return;
+    const [, , from_group_index, from_rule_index] = sourceContainer.split(",");
+    const [, , to_group_index] = targetContainer.split(",");
     window.dispatchEvent(
       new CustomEvent("rule_drop", {
         detail: {
-          from_group_index: group_index,
-          from_rule_index: rule_index,
-          to_group_index: +target.dataset.groupIndex!,
-          to_rule_index: data[+target.dataset.groupIndex!].rules.length,
+          from_group_index: +from_group_index,
+          from_rule_index: +from_rule_index,
+          to_group_index: +to_group_index,
+          to_rule_index: +data[+to_group_index].rules.length,
         },
       }),
     );
@@ -174,7 +178,7 @@
       <button class="action main" onclick={exportConfig}><Upload size={22} /></button>
     </Tooltip>
     <Tooltip value="Import Config">
-      <input type="file" id="import-config" hidden accept=".mtickle" onchange={importConfig} />
+      <input type="file" id="import-config" hidden accept=".mtrickle" onchange={importConfig} />
       <button class="action main" onclick={() => document.getElementById("import-config")!.click()}
         ><Download size={22} /></button
       >
@@ -189,7 +193,14 @@
   {#each data as group, group_index (group.id)}
     <div class="group" data-uuid={group.id}>
       <Collapsible.Root open={true}>
-        <div class="group-header" data-group-index={group_index} use:dropzone={ondropzone}>
+        <div
+          class="group-header"
+          data-group-index={group_index}
+          use:droppable={{
+            container: `${group.id},-,${group_index},-`,
+            callbacks: { onDrop: handleDrop },
+          }}
+        >
           <div class="group-left">
             <label class="group-color" style="background: {group.color}">
               <input type="color" bind:value={group.color} />
@@ -241,7 +252,6 @@
               <!-- FIXME: use a virtual list to fix rendering performance for large groups (svelte-tiny-virtual-list) -->
               {#each group.rules as rule, rule_index (rule.id)}
                 <RuleComponent
-                  key={rule.id}
                   bind:rule={group.rules[rule_index]}
                   {rule_index}
                   {group_index}

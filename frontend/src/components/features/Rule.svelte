@@ -1,10 +1,11 @@
 <script lang="ts">
+  import { draggable, droppable, type DragDropState } from "@thisux/sveltednd";
+
   import type { Rule } from "../../types";
   import Switch from "../common/Switch.svelte";
   import Tooltip from "../common/Tooltip.svelte";
   import { Delete, Grip } from "../common/icons";
   import RuleTypeSelect from "./RuleTypeSelect.svelte";
-  import { dropzone, draggable } from "../actions/drag-and-drop";
   import { VALIDATOP_MAP } from "../../utils/rule-validators";
 
   type Props = {
@@ -25,7 +26,7 @@
 
   let {
     rule = $bindable(),
-    // group_rules = $bindable(),
+
     rule_index,
     group_index,
     rule_id,
@@ -48,14 +49,18 @@
     }
   }
 
-  function ondropzone([group_index, rule_index]: [number, number], target: HTMLElement) {
+  function handleDrop(state: DragDropState) {
+    const { sourceContainer, targetContainer } = state;
+    if (!targetContainer || sourceContainer === targetContainer) return;
+    const [, , from_group_index, from_rule_index] = sourceContainer.split(",");
+    const [, , to_group_index, to_rule_index] = targetContainer.split(",");
     window.dispatchEvent(
       new CustomEvent("rule_drop", {
         detail: {
-          from_group_index: group_index,
-          from_rule_index: rule_index,
-          to_group_index: +target.dataset.groupIndex!,
-          to_rule_index: +target.dataset.index!,
+          from_group_index: +from_group_index,
+          from_rule_index: +from_rule_index,
+          to_group_index: +to_group_index,
+          to_rule_index: +to_rule_index,
         },
       }),
     );
@@ -68,9 +73,15 @@
   data-group-index={group_index}
   data-uuid={rule_id}
   data-group-uuid={group_id}
+  use:draggable={{
+    container: `${group_id},${rule_id},${group_index},${rule_index}`,
+    dragData: { rule_id, group_id, rule_index, group_index },
+  }}
+  use:droppable={{
+    container: `${group_id},${rule_id},${group_index},${rule_index}`,
+    callbacks: { onDrop: handleDrop },
+  }}
   {...rest}
-  use:draggable={[group_index, rule_index]}
-  use:dropzone={ondropzone}
 >
   <div class="grip" data-index={rule_index} data-group-index={group_index}><Grip /></div>
   <div class="name">
@@ -113,9 +124,9 @@
     padding: 0.1rem;
   }
 
-  .rule:global(.dragover) {
+  /* .rule:global(.drag-over) {
     outline: 1px solid var(--accent);
-  }
+  } */
 
   .table-input {
     & {
