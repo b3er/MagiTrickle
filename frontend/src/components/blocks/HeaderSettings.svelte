@@ -34,7 +34,7 @@
     gap: 1.2rem;
   }
 
-  .locale,
+  /* .locale, */
   .links,
   .version {
     display: flex;

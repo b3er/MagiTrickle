@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { draggable, droppable, type DragDropState } from "@thisux/sveltednd";
-
+  import { draggable, droppable, type DragDropState } from "../actions/dnd";
   import type { Rule } from "../../types";
   import Switch from "../common/Switch.svelte";
   import Tooltip from "../common/Tooltip.svelte";
   import { Delete, Grip } from "../common/icons";
   import RuleTypeSelect from "./RuleTypeSelect.svelte";
   import { VALIDATOP_MAP } from "../../utils/rule-validators";
+  import Button from "../common/Button.svelte";
 
   type Props = {
     rule: Rule;
@@ -26,7 +26,6 @@
 
   let {
     rule = $bindable(),
-
     rule_index,
     group_index,
     rule_id,
@@ -76,6 +75,7 @@
   use:draggable={{
     container: `${group_id},${rule_id},${group_index},${rule_index}`,
     dragData: { rule_id, group_id, rule_index, group_index },
+    interactive: [".interactive"],
   }}
   use:droppable={{
     container: `${group_id},${rule_id},${group_index},${rule_index}`,
@@ -102,16 +102,17 @@
     />
   </div>
   <div class="actions">
-    <Switch bind:checked={rule.enable} />
+    <Switch bind:checked={rule.enable} class="interactive" />
     <Tooltip value="Delete Rule">
-      <div
-        class="action"
+      <Button
+        small
+        onclick={() => onDelete?.(group_index, rule_index)}
         data-index={rule_index}
         data-group-index={group_index}
-        onclick={() => onDelete?.(group_index, rule_index)}
+        class="interactive"
       >
         <Delete size={20} />
-      </div>
+      </Button>
     </Tooltip>
   </div>
 </div>
@@ -161,26 +162,6 @@
     align-items: center;
     justify-content: end;
     gap: 0.5rem;
-  }
-
-  .action {
-    & {
-      color: var(--text-2);
-      background-color: transparent;
-      border: none;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0.4rem;
-      border-radius: 0.5rem;
-      cursor: pointer;
-    }
-
-    &:hover {
-      background-color: var(--bg-dark);
-      outline: 1px solid var(--bg-light-extra);
-      color: var(--text);
-    }
   }
 
   .grip {

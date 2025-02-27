@@ -3,12 +3,13 @@
 
   type Props = {
     checked: boolean;
+    [key: string]: any;
   };
 
-  let { checked = $bindable(false) }: Props = $props();
+  let { checked = $bindable(false), ...rest }: Props = $props();
 </script>
 
-<Switch.Root bind:checked>
+<Switch.Root bind:checked {...rest}>
   <Switch.Thumb />
 </Switch.Root>
 

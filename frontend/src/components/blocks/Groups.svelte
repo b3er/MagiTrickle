@@ -2,19 +2,19 @@
   import { Collapsible } from "bits-ui";
   import { scale, slide } from "svelte/transition";
   import { onDestroy, onMount, untrack, tick } from "svelte";
-  import { droppable, type DragDropState } from "@thisux/sveltednd";
+  import { droppable, type DragDropState } from "../actions/dnd";
 
   import type { Group, Rule } from "../../types";
   import { defaultGroup, defaultRule } from "../../utils/defaults";
   import { fetcher } from "../../utils/fetcher";
   import { INTERFACES } from "../../data/interfaces.svelte";
   import { Delete, Add, GroupCollapse, Upload, Download, Save } from "../common/icons";
-  import { dropzone } from "../actions/drag-and-drop";
   import Switch from "../common/Switch.svelte";
   import Tooltip from "../common/Tooltip.svelte";
   import RuleComponent from "../features/Rule.svelte";
   import InterfaceSelect from "../features/InterfaceSelect.svelte";
   import Scrollable from "../common/Scrollable.svelte";
+  import Button from "../common/Button.svelte";
 
   let data: Group[] = $state([]);
   let counter = $state(-2); // skip first update on init
@@ -74,6 +74,7 @@
 
   async function addRuleToGroup(group_index: number, rule: Rule, focus = false) {
     data[group_index].rules.push(rule);
+    // FIXME: consider to add to the beginning of the group
     if (!focus) return;
     await tick();
     const el = document.querySelector(
@@ -168,23 +169,25 @@
     {#if counter > 0}
       <div transition:scale>
         <Tooltip value="Save Changes">
-          <button id="save-changes" class="action main" onclick={saveChanges}>
+          <Button onclick={saveChanges} id="save-changes">
             <Save size={22} />
-          </button>
+          </Button>
         </Tooltip>
       </div>
     {/if}
     <Tooltip value="Export Config">
-      <button class="action main" onclick={exportConfig}><Upload size={22} /></button>
+      <Button onclick={exportConfig}>
+        <Upload size={22} />
+      </Button>
     </Tooltip>
     <Tooltip value="Import Config">
       <input type="file" id="import-config" hidden accept=".mtrickle" onchange={importConfig} />
-      <button class="action main" onclick={() => document.getElementById("import-config")!.click()}
-        ><Download size={22} /></button
-      >
+      <Button onclick={() => document.getElementById("import-config")!.click()}>
+        <Download size={22} />
+      </Button>
     </Tooltip>
     <Tooltip value="Add Group">
-      <button class="action main" onclick={addGroup}><Add size={22} /></button>
+      <Button onclick={addGroup}><Add size={22} /></Button>
     </Tooltip>
   </div>
 </div>
@@ -216,17 +219,14 @@
             <InterfaceSelect bind:selected={group.interface} />
             <Switch bind:checked={group.fixProtect} />
             <Tooltip value="Delete Group">
-              <button class="action" onclick={() => deleteGroup(group_index)}>
+              <Button small onclick={() => deleteGroup(group_index)}>
                 <Delete size={20} />
-              </button>
+              </Button>
             </Tooltip>
             <Tooltip value="Add Rule">
-              <button
-                class="action"
-                onclick={() => addRuleToGroup(group_index, defaultRule(), true)}
-              >
+              <Button small onclick={() => addRuleToGroup(group_index, defaultRule(), false)}>
                 <Add size={20} />
-              </button>
+              </Button>
             </Tooltip>
             <Tooltip value="Collapse Group">
               <Collapsible.Trigger>
@@ -270,13 +270,6 @@
     </div>
   {/each}
 </Scrollable>
-
-<!-- <details>
-  <summary>State Debug</summary>
-  <code>
-    <pre>{JSON.stringify(data, null, 2)}}</pre>
-  </code>
-</details> -->
 
 <style>
   .group {
@@ -375,49 +368,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-  }
-
-  .action {
-    & {
-      color: var(--text-2);
-      background-color: transparent;
-      border: none;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0.4rem;
-      border-radius: 0.5rem;
-      cursor: pointer;
-    }
-
-    &:hover {
-      background-color: var(--bg-dark);
-      color: var(--text);
-      outline: 1px solid var(--bg-light-extra);
-    }
-
-    :global(&.fail) {
-      color: var(--red);
-      box-shadow: 0 0 5px var(--red);
-    }
-
-    :global(&.success) {
-      color: var(--green);
-      box-shadow: 0 0 5px var(--green);
-    }
-
-    &.main {
-      & {
-        background-color: var(--bg-light);
-        padding: 0.6rem;
-        transition: all 0.1s ease-in-out;
-        outline: 1px solid var(--bg-light-extra);
-      }
-
-      &:hover {
-        background-color: var(--bg-light-extra);
-      }
-    }
   }
 
   :global {
