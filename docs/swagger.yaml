@@ -7,6 +7,9 @@ definitions:
     type: object
   types.GroupReq:
     properties:
+      color:
+        example: '#ffffff'
+        type: string
       fixProtect:
         example: false
         type: boolean
@@ -26,6 +29,9 @@ definitions:
     type: object
   types.GroupRes:
     properties:
+      color:
+        example: '#ffffff'
+        type: string
       fixProtect:
         example: false
         type: boolean
@@ -154,6 +160,10 @@ paths:
       - application/json
       description: Создает группу
       parameters:
+      - description: Сохранить изменения в конфигурационный файл
+        in: query
+        name: save
+        type: boolean
       - description: Тело запроса
         in: body
         name: json
@@ -183,6 +193,10 @@ paths:
       - application/json
       description: Обновляет список групп
       parameters:
+      - description: Сохранить изменения в конфигурационный файл
+        in: query
+        name: save
+        type: boolean
       - description: Тело запроса
         in: body
         name: json
@@ -216,6 +230,10 @@ paths:
         name: groupID
         required: true
         type: string
+      - description: Сохранить изменения в конфигурационный файл
+        in: query
+        name: save
+        type: boolean
       produces:
       - application/json
       responses:
@@ -272,6 +290,10 @@ paths:
         name: groupID
         required: true
         type: string
+      - description: Сохранить изменения в конфигурационный файл
+        in: query
+        name: save
+        type: boolean
       - description: Тело запроса
         in: body
         name: json
@@ -337,6 +359,10 @@ paths:
         name: groupID
         required: true
         type: string
+      - description: Сохранить изменения в конфигурационный файл
+        in: query
+        name: save
+        type: boolean
       - description: Тело запроса
         in: body
         name: json
@@ -375,6 +401,10 @@ paths:
         name: groupID
         required: true
         type: string
+      - description: Сохранить изменения в конфигурационный файл
+        in: query
+        name: save
+        type: boolean
       - description: Тело запроса
         in: body
         name: json
@@ -417,6 +447,10 @@ paths:
         name: ruleID
         required: true
         type: string
+      - description: Сохранить изменения в конфигурационный файл
+        in: query
+        name: save
+        type: boolean
       produces:
       - application/json
       responses:
@@ -479,6 +513,10 @@ paths:
         name: ruleID
         required: true
         type: string
+      - description: Сохранить изменения в конфигурационный файл
+        in: query
+        name: save
+        type: boolean
       - description: Тело запроса
         in: body
         name: json

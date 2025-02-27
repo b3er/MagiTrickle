@@ -11,7 +11,7 @@ type GroupsRes struct {
 type GroupReq struct {
 	ID         *ID    `json:"id" example:"0a1b2c3d" swaggertype:"string"`
 	Name       string `json:"name" example:"Routing"`
-	Color      string `json:"color" example:"#fff"`
+	Color      string `json:"color" example:"#ffffff"`
 	Interface  string `json:"interface" example:"nwg0"`
 	FixProtect bool   `json:"fixProtect" example:"false"`
 	RulesReq
@@ -20,7 +20,7 @@ type GroupReq struct {
 type GroupRes struct {
 	ID         ID     `json:"id" example:"0a1b2c3d" swaggertype:"string"`
 	Name       string `json:"name" example:"Routing"`
-	Color      string `json:"color" example:"#fff"`
+	Color      string `json:"color" example:"#ffffff"`
 	Interface  string `json:"interface" example:"nwg0"`
 	FixProtect bool   `json:"fixProtect" example:"false"`
 	RulesRes
