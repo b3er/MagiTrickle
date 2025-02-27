@@ -2,7 +2,7 @@
   import Select from "../common/Select.svelte";
   import { Locale, Github } from "../common/icons";
   import { t, getLocale, setLocale, locales } from "../../data/locale.svelte";
-  const version = import.meta.env.VITE_UPSTREAM_VERSION || '0.0.0'
+  const version = import.meta.env.VITE_UPSTREAM_VERSION || "0.0.0";
 </script>
 
 <div class="container">
@@ -15,7 +15,7 @@
       ><Github size={22} /></a
     >
   </div>
-  <div class="locale">
+  <!-- <div class="locale">
     <Locale size={22} />
     <Select
       options={Object.keys(locales).map((item) => ({ label: item, value: item }))}
@@ -23,7 +23,7 @@
       onSelectedChange={(value) => setLocale(value)}
       style="width:55px"
     />
-  </div>
+  </div> -->
 </div>
 
 <style>

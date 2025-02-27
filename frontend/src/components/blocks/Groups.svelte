@@ -252,6 +252,7 @@
               <!-- FIXME: use a virtual list to fix rendering performance for large groups (svelte-tiny-virtual-list) -->
               {#each group.rules as rule, rule_index (rule.id)}
                 <RuleComponent
+                  key={rule.id}
                   bind:rule={group.rules[rule_index]}
                   {rule_index}
                   {group_index}
