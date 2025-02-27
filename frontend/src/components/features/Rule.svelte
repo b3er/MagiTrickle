@@ -125,9 +125,9 @@
     padding: 0.1rem;
   }
 
-  /* .rule:global(.drag-over) {
+  .rule:global(.drag-over) {
     outline: 1px solid var(--accent);
-  } */
+  }
 
   .table-input {
     & {
