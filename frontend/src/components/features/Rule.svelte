@@ -75,7 +75,7 @@
   use:draggable={{
     container: `${group_id},${rule_id},${group_index},${rule_index}`,
     dragData: { rule_id, group_id, rule_index, group_index },
-    interactive: [".interactive"],
+    interactive: ["[data-select-item]", ".interactive"],
   }}
   use:droppable={{
     container: `${group_id},${rule_id},${group_index},${rule_index}`,
