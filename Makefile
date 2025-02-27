@@ -71,6 +71,6 @@ package:
 	echo 'Priority: optional' >> $(PKG_DIR)/control/control
 	echo 'Depends: libc, iptables, socat' >> $(PKG_DIR)/control/control
 	cp -r ./opt $(PKG_DIR)/data/
-	tar -C $(PKG_DIR)/control -czvf $(PKG_DIR)/control.tar.gz .
-	tar -C $(PKG_DIR)/data -czvf $(PKG_DIR)/data.tar.gz .
-	tar -C $(PKG_DIR) -czvf $(BUILD_DIR)/$(APP_NAME)_$(UPSTREAM_VERSION)$(PRERELEASE_POSTFIX)-$(PKG_REVISION)_$(TARGET).ipk ./debian-binary ./control.tar.gz ./data.tar.gz
+	tar -C $(PKG_DIR)/control -czvf $(PKG_DIR)/control.tar.gz --owner=0 --group=0 .
+	tar -C $(PKG_DIR)/data -czvf $(PKG_DIR)/data.tar.gz --owner=0 --group=0 .
+	tar -C $(PKG_DIR) -czvf $(BUILD_DIR)/$(APP_NAME)_$(UPSTREAM_VERSION)$(PRERELEASE_POSTFIX)-$(PKG_REVISION)_$(TARGET).ipk --owner=0 --group=0 ./debian-binary ./control.tar.gz ./data.tar.gz
