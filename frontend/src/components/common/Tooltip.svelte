@@ -12,7 +12,7 @@
   let { value, children }: Props = $props();
 </script>
 
-<Tooltip.Provider delayDuration={100}>
+<Tooltip.Provider delayDuration={50}>
   <Tooltip.Root>
     <Tooltip.Trigger>
       {@render children()}

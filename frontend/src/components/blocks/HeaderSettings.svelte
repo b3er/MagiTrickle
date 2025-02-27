@@ -1,6 +1,6 @@
 <script lang="ts">
   import Select from "../common/Select.svelte";
-  import { Locale, Github } from "../common/icons";
+  import { Locale, Github, Bug } from "../common/icons";
   import { t, getLocale, setLocale, locales } from "../../data/locale.svelte";
   const version = import.meta.env.VITE_UPSTREAM_VERSION || "0.0.0";
 </script>
@@ -9,8 +9,12 @@
   <div class="version">
     <span>build: {version}</span>
   </div>
-  <!-- TODO: more links? -->
   <div class="links">
+    <a
+      target="_blank"
+      rel="noopener noreferrer"
+      href="https://github.com/Ponywka/MagiTrickle/issues"><Bug size={22} /></a
+    >
     <a target="_blank" rel="noopener noreferrer" href="https://github.com/Ponywka/MagiTrickle"
       ><Github size={22} /></a
     >
@@ -40,7 +44,7 @@
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 0.1rem;
+    gap: 1rem;
   }
 
   .links a {
