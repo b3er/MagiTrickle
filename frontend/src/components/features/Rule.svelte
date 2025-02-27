@@ -1,12 +1,12 @@
 <script lang="ts">
   import { draggable, droppable, type DragDropState } from "../actions/dnd";
-  import type { Rule } from "../../types";
+  import { RULE_TYPES, type Rule } from "../../types";
   import Switch from "../common/Switch.svelte";
   import Tooltip from "../common/Tooltip.svelte";
   import { Delete, Grip } from "../common/icons";
-  import RuleTypeSelect from "./RuleTypeSelect.svelte";
   import { VALIDATOP_MAP } from "../../utils/rule-validators";
   import Button from "../common/Button.svelte";
+  import Select from "../common/Select.svelte";
 
   type Props = {
     rule: Rule;
@@ -88,7 +88,7 @@
     <input type="text" placeholder="rule name..." class="table-input" bind:value={rule.name} />
   </div>
   <div class="type">
-    <RuleTypeSelect bind:selected={rule.type} onSelectedChange={patternValidation} />
+    <Select options={RULE_TYPES} bind:selected={rule.type} onSelectedChange={patternValidation} />
   </div>
   <div class="pattern">
     <input
@@ -125,9 +125,9 @@
     padding: 0.1rem;
   }
 
-  .rule:global(.drag-over) {
+  /* .rule:global(.drag-over) {
     outline: 1px solid var(--accent);
-  }
+  } */
 
   .table-input {
     & {

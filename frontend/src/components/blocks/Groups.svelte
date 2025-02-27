@@ -8,13 +8,13 @@
   import { defaultGroup, defaultRule } from "../../utils/defaults";
   import { fetcher } from "../../utils/fetcher";
   import { INTERFACES } from "../../data/interfaces.svelte";
-  import { Delete, Add, GroupCollapse, Upload, Download, Save } from "../common/icons";
+  import { Delete, Add, GroupCollapse, Upload, Download, Save, Sigma } from "../common/icons";
   import Switch from "../common/Switch.svelte";
   import Tooltip from "../common/Tooltip.svelte";
   import RuleComponent from "../features/Rule.svelte";
-  import InterfaceSelect from "../features/InterfaceSelect.svelte";
   import Scrollable from "../common/Scrollable.svelte";
   import Button from "../common/Button.svelte";
+  import Select from "../common/Select.svelte";
 
   let data: Group[] = $state([]);
   let counter = $state(-2); // skip first update on init
@@ -216,7 +216,10 @@
             />
           </div>
           <div class="group-actions">
-            <InterfaceSelect bind:selected={group.interface} />
+            <Select
+              options={INTERFACES.map((item) => ({ value: item, label: item }))}
+              bind:selected={group.interface}
+            />
             <Switch bind:checked={group.fixProtect} />
             <Tooltip value="Delete Group">
               <Button small onclick={() => deleteGroup(group_index)}>
@@ -240,7 +243,10 @@
           <div transition:slide>
             {#if group.rules.length > 0}
               <div class="group-rules-header">
-                <div></div>
+                <div class="group-rules-header-column total">
+                  <Sigma size={18}></Sigma>
+                  {group.rules.length}
+                </div>
                 <div class="group-rules-header-column">Name</div>
                 <div class="group-rules-header-column">Type</div>
                 <div class="group-rules-header-column">Pattern</div>
@@ -291,10 +297,6 @@
       border-radius: 0.5rem;
       background-color: var(--bg-light);
       position: relative;
-    }
-
-    &:global(.dragover) {
-      outline: 1px solid var(--accent);
     }
   }
 
@@ -347,13 +349,9 @@
     gap: 0.5rem;
   }
 
-  /* .group-rules {
-    padding-bottom: 0.5rem;
-  } */
-
   .group-rules-header {
     display: grid;
-    grid-template-columns: 1.1rem 2.5fr 1fr 3fr 1fr;
+    grid-template-columns: 4rem 2.1fr 1fr 3fr 1fr;
     justify-content: center;
     align-items: center;
 
@@ -365,9 +363,21 @@
   }
 
   .group-rules-header-column {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    & {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    &.total {
+      justify-content: start;
+      padding-left: 0.8rem;
+    }
+
+    &.total :global(svg) {
+      position: relative;
+      top: -1px;
+    }
   }
 
   :global {
