@@ -120,6 +120,7 @@ func (a *App) apiGetGroups(w http.ResponseWriter, r *http.Request) {
 //	@Tags			groups
 //	@Accept			json
 //	@Produce		json
+//	@Param			save	query		bool			false	"Сохранить изменения в конфигурационный файл"
 //	@Param			json	body		types.GroupsReq	true	"Тело запроса"
 //	@Success		200		{object}	types.GroupsRes
 //	@Failure		400		{object}	types.ErrorRes
@@ -166,6 +167,13 @@ func (a *App) apiPutGroups(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJson(w, http.StatusOK, toGroupsRes(newGroups, true))
+
+	if r.URL.Query().Get("save") == "true" {
+		err = a.SaveConfig()
+		if err != nil {
+			log.Error().Err(err).Msg("failed to save config file")
+		}
+	}
 }
 
 // apiCreateGroup
@@ -175,6 +183,7 @@ func (a *App) apiPutGroups(w http.ResponseWriter, r *http.Request) {
 //	@Tags			groups
 //	@Accept			json
 //	@Produce		json
+//	@Param			save	query		bool			false	"Сохранить изменения в конфигурационный файл"
 //	@Param			json	body		types.GroupReq	true	"Тело запроса"
 //	@Success		200		{object}	types.GroupRes
 //	@Failure		400		{object}	types.ErrorRes
@@ -196,6 +205,13 @@ func (a *App) apiCreateGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJson(w, http.StatusOK, toGroupRes(group, true))
+
+	if r.URL.Query().Get("save") == "true" {
+		err = a.SaveConfig()
+		if err != nil {
+			log.Error().Err(err).Msg("failed to save config file")
+		}
+	}
 }
 
 // apiGetGroup
@@ -224,6 +240,7 @@ func (a *App) apiGetGroup(w http.ResponseWriter, r *http.Request) {
 //	@Accept			json
 //	@Produce		json
 //	@Param			groupID	path		string			true	"ID группы"
+//	@Param			save	query		bool			false	"Сохранить изменения в конфигурационный файл"
 //	@Param			json	body		types.GroupReq	true	"Тело запроса"
 //	@Success		200		{object}	types.GroupRes
 //	@Failure		400		{object}	types.ErrorRes
@@ -265,6 +282,13 @@ func (a *App) apiPutGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJson(w, http.StatusOK, toGroupRes(updatedGroup, true))
+
+	if r.URL.Query().Get("save") == "true" {
+		err = a.SaveConfig()
+		if err != nil {
+			log.Error().Err(err).Msg("failed to save config file")
+		}
+	}
 }
 
 // apiDeleteGroup
@@ -274,6 +298,7 @@ func (a *App) apiPutGroup(w http.ResponseWriter, r *http.Request) {
 //	@Tags			groups
 //	@Produce		json
 //	@Param			groupID	path	string	true	"ID группы"
+//	@Param			save	query	bool	false	"Сохранить изменения в конфигурационный файл"
 //	@Success		200
 //	@Failure		404	{object}	types.ErrorRes
 //	@Failure		500	{object}	types.ErrorRes
@@ -288,6 +313,13 @@ func (a *App) apiDeleteGroup(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	a.groups = append(a.groups[:groupIdx], a.groups[groupIdx+1:]...)
+
+	if r.URL.Query().Get("save") == "true" {
+		err := a.SaveConfig()
+		if err != nil {
+			log.Error().Err(err).Msg("failed to save config file")
+		}
+	}
 }
 
 // apiGetRules
@@ -314,6 +346,7 @@ func (a *App) apiGetRules(w http.ResponseWriter, r *http.Request) {
 //	@Accept			json
 //	@Produce		json
 //	@Param			groupID	path		string			true	"ID группы"
+//	@Param			save	query		bool			false	"Сохранить изменения в конфигурационный файл"
 //	@Param			json	body		types.RulesRes	true	"Тело запроса"
 //	@Success		200		{object}	types.RulesRes
 //	@Failure		400		{object}	types.ErrorRes
@@ -368,6 +401,13 @@ func (a *App) apiPutRules(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJson(w, http.StatusOK, toRulesRes(newRules))
+
+	if r.URL.Query().Get("save") == "true" {
+		err = a.SaveConfig()
+		if err != nil {
+			log.Error().Err(err).Msg("failed to save config file")
+		}
+	}
 }
 
 // apiCreateRule
@@ -378,6 +418,7 @@ func (a *App) apiPutRules(w http.ResponseWriter, r *http.Request) {
 //	@Accept			json
 //	@Produce		json
 //	@Param			groupID	path		string			true	"ID группы"
+//	@Param			save	query		bool			false	"Сохранить изменения в конфигурационный файл"
 //	@Param			json	body		types.RuleReq	true	"Тело запроса"
 //	@Success		200		{object}	types.RuleRes
 //	@Failure		400		{object}	types.ErrorRes
@@ -408,6 +449,13 @@ func (a *App) apiCreateRule(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJson(w, http.StatusOK, toRuleRes(rule))
+
+	if r.URL.Query().Get("save") == "true" {
+		err = a.SaveConfig()
+		if err != nil {
+			log.Error().Err(err).Msg("failed to save config file")
+		}
+	}
 }
 
 // apiGetRule
@@ -437,6 +485,7 @@ func (a *App) apiGetRule(w http.ResponseWriter, r *http.Request) {
 //	@Produce		json
 //	@Param			groupID	path		string			true	"ID группы"
 //	@Param			ruleID	path		string			true	"ID правила"
+//	@Param			save	query		bool			false	"Сохранить изменения в конфигурационный файл"
 //	@Param			json	body		types.RuleReq	true	"Тело запроса"
 //	@Success		200		{object}	types.RuleRes
 //	@Failure		400		{object}	types.ErrorRes
@@ -468,6 +517,13 @@ func (a *App) apiPutRule(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJson(w, http.StatusOK, toRuleRes(rule))
+
+	if r.URL.Query().Get("save") == "true" {
+		err = a.SaveConfig()
+		if err != nil {
+			log.Error().Err(err).Msg("failed to save config file")
+		}
+	}
 }
 
 // apiDeleteRule
@@ -478,6 +534,7 @@ func (a *App) apiPutRule(w http.ResponseWriter, r *http.Request) {
 //	@Produce		json
 //	@Param			groupID	path	string	true	"ID группы"
 //	@Param			ruleID	path	string	true	"ID правила"
+//	@Param			save	query	bool	false	"Сохранить изменения в конфигурационный файл"
 //	@Success		200
 //	@Failure		404	{object}	types.ErrorRes
 //	@Failure		500	{object}	types.ErrorRes
@@ -494,6 +551,13 @@ func (a *App) apiDeleteRule(w http.ResponseWriter, r *http.Request) {
 		if err := groupWrapper.Sync(); err != nil {
 			writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to sync group: %v", err).Error())
 			return
+		}
+	}
+
+	if r.URL.Query().Get("save") == "true" {
+		err := a.SaveConfig()
+		if err != nil {
+			log.Error().Err(err).Msg("failed to save config file")
 		}
 	}
 }

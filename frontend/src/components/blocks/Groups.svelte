@@ -33,7 +33,7 @@
     if (counter === 0) return;
     const el = document.getElementById("save-changes")!;
     fetcher
-      .put("/groups", { groups: data })
+      .put("/groups?save=true", { groups: data })
       .then(() => {
         el?.classList.add("success");
         setTimeout(() => {
