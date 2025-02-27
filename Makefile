@@ -44,6 +44,7 @@ clear:
 
 build_backend:
 	$(GO_FLAGS) go build -C ./backend $(PARAMS) -o ../$(BIN_DIR)/magitrickled ./cmd/magitrickled
+	upx --best $(BIN_DIR)/magitrickled
 
 build_frontend_legacy:
 	cd ./frontend_legacy && npm install
