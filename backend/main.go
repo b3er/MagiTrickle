@@ -400,6 +400,8 @@ func (a *App) setupHTTP(errChan chan error) (*http.Server, error) {
 				w.Header().Set("Content-Type", "text/css")
 			case ".js":
 				w.Header().Set("Content-Type", "application/javascript")
+			case ".ico":
+				w.Header().Set("Content-Type", "image/x-icon")
 			default:
 				w.Header().Set("Content-Type", "text/plain")
 			}
