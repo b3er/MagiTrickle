@@ -786,7 +786,7 @@ func (a *App) ExportConfig() config.Config {
 	}
 
 	return config.Config{
-		ConfigVersion: "0.1.1",
+		ConfigVersion: "0.1.2",
 		App: &config.App{
 			HTTPWeb: &config.HTTPWeb{
 				Enabled: &a.config.HTTPWeb.Enabled,
