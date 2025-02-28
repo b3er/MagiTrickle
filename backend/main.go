@@ -400,6 +400,8 @@ func (a *App) setupHTTP(errChan chan error) (*http.Server, error) {
 				w.Header().Set("Content-Type", "text/css")
 			case ".js":
 				w.Header().Set("Content-Type", "application/javascript")
+			case ".ico":
+				w.Header().Set("Content-Type", "image/x-icon")
 			default:
 				w.Header().Set("Content-Type", "text/plain")
 			}
@@ -786,7 +788,7 @@ func (a *App) ExportConfig() config.Config {
 	}
 
 	return config.Config{
-		ConfigVersion: "0.1.1",
+		ConfigVersion: "0.1.2",
 		App: &config.App{
 			HTTPWeb: &config.HTTPWeb{
 				Enabled: &a.config.HTTPWeb.Enabled,
@@ -825,6 +827,42 @@ func (a *App) ExportConfig() config.Config {
 		},
 		Groups: &groups,
 	}
+}
+
+func (a *App) LoadConfig() error {
+	cfgFile, err := os.ReadFile(cfgFileLocation)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return fmt.Errorf("failed to read config file: %w", err)
+	}
+	cfg := config.Config{}
+	err = yaml.Unmarshal(cfgFile, &cfg)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal config file: %w", err)
+	}
+	err = a.ImportConfig(cfg)
+	if err != nil {
+		return fmt.Errorf("failed to import config file: %w", err)
+	}
+	return nil
+}
+
+func (a *App) SaveConfig() error {
+	out, err := yaml.Marshal(a.ExportConfig())
+	if err != nil {
+		return fmt.Errorf("failed to marshal config file: %w", err)
+	}
+	err = os.MkdirAll(cfgFolderLocation, os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("failed to create config folder: %w", err)
+	}
+	err = os.WriteFile(cfgFileLocation, out, 0600)
+	if err != nil {
+		return fmt.Errorf("failed to write config file: %w", err)
+	}
+	return nil
 }
 
 func (a *App) AddGroup(groupModel *models.Group) error {
@@ -882,35 +920,11 @@ func (a *App) ListInterfaces() ([]net.Interface, error) {
 }
 
 // New – конструктор приложения
-func New() (*App, error) {
+func New() *App {
 	app := &App{config: defaultAppConfig}
-	cfgFile, err := os.ReadFile(cfgFileLocation)
+	err := app.LoadConfig()
 	if err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("failed to read config file: %w", err)
-		}
-		out, err := yaml.Marshal(app.ExportConfig())
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal config file: %w", err)
-		}
-		err = os.MkdirAll(cfgFolderLocation, os.ModePerm)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create config folder: %w", err)
-		}
-		err = os.WriteFile(cfgFileLocation, out, 0600)
-		if err != nil {
-			return nil, fmt.Errorf("failed to write config file: %w", err)
-		}
-	} else {
-		cfg := config.Config{}
-		err = yaml.Unmarshal(cfgFile, &cfg)
-		if err != nil {
-			return nil, fmt.Errorf("failed to unmarshal config file: %w", err)
-		}
-		err = app.ImportConfig(cfg)
-		if err != nil {
-			return nil, fmt.Errorf("failed to import config file: %w", err)
-		}
+		log.Error().Err(err).Msg("failed to load config file")
 	}
-	return app, nil
+	return app
 }

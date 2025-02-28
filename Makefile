@@ -42,10 +42,23 @@ clear:
 	echo $(shell git rev-parse --abbrev-ref HEAD)
 	rm -rf $(PKG_DIR)
 
-build_daemon:
+build_backend:
 	$(GO_FLAGS) go build -C ./backend $(PARAMS) -o ../$(BIN_DIR)/magitrickled ./cmd/magitrickled
+	upx --best $(BIN_DIR)/magitrickled
 
-build: build_daemon
+build_frontend_legacy:
+	cd ./frontend_legacy && npm install
+	cd ./frontend_legacy && npm run build
+	mkdir -p $(PKG_DIR)/data/opt/usr/share/magitrickle/skins/legacy
+	cp -r ./frontend_legacy/dist/* $(PKG_DIR)/data/opt/usr/share/magitrickle/skins/legacy/
+
+build_frontend:
+	cd ./frontend && npm install
+	cd ./frontend && VITE_UPSTREAM_VERSION=$(UPSTREAM_VERSION) npm run build
+	mkdir -p $(PKG_DIR)/data/opt/usr/share/magitrickle/skins/default
+	cp -r ./frontend/dist/* $(PKG_DIR)/data/opt/usr/share/magitrickle/skins/default/
+
+build: build_backend build_frontend_legacy build_frontend
 
 package:
 	mkdir -p $(PKG_DIR)/control
@@ -59,6 +72,6 @@ package:
 	echo 'Priority: optional' >> $(PKG_DIR)/control/control
 	echo 'Depends: libc, iptables, socat' >> $(PKG_DIR)/control/control
 	cp -r ./opt $(PKG_DIR)/data/
-	tar -C $(PKG_DIR)/control -czvf $(PKG_DIR)/control.tar.gz .
-	tar -C $(PKG_DIR)/data -czvf $(PKG_DIR)/data.tar.gz .
-	tar -C $(PKG_DIR) -czvf $(BUILD_DIR)/$(APP_NAME)_$(UPSTREAM_VERSION)$(PRERELEASE_POSTFIX)-$(PKG_REVISION)_$(TARGET).ipk ./debian-binary ./control.tar.gz ./data.tar.gz
+	tar -C $(PKG_DIR)/control -czvf $(PKG_DIR)/control.tar.gz --owner=0 --group=0 .
+	tar -C $(PKG_DIR)/data -czvf $(PKG_DIR)/data.tar.gz --owner=0 --group=0 .
+	tar -C $(PKG_DIR) -czvf $(BUILD_DIR)/$(APP_NAME)_$(UPSTREAM_VERSION)$(PRERELEASE_POSTFIX)-$(PKG_REVISION)_$(TARGET).ipk --owner=0 --group=0 ./debian-binary ./control.tar.gz ./data.tar.gz

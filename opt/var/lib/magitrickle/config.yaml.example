@@ -1,4 +1,4 @@
-configVersion: 0.1.1
+configVersion: 0.1.2
 app:
   httpWeb:
     enabled: true
@@ -22,6 +22,8 @@ app:
     ipset:
       tablePrefix: mt_
       additionalTTL: 3600
+    disableIPv4: false
+    disableIPv6: false
   link:
     - br0
   logLevel: info

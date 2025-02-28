@@ -21,10 +21,7 @@ func main() {
 		Str("commit", constant.Commit).
 		Msg("starting MagiTrickle daemon")
 
-	app, err := magitrickle.New()
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to start MagiTrickle daemon")
-	}
+	app := magitrickle.New()
 
 	log.Info().Msg("starting service")
 
