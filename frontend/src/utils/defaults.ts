@@ -3,6 +3,7 @@ import { INTERFACES } from "../data/interfaces.svelte.ts";
 
 export function defaultGroup(): Group {
   return {
+    enable: true,
     id: randomId(),
     interface: INTERFACES.at(0) ?? "",
     name: "",

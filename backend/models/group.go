@@ -9,5 +9,6 @@ type Group struct {
 	Name      string
 	Color     string
 	Interface string
+	Enable    bool
 	Rules     []*Rule
 }

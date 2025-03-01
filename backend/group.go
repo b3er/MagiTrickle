@@ -118,6 +118,10 @@ func (g *Group) unlinkIfaceFromIPSet() error {
 }
 
 func (g *Group) enable() error {
+	if !g.Group.Enable {
+		return nil
+	}
+
 	if !g.enabled.CompareAndSwap(false, true) {
 		return nil
 	}

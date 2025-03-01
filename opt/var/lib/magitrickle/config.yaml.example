@@ -31,6 +31,7 @@ groups:
   - id: d663876a
     name: Example
     interface: nwg0
+    enable: true
     rules:
       - id: 6f34ee91
         name: Wildcard Example

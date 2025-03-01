@@ -747,11 +747,17 @@ func (a *App) ImportConfig(cfg config.Config) error {
 			if !colorRegExp.MatchString(group.Color) {
 				group.Color = "#ffffff"
 			}
+			// TODO: Make required after 1.0.0
+			enable := true
+			if group.Enable != nil {
+				enable = *group.Enable
+			}
 			err := a.AddGroup(&models.Group{
 				ID:        group.ID,
 				Name:      group.Name,
 				Color:     group.Color,
 				Interface: group.Interface,
+				Enable:    enable,
 				Rules:     rules,
 			})
 			if err != nil {
@@ -771,6 +777,7 @@ func (a *App) ExportConfig() config.Config {
 			Name:      group.Name,
 			Color:     group.Color,
 			Interface: group.Interface,
+			Enable:    &group.Group.Enable,
 			Rules:     make([]config.Rule, len(group.Rules)),
 		}
 		for idx, rule := range group.Rules {
