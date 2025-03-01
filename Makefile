@@ -26,7 +26,7 @@ GOMIPS ?= softfloat
 GOARM ?=
 
 GO_FLAGS = GOOS=$(GOOS) GOARCH=$(GOARCH) GOMIPS=$(GOMIPS) GOARM=$(GOARM)
-GO_TAGS ?=
+GO_TAGS ?= kn
 ifeq ($(PLATFORM),entware)
 	GO_TAGS += entware
 endif
