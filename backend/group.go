@@ -179,6 +179,10 @@ func (g *Group) Sync() error {
 	g.locker.Lock()
 	defer g.locker.Unlock()
 
+	if !g.enabled.Load() {
+		return nil
+	}
+
 	now := time.Now()
 
 	addresses := make(map[string]uint32)
@@ -259,6 +263,10 @@ func (g *Group) NetfilterDHook(iptType, table string) error {
 	g.locker.Lock()
 	defer g.locker.Unlock()
 
+	if !g.enabled.Load() {
+		return nil
+	}
+
 	var errs []error
 	if g.enabled.Load() {
 		errs = append(errs, g.routerSpecificPatches(iptType, table))
@@ -271,6 +279,10 @@ func (g *Group) NetfilterDHook(iptType, table string) error {
 func (g *Group) LinkUpdateHook(event netlink.LinkUpdate) error {
 	g.locker.Lock()
 	defer g.locker.Unlock()
+
+	if !g.enabled.Load() {
+		return nil
+	}
 
 	return g.ipsetToLink.LinkUpdateHook(event)
 }
