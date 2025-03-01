@@ -10,9 +10,6 @@ definitions:
       color:
         example: '#ffffff'
         type: string
-      fixProtect:
-        example: false
-        type: boolean
       id:
         example: 0a1b2c3d
         type: string
@@ -32,9 +29,6 @@ definitions:
       color:
         example: '#ffffff'
         type: string
-      fixProtect:
-        example: false
-        type: boolean
       id:
         example: 0a1b2c3d
         type: string

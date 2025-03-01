@@ -748,12 +748,11 @@ func (a *App) ImportConfig(cfg config.Config) error {
 				group.Color = "#ffffff"
 			}
 			err := a.AddGroup(&models.Group{
-				ID:         group.ID,
-				Name:       group.Name,
-				Color:      group.Color,
-				Interface:  group.Interface,
-				FixProtect: group.FixProtect,
-				Rules:      rules,
+				ID:        group.ID,
+				Name:      group.Name,
+				Color:     group.Color,
+				Interface: group.Interface,
+				Rules:     rules,
 			})
 			if err != nil {
 				return err
@@ -768,12 +767,11 @@ func (a *App) ExportConfig() config.Config {
 	groups := make([]config.Group, len(a.groups))
 	for idx, group := range a.groups {
 		groupCfg := config.Group{
-			ID:         group.ID,
-			Name:       group.Name,
-			Color:      group.Color,
-			Interface:  group.Interface,
-			FixProtect: group.FixProtect,
-			Rules:      make([]config.Rule, len(group.Rules)),
+			ID:        group.ID,
+			Name:      group.Name,
+			Color:     group.Color,
+			Interface: group.Interface,
+			Rules:     make([]config.Rule, len(group.Rules)),
 		}
 		for idx, rule := range group.Rules {
 			groupCfg.Rules[idx] = config.Rule{

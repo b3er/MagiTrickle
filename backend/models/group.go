@@ -5,10 +5,9 @@ import (
 )
 
 type Group struct {
-	ID         types.ID
-	Name       string
-	Color      string
-	Interface  string
-	FixProtect bool
-	Rules      []*Rule
+	ID        types.ID
+	Name      string
+	Color     string
+	Interface string
+	Rules     []*Rule
 }

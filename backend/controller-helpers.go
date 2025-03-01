@@ -57,7 +57,6 @@ func fromGroupReq(req types.GroupReq, existingGroup *models.Group) (*models.Grou
 	}
 	group.Color = req.Color
 	group.Interface = req.Interface
-	group.FixProtect = req.FixProtect
 
 	if req.Rules != nil {
 		newRules := make([]*models.Rule, len(*req.Rules))
@@ -106,11 +105,10 @@ func toGroupsRes(groups []*models.Group, withRules bool) types.GroupsRes {
 
 func toGroupRes(group *models.Group, withRules bool) types.GroupRes {
 	groupRes := types.GroupRes{
-		ID:         group.ID,
-		Name:       group.Name,
-		Color:      group.Color,
-		Interface:  group.Interface,
-		FixProtect: group.FixProtect,
+		ID:        group.ID,
+		Name:      group.Name,
+		Color:     group.Color,
+		Interface: group.Interface,
 	}
 	if withRules {
 		groupRes.RulesRes = toRulesRes(group.Rules)

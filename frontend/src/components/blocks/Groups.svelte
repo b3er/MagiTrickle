@@ -220,7 +220,6 @@
               options={INTERFACES.map((item) => ({ value: item, label: item }))}
               bind:selected={group.interface}
             />
-            <Switch bind:checked={group.fixProtect} title="Fix Protection"/>
             <Tooltip value="Delete Group">
               <Button small onclick={() => deleteGroup(group_index)}>
                 <Delete size={20} />

@@ -5,10 +5,9 @@ import (
 )
 
 type Group struct {
-	ID         types.ID `yaml:"id"`
-	Name       string   `yaml:"name"`
-	Color      string   `yaml:"color"`
-	Interface  string   `yaml:"interface"`
-	FixProtect bool     `yaml:"fixProtect"`
-	Rules      []Rule   `yaml:"rules"`
+	ID        types.ID `yaml:"id"`
+	Name      string   `yaml:"name"`
+	Color     string   `yaml:"color"`
+	Interface string   `yaml:"interface"`
+	Rules     []Rule   `yaml:"rules"`
 }
