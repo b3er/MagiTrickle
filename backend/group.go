@@ -38,6 +38,10 @@ func (g *Group) AddIP(address net.IP, ttl uint32) error {
 		return nil
 	}
 
+	if !g.Group.Enable {
+		return nil
+	}
+
 	return g.addIP(address, ttl)
 }
 
@@ -53,6 +57,10 @@ func (g *Group) DelIP(address net.IP) error {
 		return nil
 	}
 
+	if !g.Group.Enable {
+		return nil
+	}
+
 	return g.delIP(address)
 }
 
@@ -65,6 +73,10 @@ func (g *Group) ListIPs() (map[string]*uint32, error) {
 	defer g.locker.Unlock()
 
 	if !g.enabled.Load() {
+		return nil, nil
+	}
+
+	if !g.Group.Enable {
 		return nil, nil
 	}
 
@@ -118,11 +130,11 @@ func (g *Group) unlinkIfaceFromIPSet() error {
 }
 
 func (g *Group) enable() error {
-	if !g.Group.Enable {
+	if !g.enabled.CompareAndSwap(false, true) {
 		return nil
 	}
 
-	if !g.enabled.CompareAndSwap(false, true) {
+	if !g.Group.Enable {
 		return nil
 	}
 
@@ -162,6 +174,10 @@ func (g *Group) disable() error {
 	}
 	defer g.enabled.Store(false)
 
+	if !g.Group.Enable {
+		return nil
+	}
+
 	var errs []error
 	errs = append(errs, g.unlinkIfaceFromIPSet())
 	errs = append(errs, g.deleteIPSet())
@@ -180,6 +196,10 @@ func (g *Group) Sync() error {
 	defer g.locker.Unlock()
 
 	if !g.enabled.Load() {
+		return nil
+	}
+
+	if !g.Group.Enable {
 		return nil
 	}
 
@@ -267,6 +287,10 @@ func (g *Group) NetfilterDHook(iptType, table string) error {
 		return nil
 	}
 
+	if !g.Group.Enable {
+		return nil
+	}
+
 	var errs []error
 	if g.enabled.Load() {
 		errs = append(errs, g.routerSpecificPatches(iptType, table))
@@ -281,6 +305,10 @@ func (g *Group) LinkUpdateHook(event netlink.LinkUpdate) error {
 	defer g.locker.Unlock()
 
 	if !g.enabled.Load() {
+		return nil
+	}
+
+	if !g.Group.Enable {
 		return nil
 	}
 
