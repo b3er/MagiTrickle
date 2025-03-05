@@ -14,10 +14,6 @@ import (
 	"github.com/vishvananda/netlink/nl"
 )
 
-const (
-	linkUpdateIPT = "_linkUpdate"
-)
-
 type IPSetToLink struct {
 	enabled atomic.Bool
 	locker  sync.Mutex
@@ -37,7 +33,7 @@ func (r *IPSetToLink) insertIPTablesRules(ipt *iptables.IPTables, table string) 
 		return nil
 	}
 
-	if table == "" || table == "filter" || table == linkUpdateIPT {
+	if table == "" || table == "filter" {
 		if ipt.Proto() == iptables.ProtocolIPv4 {
 			err := ipt.NewChain("filter", r.chainName)
 			if err != nil {
@@ -397,8 +393,6 @@ func (r *IPSetToLink) LinkUpdateHook(event netlink.LinkUpdate) error {
 
 	var errs []error
 	errs = append(errs, r.insertIPRoute())
-	errs = append(errs, r.insertIPTablesRules(r.nh.IPTables4, linkUpdateIPT))
-	errs = append(errs, r.insertIPTablesRules(r.nh.IPTables6, linkUpdateIPT))
 	return errors.Join(errs...)
 }
 

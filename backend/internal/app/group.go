@@ -144,8 +144,7 @@ func (g *Group) enable() error {
 		return nil
 	}
 
-	err := g.createIPSet()
-	if err != nil {
+	if err := g.createIPSet(); err != nil {
 		return err
 	}
 	if err := g.linkIfaceToIPSet(); err != nil {
@@ -160,6 +159,7 @@ func (g *Group) Enable() error {
 	defer g.locker.Unlock()
 	if err := g.enable(); err != nil {
 		_ = g.disable()
+		return err
 	}
 	return nil
 }
