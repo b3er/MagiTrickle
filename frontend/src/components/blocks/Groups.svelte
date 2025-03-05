@@ -121,7 +121,6 @@
   }
 
   function groupMoveUp(index: number) {
-    console.log("move up", index);
     if (index === 0) return;
     data = [...data.slice(0, index - 1), data[index], data[index - 1], ...data.slice(index + 1)];
   }
