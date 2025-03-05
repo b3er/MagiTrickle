@@ -37,66 +37,79 @@ func (r *IPSetToLink) insertIPTablesRules(ipt *iptables.IPTables, table string) 
 		return nil
 	}
 
-	// TODO: Maybe need to clear rules
 	if table == "" || table == "filter" || table == linkUpdateIPT {
 		if ipt.Proto() == iptables.ProtocolIPv4 {
-			err := ipt.AppendUnique("filter", "FORWARD", "-o", r.ifaceName, "-m", "state", "--state", "NEW", "-j", "ACCEPT")
+			err := ipt.NewChain("filter", r.chainName)
+			if err != nil {
+				// If not "AlreadyExists"
+				if eerr, eok := err.(*iptables.Error); !(eok && eerr.ExitStatus() == 1) {
+					return fmt.Errorf("failed to create chain: %w", err)
+				}
+			}
+
+			err = ipt.AppendUnique("filter", r.chainName, "-o", r.ifaceName, "-m", "state", "--state", "NEW", "-j", "ACCEPT")
 			if err != nil {
 				return fmt.Errorf("failed to fix protect for IPv4: %w", err)
 			}
-		} else {
-			// TODO: IPv6
+
+			err = ipt.InsertUnique("filter", "FORWARD", 1, "-m", "set", "--match-set", r.ipset.ipsetName+"_4", "dst", "-j", r.chainName)
+			if err != nil {
+				return fmt.Errorf("failed to append rule to PREROUTING: %w", err)
+			}
 		}
+		// TODO: IPv6
 	}
 
 	if table == "" || table == "mangle" {
-		err := ipt.NewChain("mangle", r.chainName)
-		if err != nil {
-			// If not "AlreadyExists"
-			if eerr, eok := err.(*iptables.Error); !(eok && eerr.ExitStatus() == 1) {
-				return fmt.Errorf("failed to create chain: %w", err)
-			}
-		}
-
-		for _, iptablesArgs := range [][]string{
-			{"-j", "CONNMARK", "--restore-mark"},
-			{"-j", "MARK", "--set-mark", strconv.Itoa(int(r.mark))},
-			{"-j", "CONNMARK", "--save-mark"},
-		} {
-			err = ipt.AppendUnique("mangle", r.chainName, iptablesArgs...)
-			if err != nil {
-				return fmt.Errorf("failed to append rule: %w", err)
-			}
-		}
-
 		if ipt.Proto() == iptables.ProtocolIPv4 {
+			err := ipt.NewChain("mangle", r.chainName)
+			if err != nil {
+				// If not "AlreadyExists"
+				if eerr, eok := err.(*iptables.Error); !(eok && eerr.ExitStatus() == 1) {
+					return fmt.Errorf("failed to create chain: %w", err)
+				}
+			}
+
+			for _, iptablesArgs := range [][]string{
+				{"-j", "CONNMARK", "--restore-mark"},
+				{"-j", "MARK", "--set-mark", strconv.Itoa(int(r.mark))},
+				{"-j", "CONNMARK", "--save-mark"},
+			} {
+				err = ipt.AppendUnique("mangle", r.chainName, iptablesArgs...)
+				if err != nil {
+					return fmt.Errorf("failed to append rule: %w", err)
+				}
+			}
+
 			err = ipt.InsertUnique("mangle", "PREROUTING", 1, "-m", "set", "--match-set", r.ipset.ipsetName+"_4", "dst", "-j", r.chainName)
 			if err != nil {
 				return fmt.Errorf("failed to append rule to PREROUTING: %w", err)
 			}
 		}
+		// TODO: IPv6
 	}
 
 	if table == "" || table == "nat" {
-		err := ipt.NewChain("nat", r.chainName)
-		if err != nil {
-			// If not "AlreadyExists"
-			if eerr, eok := err.(*iptables.Error); !(eok && eerr.ExitStatus() == 1) {
-				return fmt.Errorf("failed to create chain: %w", err)
-			}
-		}
-
-		err = ipt.AppendUnique("nat", r.chainName, "-j", "MASQUERADE")
-		if err != nil {
-			return fmt.Errorf("failed to create rule: %w", err)
-		}
-
 		if ipt.Proto() == iptables.ProtocolIPv4 {
+			err := ipt.NewChain("nat", r.chainName)
+			if err != nil {
+				// If not "AlreadyExists"
+				if eerr, eok := err.(*iptables.Error); !(eok && eerr.ExitStatus() == 1) {
+					return fmt.Errorf("failed to create chain: %w", err)
+				}
+			}
+
+			err = ipt.AppendUnique("nat", r.chainName, "-j", "MASQUERADE")
+			if err != nil {
+				return fmt.Errorf("failed to create rule: %w", err)
+			}
+
 			err = ipt.AppendUnique("nat", "POSTROUTING", "-m", "set", "--match-set", r.ipset.ipsetName+"_4", "dst", "-j", r.chainName)
 			if err != nil {
 				return fmt.Errorf("failed to append rule to POSTROUTING: %w", err)
 			}
 		}
+		// TODO: IPv6
 	}
 
 	return nil
@@ -108,38 +121,55 @@ func (r *IPSetToLink) deleteIPTablesRules(ipt *iptables.IPTables) error {
 	}
 	var errs []error
 
-	err := ipt.ClearChain("mangle", r.chainName)
-	if err != nil {
-		errs = append(errs, fmt.Errorf("failed to clear chain: %w", err))
+	if ipt.Proto() == iptables.ProtocolIPv4 {
+		err := ipt.ClearChain("filter", r.chainName)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed to clear chain: %w", err))
+		}
+
+		err = ipt.DeleteIfExists("filter", "FORWARD", "-m", "set", "--match-set", r.ipset.ipsetName+"_4", "dst", "-j", r.chainName)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed to unlinking chain: %w", err))
+		}
+
+		err = ipt.DeleteChain("filter", r.chainName)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed to delete chain: %w", err))
+		}
 	}
 
 	if ipt.Proto() == iptables.ProtocolIPv4 {
+		err := ipt.ClearChain("mangle", r.chainName)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed to clear chain: %w", err))
+		}
+
 		err = ipt.DeleteIfExists("mangle", "PREROUTING", "-m", "set", "--match-set", r.ipset.ipsetName+"_4", "dst", "-j", r.chainName)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to unlinking chain: %w", err))
 		}
-	}
 
-	err = ipt.DeleteChain("mangle", r.chainName)
-	if err != nil {
-		errs = append(errs, fmt.Errorf("failed to delete chain: %w", err))
-	}
-
-	err = ipt.ClearChain("nat", r.chainName)
-	if err != nil {
-		errs = append(errs, fmt.Errorf("failed to clear chain: %w", err))
+		err = ipt.DeleteChain("mangle", r.chainName)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed to delete chain: %w", err))
+		}
 	}
 
 	if ipt.Proto() == iptables.ProtocolIPv4 {
+		err := ipt.ClearChain("nat", r.chainName)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed to clear chain: %w", err))
+		}
+
 		err = ipt.DeleteIfExists("nat", "POSTROUTING", "-m", "set", "--match-set", r.ipset.ipsetName+"_4", "dst", "-j", r.chainName)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to unlinking chain: %w", err))
 		}
-	}
 
-	err = ipt.ClearAndDeleteChain("nat", r.chainName)
-	if err != nil {
-		errs = append(errs, fmt.Errorf("failed to delete chain: %w", err))
+		err = ipt.DeleteChain("nat", r.chainName)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed to delete chain: %w", err))
+		}
 	}
 
 	return errors.Join(errs...)
