@@ -148,11 +148,6 @@ func (g *Group) enable() error {
 		return err
 	}
 
-	err = g.routerSpecificPatches("", "")
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -291,13 +286,7 @@ func (g *Group) NetfilterDHook(iptType, table string) error {
 		return nil
 	}
 
-	var errs []error
-	if g.enabled.Load() {
-		errs = append(errs, g.routerSpecificPatches(iptType, table))
-		errs = append(errs, g.ipsetToLink.NetfilterDHook(iptType, table))
-	}
-
-	return errors.Join(errs...)
+	return g.ipsetToLink.NetfilterDHook(iptType, table)
 }
 
 func (g *Group) LinkUpdateHook(event netlink.LinkUpdate) error {
@@ -312,13 +301,7 @@ func (g *Group) LinkUpdateHook(event netlink.LinkUpdate) error {
 		return nil
 	}
 
-	var errs []error
-	if g.enabled.Load() {
-		errs = append(errs, g.routerSpecificPatches("", ""))
-		errs = append(errs, g.ipsetToLink.LinkUpdateHook(event))
-	}
-
-	return errors.Join(errs...)
+	return g.ipsetToLink.LinkUpdateHook(event)
 }
 
 func NewGroup(group *models.Group, app *App) (*Group, error) {

@@ -14,6 +14,10 @@ import (
 	"github.com/vishvananda/netlink/nl"
 )
 
+const (
+	linkUpdateIPT = "_linkUpdate"
+)
+
 type IPSetToLink struct {
 	enabled atomic.Bool
 	locker  sync.Mutex
@@ -32,6 +36,19 @@ func (r *IPSetToLink) insertIPTablesRules(ipt *iptables.IPTables, table string) 
 	if ipt == nil {
 		return nil
 	}
+
+	// TODO: Maybe need to clear rules
+	if table == "" || table == "filter" || table == linkUpdateIPT {
+		if ipt.Proto() == iptables.ProtocolIPv4 {
+			err := ipt.AppendUnique("filter", "FORWARD", "-o", r.ifaceName, "-m", "state", "--state", "NEW", "-j", "ACCEPT")
+			if err != nil {
+				return fmt.Errorf("failed to fix protect for IPv4: %w", err)
+			}
+		} else {
+			// TODO: IPv6
+		}
+	}
+
 	if table == "" || table == "mangle" {
 		err := ipt.NewChain("mangle", r.chainName)
 		if err != nil {
@@ -348,7 +365,11 @@ func (r *IPSetToLink) LinkUpdateHook(event netlink.LinkUpdate) error {
 		return nil
 	}
 
-	return r.insertIPRoute()
+	var errs []error
+	errs = append(errs, r.insertIPRoute())
+	errs = append(errs, r.insertIPTablesRules(r.nh.IPTables4, linkUpdateIPT))
+	errs = append(errs, r.insertIPTablesRules(r.nh.IPTables6, linkUpdateIPT))
+	return errors.Join(errs...)
 }
 
 func (nh *NetfilterHelper) IPSetToLink(name string, ifaceName string, ipset *IPSet) *IPSetToLink {
