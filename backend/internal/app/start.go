@@ -18,9 +18,7 @@ import (
 )
 
 const (
-	pidFileLocation        = constant.RunDir + "/magitrickle.pid"
-	skinsFolderLocation    = constant.AppShareDir + "/skins"
-	noSkinFoundPlaceholder = "<!DOCTYPE html><html><head><title>MagiTrickle</title></head><body><h1>MagiTrickle</h1><p>Please install MagiTrickle skin before using WebUI!</p></body></html>"
+	pidFileLocation = constant.RunDir + "/magitrickle.pid"
 )
 
 // Start запускает приложение (ядро)
