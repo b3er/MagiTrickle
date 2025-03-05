@@ -175,6 +175,7 @@ func main() {
 	// Обработка системных сигналов для graceful shutdown
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGHUP)
 
 	var once sync.Once
 	shutdown := func() {
@@ -204,7 +205,14 @@ func main() {
 			once.Do(shutdown)
 		case sig := <-sigChan:
 			log.Info().Msgf("received signal: %v", sig)
-			once.Do(shutdown)
+			switch sig {
+			case syscall.SIGTERM:
+				once.Do(shutdown)
+			case syscall.SIGHUP:
+				if err := core.LoadConfig(); err != nil {
+					log.Error().Err(err).Msg("failed to reload config")
+				}
+			}
 		}
 	}
 }
