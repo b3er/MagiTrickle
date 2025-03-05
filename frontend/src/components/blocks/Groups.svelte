@@ -17,6 +17,7 @@
     Save,
     MoveUp,
     MoveDown,
+    Dots,
   } from "../common/icons";
   import Switch from "../common/Switch.svelte";
   import Tooltip from "../common/Tooltip.svelte";
@@ -24,6 +25,7 @@
   import Button from "../common/Button.svelte";
   import Select from "../common/Select.svelte";
   import { overlay, toast } from "../../utils/events";
+  import DropdownMenu from "../common/DropdownMenu.svelte";
 
   let data: Group[] = $state([]);
   let showed_limit: number[] = $state([]);
@@ -35,6 +37,7 @@
   );
   let counter = $state(-2); // skip first update on init
   let valid_rules = $state(true);
+  let container_width = $state<number>(Infinity);
 
   function onRuleDrop(event: CustomEvent) {
     const { from_group_index, from_rule_index, to_group_index, to_rule_index } = event.detail;
@@ -236,97 +239,147 @@
   callbacks: { onDrop: handleDrop },
   }} -->
 
-{#each showed_data as group, group_index (group.id)}
-  <div class="group" data-uuid={group.id}>
-    <Collapsible.Root open={false}>
-      <div class="group-header" data-group-index={group_index}>
-        <div class="group-left">
-          <label class="group-color" style="background: {group.color}">
-            <input type="color" bind:value={data[group_index].color} />
-          </label>
-          <input
-            type="text"
-            placeholder="group name..."
-            class="group-name"
-            bind:value={data[group_index].name}
-          />
-        </div>
-        <div class="group-actions">
-          <Select
-            options={INTERFACES.map((item) => ({ value: item, label: item }))}
-            bind:selected={data[group_index].interface}
-          />
-          <Tooltip value="Enable Group">
-            <Switch class="enable-group" bind:checked={data[group_index].enable} />
-          </Tooltip>
-          <Tooltip value="Delete Group">
-            <Button small onclick={() => deleteGroup(group_index)}>
-              <Delete size={20} />
-            </Button>
-          </Tooltip>
-          <Tooltip value="Add Rule">
-            <Button small onclick={() => addRuleToGroup(group_index, defaultRule(), true)}>
-              <Add size={20} />
-            </Button>
-          </Tooltip>
-          <Tooltip value="Move Up">
-            <Button small inactive={group_index === 0} onclick={() => groupMoveUp(group_index)}>
-              <MoveUp size={20} />
-            </Button>
-          </Tooltip>
-          <Tooltip value="Move Down">
-            <Button
-              small
-              inactive={group_index === data.length - 1}
-              onclick={() => groupMoveDown(group_index)}
-            >
-              <MoveDown size={20} />
-            </Button>
-          </Tooltip>
-          <Tooltip value="Collapse Group">
-            <Collapsible.Trigger>
-              <GroupCollapse />
-            </Collapsible.Trigger>
-          </Tooltip>
-        </div>
-      </div>
+<div bind:clientWidth={container_width}>
+  {#each showed_data as group, group_index (group.id)}
+    <div class="group" data-uuid={group.id}>
+      <Collapsible.Root open={false}>
+        <div class="group-header" data-group-index={group_index}>
+          <div class="group-left">
+            <label class="group-color" style="background: {group.color}">
+              <input type="color" bind:value={data[group_index].color} />
+            </label>
+            <input
+              type="text"
+              placeholder="group name..."
+              class="group-name"
+              bind:value={data[group_index].name}
+            />
+          </div>
+          <div class="group-actions">
+            <Select
+              options={INTERFACES.map((item) => ({ value: item, label: item }))}
+              bind:selected={data[group_index].interface}
+            />
 
-      <Collapsible.Content>
-        <div transition:slide>
-          {#if group.rules.length > 0}
-            <div class="group-rules-header">
-              <div class="group-rules-header-column total">
-                #{data[group_index].rules.length}
-              </div>
-              <div class="group-rules-header-column">Name</div>
-              <div class="group-rules-header-column">Type</div>
-              <div class="group-rules-header-column">Pattern</div>
-              <div class="group-rules-header-column">Enabled</div>
-              <div></div>
-            </div>
-          {/if}
-          <div class="group-rules">
-            <InfiniteLoader triggerLoad={() => loadMore(group_index)} loopDetectionTimeout={10}>
-              {#each group.rules as rule, rule_index (rule.id)}
-                <RuleComponent
-                  key={rule.id}
-                  bind:rule={data[group_index].rules[rule_index]}
-                  {rule_index}
-                  {group_index}
-                  rule_id={rule.id}
-                  group_id={group.id}
-                  onChangeIndex={changeRuleIndex}
-                  onDelete={deleteRuleFromGroup}
-                  style={rule_index % 2 ? "" : "background-color: var(--bg-light)"}
-                />
-              {/each}
-            </InfiniteLoader>
+            {#if container_width > 668}
+              <Tooltip value="Enable Group">
+                <Switch class="enable-group" bind:checked={data[group_index].enable} />
+              </Tooltip>
+              <Tooltip value="Delete Group">
+                <Button small onclick={() => deleteGroup(group_index)}>
+                  <Delete size={20} />
+                </Button>
+              </Tooltip>
+              <Tooltip value="Add Rule">
+                <Button small onclick={() => addRuleToGroup(group_index, defaultRule(), true)}>
+                  <Add size={20} />
+                </Button>
+              </Tooltip>
+              <Tooltip value="Move Up">
+                <Button small inactive={group_index === 0} onclick={() => groupMoveUp(group_index)}>
+                  <MoveUp size={20} />
+                </Button>
+              </Tooltip>
+              <Tooltip value="Move Down">
+                <Button
+                  small
+                  inactive={group_index === data.length - 1}
+                  onclick={() => groupMoveDown(group_index)}
+                >
+                  <MoveDown size={20} />
+                </Button>
+              </Tooltip>
+            {:else}
+              <DropdownMenu>
+                {#snippet trigger()}
+                  <Dots size={20} />
+                {/snippet}
+                {#snippet item1()}
+                  <Button general>
+                    <div class="dd-icon"><Switch bind:checked={data[group_index].enable} /></div>
+                    <div class="dd-label">Enable Group</div>
+                  </Button>
+                {/snippet}
+                {#snippet item2()}
+                  <Button general onclick={() => deleteGroup(group_index)}>
+                    <div class="dd-icon"><Delete size={20} /></div>
+                    <div class="dd-label">Delete Group</div>
+                  </Button>
+                {/snippet}
+                {#snippet item3()}
+                  <Button general onclick={() => addRuleToGroup(group_index, defaultRule(), true)}>
+                    <div class="dd-icon"><Add size={20} /></div>
+                    <div class="dd-label">Add Rule</div>
+                  </Button>
+                {/snippet}
+                {#snippet item4()}
+                  <Button
+                    general
+                    inactive={group_index === 0}
+                    onclick={() => groupMoveUp(group_index)}
+                  >
+                    <div class="dd-icon"><MoveUp size={20} /></div>
+                    <div class="dd-label">Move Up</div>
+                  </Button>
+                {/snippet}
+                {#snippet item5()}
+                  <Button
+                    general
+                    inactive={group_index === data.length - 1}
+                    onclick={() => groupMoveDown(group_index)}
+                  >
+                    <div class="dd-icon"><MoveDown size={20} /></div>
+                    <div class="dd-label">Move Down</div>
+                  </Button>
+                {/snippet}
+              </DropdownMenu>
+            {/if}
+
+            <Tooltip value="Collapse Group">
+              <Collapsible.Trigger>
+                <GroupCollapse />
+              </Collapsible.Trigger>
+            </Tooltip>
           </div>
         </div>
-      </Collapsible.Content>
-    </Collapsible.Root>
-  </div>
-{/each}
+
+        <Collapsible.Content>
+          <div transition:slide>
+            {#if group.rules.length > 0}
+              <div class="group-rules-header">
+                <div class="group-rules-header-column total">
+                  #{data[group_index].rules.length}
+                </div>
+                <div class="group-rules-header-column">Name</div>
+                <div class="group-rules-header-column">Type</div>
+                <div class="group-rules-header-column">Pattern</div>
+                <div class="group-rules-header-column">Enabled</div>
+                <div></div>
+              </div>
+            {/if}
+            <div class="group-rules">
+              <InfiniteLoader triggerLoad={() => loadMore(group_index)} loopDetectionTimeout={10}>
+                {#each group.rules as rule, rule_index (rule.id)}
+                  <RuleComponent
+                    key={rule.id}
+                    bind:rule={data[group_index].rules[rule_index]}
+                    {rule_index}
+                    {group_index}
+                    rule_id={rule.id}
+                    group_id={group.id}
+                    onChangeIndex={changeRuleIndex}
+                    onDelete={deleteRuleFromGroup}
+                    style={rule_index % 2 ? "" : "background-color: var(--bg-light)"}
+                  />
+                {/each}
+              </InfiniteLoader>
+            </div>
+          </div>
+        </Collapsible.Content>
+      </Collapsible.Root>
+    </div>
+  {/each}
+</div>
 
 <style>
   .group {
@@ -488,7 +541,7 @@
     cursor: pointer;
   }
 
-  @media (max-width: 600px) {
+  @media (max-width: 700px) {
     .group-header {
       display: flex;
       flex-direction: column;

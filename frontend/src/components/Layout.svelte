@@ -95,7 +95,7 @@
     }
   }
 
-  @media (max-width: 600px) {
+  @media (max-width: 700px) {
     :global {
       [data-tabs-root] {
         width: 100%;

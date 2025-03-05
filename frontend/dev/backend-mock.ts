@@ -8,7 +8,7 @@ import type { Interfaces } from "../src/types.ts";
 const API_BASE = "/api/v1";
 
 const INTERFACES: Interfaces = {
-  interfaces: [{ id: "nwg0" }, { id: "eth0" }, { id: "eth1" }, { id: "wg0" }],
+  interfaces: [{ id: "nwg0" }, { id: "longinterf" }, { id: "eth1" }, { id: "wg0" }],
 };
 
 const DATA = JSON.parse(Deno.readTextFileSync("./dev/groups.json"));

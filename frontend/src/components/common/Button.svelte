@@ -4,14 +4,21 @@
   type Props = {
     children: Snippet;
     small?: boolean;
+    general?: boolean;
     inactive?: boolean;
     onclick?: () => void;
     [key: string]: any;
   };
-  let { children, onclick, small, inactive, ...rest }: Props = $props();
+  let { children, onclick, small, general, inactive, ...rest }: Props = $props();
 </script>
 
-<button class:main={!small} class:inactive onclick={inactive ? () => ({}) : onclick} {...rest}>
+<button
+  class:main={!small}
+  class:inactive
+  class:general
+  onclick={inactive ? () => ({}) : onclick}
+  {...rest}
+>
   {@render children()}
 </button>
 
@@ -56,6 +63,18 @@
       &:hover {
         background-color: var(--bg-light-extra);
       }
+    }
+
+    &.general {
+      color: var(--text);
+      font-size: 1rem;
+      font-family: var(--font);
+      background: transparent;
+      border: 1px solid transparent;
+      justify-content: start;
+      width: 100%;
+      padding: 0.2rem;
+      padding-left: 0.1rem;
     }
   }
 
