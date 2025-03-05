@@ -47,10 +47,12 @@ app.use(cors());
 app.get(`${API_BASE}/groups`, (c) => c.json(DATA));
 app.put(`${API_BASE}/groups`, async (c) => {
   console.log("recieved", (await c.req.json())?.groups?.length, "groups");
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+  // throw new Error("random error");
   return c.json({ status: "ok" });
 });
 app.get(`${API_BASE}/system/interfaces`, (c) => c.json(INTERFACES));
-app.get(`${API_BASE}/log`, async (c) => {
+app.get(`${API_BASE}/logs`, async (c) => {
   return streamSSE(c, async (stream) => {
     while (true) {
       await stream.writeSSE({

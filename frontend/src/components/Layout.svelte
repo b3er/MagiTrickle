@@ -2,37 +2,42 @@
   import { Tabs } from "bits-ui";
   import Groups from "./blocks/Groups.svelte";
   import HeaderSettings from "./blocks/HeaderSettings.svelte";
-  // import Logs from "./blocks/Logs.svelte";
+  import Logs from "./blocks/Logs.svelte";
+  import Overlay from "./blocks/Overlay.svelte";
+  import Toast from "./blocks/Toast.svelte";
   // import SettingsPage from "./blocks/Settings.svelte";
 
-  let active_tab = $state("Groups");
+  let active_tab = $state("groups");
 </script>
 
 <!-- TODO: add locales -->
 <!-- TODO: add white/dark themes -->
-<!-- TODO: make it adaptive -->
+
+<Toast />
+<Overlay />
+
 <main>
   <Tabs.Root bind:value={active_tab}>
     <nav>
       <Tabs.List>
-        <Tabs.Trigger value="Groups">Groups</Tabs.Trigger>
-        <!-- <Tabs.Trigger value="Settings">Settings</Tabs.Trigger> -->
-        <!-- <Tabs.Trigger value="Logs">Logs</Tabs.Trigger> -->
+        <Tabs.Trigger value="groups">Groups</Tabs.Trigger>
+        <!-- <Tabs.Trigger value="settings">Settings</Tabs.Trigger> -->
+        <Tabs.Trigger value="logs">Logs</Tabs.Trigger>
       </Tabs.List>
       <div class="header-settings">
         <HeaderSettings />
       </div>
     </nav>
     <article>
-      <Tabs.Content value="Groups">
+      <Tabs.Content value="groups">
         <Groups />
       </Tabs.Content>
-      <!-- <Tabs.Content value="Settings">
+      <!-- <Tabs.Content value="settings">
         <SettingsPage />
       </Tabs.Content> -->
-      <!-- <Tabs.Content value="Logs">
+      <Tabs.Content value="logs">
         <Logs />
-      </Tabs.Content> -->
+      </Tabs.Content>
     </article>
   </Tabs.Root>
 </main>
@@ -42,6 +47,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    margin-bottom: 2rem;
   }
 
   nav {

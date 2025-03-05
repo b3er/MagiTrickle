@@ -6,6 +6,16 @@ declare global {
       to_group_index: number;
       to_rule_index: number;
     }>;
+
+    overlay: CustomEvent<{
+      content: string;
+      type: "show" | "hide";
+    }>;
+
+    toast: CustomEvent<{
+      content: string;
+      type: "info" | "success" | "error" | "warning";
+    }>;
   }
 }
 

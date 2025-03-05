@@ -2,7 +2,6 @@
   import { Tooltip } from "bits-ui";
   import type { Snippet } from "svelte";
 
-  // FIXME: fix error with Arrow ResizeObserver
   // TODO: add animation
 
   type Props = {
@@ -30,6 +29,10 @@
       border: none;
       padding: 0;
       margin: 0;
+      height: fit-content;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     [data-tooltip-content] {

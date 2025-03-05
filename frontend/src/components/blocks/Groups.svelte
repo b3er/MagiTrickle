@@ -2,20 +2,28 @@
   import { Collapsible } from "bits-ui";
   import { scale, slide } from "svelte/transition";
   import { onDestroy, onMount, untrack, tick } from "svelte";
-  import { droppable, type DragDropState } from "../actions/dnd";
+  import { InfiniteLoader, loaderState } from "svelte-infinite";
 
   import type { Group, Rule } from "../../types";
   import { defaultGroup, defaultRule } from "../../utils/defaults";
   import { fetcher } from "../../utils/fetcher";
   import { INTERFACES } from "../../data/interfaces.svelte";
-  import { Delete, Add, GroupCollapse, Upload, Download, Save, Sigma } from "../common/icons";
+  import {
+    Delete,
+    Add,
+    GroupCollapse,
+    Upload,
+    Download,
+    Save,
+    MoveUp,
+    MoveDown,
+  } from "../common/icons";
   import Switch from "../common/Switch.svelte";
   import Tooltip from "../common/Tooltip.svelte";
   import RuleComponent from "../features/Rule.svelte";
-  import Scrollable from "../common/Scrollable.svelte";
   import Button from "../common/Button.svelte";
   import Select from "../common/Select.svelte";
-  import { InfiniteLoader, loaderState } from "svelte-infinite";
+  import { overlay, toast } from "../../utils/events";
 
   let data: Group[] = $state([]);
   let showed_limit: number[] = $state([]);
@@ -38,23 +46,21 @@
     event.preventDefault();
   }
 
-  // TODO: do not permit to save with validation errors
   function saveChanges() {
     if (counter === 0) return;
+
+    overlay.show("saving changes...");
+
     const el = document.getElementById("save-changes")!;
     fetcher
       .put("/groups?save=true", { groups: data })
       .then(() => {
-        el?.classList.add("success");
-        setTimeout(() => {
-          counter = 0;
-        }, 300);
+        counter = 0;
+        overlay.hide();
+        toast.success("Saved");
       })
       .catch(() => {
-        el?.classList.add("fail");
-        setTimeout(() => {
-          el?.classList.remove("success", "fail");
-        }, 2000);
+        overlay.hide();
       });
   }
 
@@ -114,6 +120,17 @@
     data.push(defaultGroup());
   }
 
+  function groupMoveUp(index: number) {
+    console.log("move up", index);
+    if (index === 0) return;
+    data = [...data.slice(0, index - 1), data[index], data[index - 1], ...data.slice(index + 1)];
+  }
+
+  function groupMoveDown(index: number) {
+    if (index === data.length - 1) return;
+    data = [...data.slice(0, index), data[index + 1], data[index], ...data.slice(index + 2)];
+  }
+
   function exportConfig() {
     const blob = new Blob([JSON.stringify({ groups: data })], {
       type: "application/json",
@@ -156,23 +173,24 @@
       alert("Please select a CONFIG file to load.");
     }
   }
+  // FIXME: make group header droppable
+  // function handleDrop(state: DragDropState) {
+  //   const { sourceContainer, targetContainer } = state;
 
-  function handleDrop(state: DragDropState) {
-    const { sourceContainer, targetContainer } = state;
-    if (!targetContainer || sourceContainer === targetContainer) return;
-    const [, , from_group_index, from_rule_index] = sourceContainer.split(",");
-    const [, , to_group_index] = targetContainer.split(",");
-    window.dispatchEvent(
-      new CustomEvent("rule_drop", {
-        detail: {
-          from_group_index: +from_group_index,
-          from_rule_index: +from_rule_index,
-          to_group_index: +to_group_index,
-          to_rule_index: +data[+to_group_index].rules.length,
-        },
-      }),
-    );
-  }
+  //   if (!targetContainer || sourceContainer === targetContainer) return;
+  //   const [, , from_group_index, from_rule_index] = sourceContainer.split(",");
+  //   const [, , to_group_index] = targetContainer.split(",");
+  //   window.dispatchEvent(
+  //     new CustomEvent("rule_drop", {
+  //       detail: {
+  //         from_group_index: +from_group_index,
+  //         from_rule_index: +from_rule_index,
+  //         to_group_index: +to_group_index,
+  //         to_rule_index: +data[+to_group_index].rules.length,
+  //       },
+  //     }),
+  //   );
+  // }
 
   async function loadMore(group_index: number): Promise<void> {
     if ((showed_limit[group_index] = data[group_index].rules.length)) return;
@@ -213,93 +231,103 @@
   </div>
 </div>
 
-<Scrollable>
-  {#each showed_data as group, group_index (group.id)}
-    <div class="group" data-uuid={group.id}>
-      <Collapsible.Root open={true}>
-        <div
-          class="group-header"
-          data-group-index={group_index}
-          use:droppable={{
-            container: `${group.id},-,${group_index},-`,
-            callbacks: { onDrop: handleDrop },
-          }}
-        >
-          <div class="group-left">
-            <label class="group-color" style="background: {group.color}">
-              <input type="color" bind:value={data[group_index].color} />
-            </label>
-            <input
-              type="text"
-              placeholder="group name..."
-              class="group-name"
-              bind:value={data[group_index].name}
-            />
-          </div>
-          <div class="group-actions">
-            <Select
-              options={INTERFACES.map((item) => ({ value: item, label: item }))}
-              bind:selected={data[group_index].interface}
-            />
-            <Tooltip value="Enable Group">
-              <Switch bind:checked={data[group_index].enable} />
-            </Tooltip>
-            <Tooltip value="Delete Group">
-              <Button small onclick={() => deleteGroup(group_index)}>
-                <Delete size={20} />
-              </Button>
-            </Tooltip>
-            <Tooltip value="Add Rule">
-              <Button small onclick={() => addRuleToGroup(group_index, defaultRule(), true)}>
-                <Add size={20} />
-              </Button>
-            </Tooltip>
-            <Tooltip value="Collapse Group">
-              <Collapsible.Trigger>
-                <GroupCollapse />
-              </Collapsible.Trigger>
-            </Tooltip>
+<!-- FIXME: make group header droppable -->
+<!-- use:droppable={{
+  container: `${group.id},-,${group_index},-`,
+  callbacks: { onDrop: handleDrop },
+  }} -->
+
+{#each showed_data as group, group_index (group.id)}
+  <div class="group" data-uuid={group.id}>
+    <Collapsible.Root open={false}>
+      <div class="group-header" data-group-index={group_index}>
+        <div class="group-left">
+          <label class="group-color" style="background: {group.color}">
+            <input type="color" bind:value={data[group_index].color} />
+          </label>
+          <input
+            type="text"
+            placeholder="group name..."
+            class="group-name"
+            bind:value={data[group_index].name}
+          />
+        </div>
+        <div class="group-actions">
+          <Select
+            options={INTERFACES.map((item) => ({ value: item, label: item }))}
+            bind:selected={data[group_index].interface}
+          />
+          <Tooltip value="Enable Group">
+            <Switch class="enable-group" bind:checked={data[group_index].enable} />
+          </Tooltip>
+          <Tooltip value="Delete Group">
+            <Button small onclick={() => deleteGroup(group_index)}>
+              <Delete size={20} />
+            </Button>
+          </Tooltip>
+          <Tooltip value="Add Rule">
+            <Button small onclick={() => addRuleToGroup(group_index, defaultRule(), true)}>
+              <Add size={20} />
+            </Button>
+          </Tooltip>
+          <Tooltip value="Move Up">
+            <Button small inactive={group_index === 0} onclick={() => groupMoveUp(group_index)}>
+              <MoveUp size={20} />
+            </Button>
+          </Tooltip>
+          <Tooltip value="Move Down">
+            <Button
+              small
+              inactive={group_index === data.length - 1}
+              onclick={() => groupMoveDown(group_index)}
+            >
+              <MoveDown size={20} />
+            </Button>
+          </Tooltip>
+          <Tooltip value="Collapse Group">
+            <Collapsible.Trigger>
+              <GroupCollapse />
+            </Collapsible.Trigger>
+          </Tooltip>
+        </div>
+      </div>
+
+      <Collapsible.Content>
+        <div transition:slide>
+          {#if group.rules.length > 0}
+            <div class="group-rules-header">
+              <div class="group-rules-header-column total">
+                #{data[group_index].rules.length}
+              </div>
+              <div class="group-rules-header-column">Name</div>
+              <div class="group-rules-header-column">Type</div>
+              <div class="group-rules-header-column">Pattern</div>
+              <div class="group-rules-header-column">Enabled</div>
+              <div></div>
+            </div>
+          {/if}
+          <div class="group-rules">
+            <InfiniteLoader triggerLoad={() => loadMore(group_index)} loopDetectionTimeout={10}>
+              {#each group.rules as rule, rule_index (rule.id)}
+                <RuleComponent
+                  key={rule.id}
+                  bind:rule={data[group_index].rules[rule_index]}
+                  {rule_index}
+                  {group_index}
+                  rule_id={rule.id}
+                  group_id={group.id}
+                  onChangeIndex={changeRuleIndex}
+                  onDelete={deleteRuleFromGroup}
+                  style={rule_index % 2 ? "" : "background-color: var(--bg-light)"}
+                />
+              {/each}
+            </InfiniteLoader>
           </div>
         </div>
-
-        <Collapsible.Content>
-          <div transition:slide>
-            {#if group.rules.length > 0}
-              <div class="group-rules-header">
-                <div class="group-rules-header-column total">
-                  <Sigma size={18}></Sigma>
-                  {data[group_index].rules.length}
-                </div>
-                <div class="group-rules-header-column">Name</div>
-                <div class="group-rules-header-column">Type</div>
-                <div class="group-rules-header-column">Pattern</div>
-                <div class="group-rules-header-column">Enabled</div>
-                <div></div>
-              </div>
-            {/if}
-            <div class="group-rules">
-              <InfiniteLoader triggerLoad={() => loadMore(group_index)} loopDetectionTimeout={10}>
-                {#each group.rules as rule, rule_index (rule.id)}
-                  <RuleComponent
-                    key={`${group.id}-${rule.id}`}
-                    bind:rule={data[group_index].rules[rule_index]}
-                    {rule_index}
-                    {group_index}
-                    rule_id={rule.id}
-                    group_id={group.id}
-                    onChangeIndex={changeRuleIndex}
-                    onDelete={deleteRuleFromGroup}
-                    style={rule_index % 2 ? "" : "background-color: var(--bg-light)"}
-                  />
-                {/each}
-              </InfiniteLoader>
-            </div>
-          </div>
-        </Collapsible.Content>
-      </Collapsible.Root>
-    </div>
-  {/each}
-</Scrollable>
+      </Collapsible.Content>
+    </Collapsible.Root>
+  </div>
+{/each}
 
 <style>
   .group {
@@ -331,11 +359,11 @@
   .group-color {
     display: inline-block;
     width: 2rem;
-    height: calc(3rem + 2px);
+    height: calc(100% + 1px);
     border-top-left-radius: 0.5rem;
     border-bottom-left-radius: 0.5rem;
     position: absolute;
-    left: 1px; /* strange, but 0 make glitches */
+    left: 0px;
     top: -1px;
     overflow: hidden;
     cursor: pointer;
@@ -369,12 +397,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
+    gap: 0.2rem;
   }
 
-  :global(.fix-protected) {
-    position: relative;
-    top: 1px;
+  .group-actions :global([data-switch-root]) {
+    margin: 0 0.3rem;
   }
 
   .group-rules-header {
@@ -399,7 +426,7 @@
 
     &.total {
       justify-content: start;
-      padding-left: 0.8rem;
+      margin-left: 0.5rem;
     }
 
     &.total :global(svg) {

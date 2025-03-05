@@ -1,14 +1,15 @@
 <script lang="ts">
-  import { onMount, tick } from "svelte";
-  import { API_BASE } from "../../utils/fetcher";
-  import { ScrollArea } from "bits-ui";
-
-  import { Clear, Filter, ScrollToBottom } from "../common/icons";
+  import { tick } from "svelte";
   import Tooltip from "../common/Tooltip.svelte";
   import Select from "../common/Select.svelte";
+  import Button from "../common/Button.svelte";
+  import { API_BASE } from "../../utils/fetcher";
+  import { Clear, Filter, ScrollToBottom, Save } from "../common/icons";
 
-  const LOGS_BUFFER_LIMIT = 1000 as const;
+  const LOGS_BUFFER_LIMIT = 10000 as const;
   const SCROLL_TO_BOTTOM_DELTA = 40 as const;
+  const LINE_HEIGHT = 16 as const;
+  const OVERSCAN = 20 as const;
 
   type LogEntry = {
     time: string;
@@ -27,17 +28,40 @@
     panic: 5,
   };
 
-  let lines: LogEntry[] = $state([]);
-  let filter: string = $state("");
-  // TODO: save picked level in local storage
+  let items: LogEntry[] = $state([]);
   let level: string = $state("trace");
-  let filtered_lines: LogEntry[] = $state([]);
-  let viewport: HTMLDivElement | undefined = $state();
+  let filter: string = $state("");
+  let items_filtered: LogEntry[] = $derived.by(() =>
+    items.filter(
+      (item) =>
+        levels[item.level] >= levels[level] &&
+        (!filter ||
+          filter.length === 0 ||
+          item.message.includes(filter) ||
+          item.error?.includes(filter)),
+    ),
+  );
+
+  let spacer_height = $derived(items_filtered.length * LINE_HEIGHT);
+  let container: HTMLDivElement = $state(document.createElement("div"));
+  let container_height = $state(0);
+  let scroll_top = $state(LINE_HEIGHT / 2);
+  let start = $derived(Math.max(0, Math.floor(scroll_top / LINE_HEIGHT) - OVERSCAN));
+  let end = $derived(
+    Math.min(
+      items_filtered.length,
+      Math.ceil((scroll_top + container_height) / LINE_HEIGHT) + OVERSCAN,
+    ),
+  );
+  let visible_items = $derived(items_filtered.slice(start, end));
+
+  function scrollTopChanges() {
+    scroll_top = container?.scrollTop ?? 0;
+  }
 
   function stickToBottom() {
-    if (!viewport) return;
     if (
-      viewport.scrollHeight - viewport.offsetHeight - viewport.scrollTop <
+      container.scrollHeight - container.offsetHeight - container.scrollTop <
       SCROLL_TO_BOTTOM_DELTA
     ) {
       scrollToBottom();
@@ -45,110 +69,124 @@
   }
 
   function scrollToBottom() {
-    if (!viewport) return;
-    viewport.scrollTop = viewport.scrollHeight;
+    container.scrollTop = container.scrollHeight;
   }
 
   function clearLinesBuf() {
-    lines = [];
-    filtered_lines = [];
+    items = [];
   }
 
-  function applyFilter() {
-    filtered_lines = lines.filter(
-      (line) =>
-        levels[line.level] >= levels[level] &&
-        (!filter ||
-          filter.length === 0 ||
-          line.message.includes(filter) ||
-          line.error?.includes(filter)),
+  function saveLogs() {
+    const blob = new Blob(
+      [items_filtered.map(({ time, level, message }) => `${time} ${level} ${message}`).join("\n")],
+      { type: "text/plain" },
     );
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${new Date().getTime()}-mtrickle.log`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 
-  // TODO: should connect on tab open, not on mount
-  onMount(() => {
-    const es = new EventSource(`${API_BASE}/log`);
+  let connect = false;
+  $effect(() => {
+    if (!connect && container_height > 0) {
+      connect = true;
+      connectToEndpoint();
+    }
+  });
+
+  function connectToEndpoint() {
+    console.debug("connect to logs endpoint");
+    const es = new EventSource(`${API_BASE}/logs`);
 
     es.onmessage = async (event) => {
       const data = JSON.parse(event.data);
-      lines.push(data);
-      if (lines.length > LOGS_BUFFER_LIMIT) {
-        lines.shift();
-      }
-      if (
-        levels[data.level] >= levels[level] &&
-        (filter.length === 0 || data.message.includes(filter) || data.error?.includes(filter))
-      ) {
-        filtered_lines.push(data);
+      items.push(data);
+      if (items.length > LOGS_BUFFER_LIMIT) {
+        items.shift();
       }
       await tick();
       stickToBottom();
     };
-
     es.onerror = (event) => {
-      console.error("Error fetching logs:", event);
+      console.error("Failed to fetch logs:", event);
     };
-
     return () => {
       es.close();
     };
-  });
+  }
 </script>
 
 <div class="logs-controls">
   <div class="filter">
     <Filter size={22} opacity={0.5} />
-    <input
-      type="text"
-      class="filter-input"
-      placeholder="filter logs..."
-      bind:value={filter}
-      oninput={applyFilter}
-    />
+    <input type="text" class="filter-input" placeholder="filter logs..." bind:value={filter} />
     <Select
       options={Object.keys(levels).map((item) => ({
         label: item,
         value: item,
       }))}
       bind:selected={level}
-      onSelectedChange={applyFilter}
       style="width: 100px"
     />
   </div>
 
   <div class="logs-controls-actions">
+    <Tooltip value="Save Logs">
+      <Button onclick={saveLogs}>
+        <Save size={22} />
+      </Button>
+    </Tooltip>
     <Tooltip value="Clear">
-      <button class="action main" onclick={clearLinesBuf}><Clear size={22} /></button>
+      <Button onclick={clearLinesBuf}><Clear size={22} /></Button>
     </Tooltip>
     <Tooltip value="Scroll to bottom">
-      <button class="action main" onclick={scrollToBottom}><ScrollToBottom size={22} /></button>
+      <Button onclick={scrollToBottom}><ScrollToBottom size={22} /></Button>
     </Tooltip>
   </div>
 </div>
 
-<ScrollArea.Root>
-  <ScrollArea.Viewport bind:ref={viewport}>
-    {#each filtered_lines as { time, level, message, error }, index (index)}
-      <div class="line" data-level={level} data-time={time}>
-        <span class="time">{time}</span>
-        <span class={level}>{level.toLocaleUpperCase()}</span>
-        {message}{error ? ", " + error : ""}
-      </div>
-    {/each}
-  </ScrollArea.Viewport>
-  <ScrollArea.Scrollbar orientation="vertical">
-    <ScrollArea.Thumb />
-  </ScrollArea.Scrollbar>
-  <ScrollArea.Corner />
-</ScrollArea.Root>
+<div
+  bind:this={container}
+  bind:clientHeight={container_height}
+  onscroll={scrollTopChanges}
+  class="container"
+>
+  <div class="spacer" style="height: {spacer_height}px;"></div>
+
+  {#each visible_items as { time, level, message, error }, index (index)}
+    <div class="line" style="top: {(start + index) * LINE_HEIGHT + 5}px; height: {LINE_HEIGHT}px;">
+      <span class="time">{time}</span>
+      <span class={level}>{level.toLocaleUpperCase()}</span>
+      {message}{error ? ", " + error : ""}
+    </div>
+  {/each}
+</div>
 
 <style>
+  .container {
+    position: relative;
+    height: 600px;
+    overflow: auto;
+    padding: 0.3rem 0.5rem;
+    border-radius: 0.5rem;
+    background-color: var(--bg-dark-extra);
+    border: 1px solid var(--bg-light-extra);
+  }
+
+  .spacer {
+    position: relative;
+  }
+
   .logs-controls {
     display: flex;
     align-items: end;
     justify-items: end;
     gap: 0.5rem;
     padding: 0.5rem 0 0.5rem 0;
+    margin-bottom: 0.5rem;
   }
 
   .logs-controls-actions {
@@ -157,39 +195,6 @@
     justify-content: end;
     gap: 0.5rem;
     width: 100%;
-  }
-
-  /* TODO: reuse this styles through all pages */
-  .action {
-    & {
-      color: var(--text-2);
-      background-color: transparent;
-      border: none;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0.4rem;
-      border-radius: 0.5rem;
-      cursor: pointer;
-    }
-
-    &:hover {
-      background-color: var(--bg-dark);
-      outline: 1px solid var(--bg-light-extra);
-      color: var(--text);
-    }
-
-    &.main {
-      & {
-        background-color: var(--bg-light);
-        padding: 0.6rem;
-        transition: background-color 0.3s ease-in-out;
-      }
-
-      &:hover {
-        background-color: var(--bg-light-extra);
-      }
-    }
   }
 
   .filter {
@@ -223,56 +228,11 @@
     }
   }
 
-  :global {
-    [data-scroll-area-root] {
-      position: relative;
-      height: 600px;
-      padding: 0.5rem;
-      border-radius: 0.5rem;
-      background-color: var(--bg-dark-extra);
-      border: 1px solid var(--bg-light-extra);
-    }
-
-    [data-scroll-area-viewport] {
-      height: 100%;
-      width: 100%;
-      position: relative;
-    }
-
-    [data-scroll-area-scrollbar-x],
-    [data-scroll-area-scrollbar-y] {
-      user-select: none;
-      touch-action: none;
-      display: flex;
-      height: calc(100% - 1.4rem);
-      background-color: transparent;
-      width: 0.4rem;
-      margin: 0.2rem;
-      padding: 0.2rem;
-    }
-
-    [data-scroll-area-thumb-x],
-    [data-scroll-area-thumb-y] {
-      & {
-        flex: 1;
-        position: relative;
-        opacity: 0.6;
-        background-color: var(--bg-light-extra);
-        border-radius: 0.5rem;
-        width: 0.4rem;
-        padding: 0.3rem;
-        transition: all 0.3 ease-in-out;
-      }
-
-      &:hover {
-        opacity: 1;
-      }
-    }
-  }
-
   .line {
+    position: absolute;
     font-family: var(--font-mono);
     font-size: 0.8rem;
+    white-space: nowrap;
   }
 
   .time {

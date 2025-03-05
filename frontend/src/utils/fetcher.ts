@@ -1,3 +1,5 @@
+const TIMEOUT = 30000 as const;
+
 // @ts-ignore: vite specific
 export const API_BASE = import.meta.env.DEV ? "http://localhost:6969/api/v1" : "/api/v1";
 
@@ -7,7 +9,7 @@ export async function fetcher<T>(...args: any[]): Promise<T> {
 
   try {
     const res = await fetch(`${API_BASE}${url}`, ...args);
-    if (!res.ok || (res.status < 200 && res.status > 299)) {
+    if (!res.ok || res.status < 200 || res.status > 299) {
       if (res.body) {
         throw new Error(await res.text());
       } else {
@@ -31,6 +33,7 @@ fetcher.post = <T>(url: string, body: any) =>
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(TIMEOUT),
   });
 
 fetcher.put = <T>(url: string, body: any) =>
@@ -38,9 +41,11 @@ fetcher.put = <T>(url: string, body: any) =>
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(TIMEOUT),
   });
 
 fetcher.delete = <T>(url: string) =>
   fetcher<T>(url, {
     method: "DELETE",
+    signal: AbortSignal.timeout(TIMEOUT),
   });
