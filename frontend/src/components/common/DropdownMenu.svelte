@@ -13,7 +13,7 @@
 
 <DropdownMenu.Root>
   <DropdownMenu.Trigger>{@render trigger()}</DropdownMenu.Trigger>
-  <DropdownMenu.Content align={"center"}>
+  <DropdownMenu.Content alignOffset={0} align="end">
     {#each childs as child, index}
       <DropdownMenu.Item>
         {@render child()}
@@ -51,8 +51,6 @@
       border: 1px solid var(--bg-light-extra);
       box-shadow: var(--shadow-popover);
       z-index: 100;
-      position: relative;
-      right: 1.5rem;
     }
 
     [data-dropdown-menu-item] {

@@ -51,6 +51,8 @@ html {
 body {
   background-color: var(--bg-dark);
   margin-bottom: 0;
+  padding-right: 0 !important;
+  margin-right: 8px !important;
 }
 
 *::-webkit-scrollbar {
