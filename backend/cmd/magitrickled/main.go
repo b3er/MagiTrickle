@@ -188,19 +188,23 @@ func main() {
 		}
 	}
 
-	select {
-	case err := <-appResult:
-		if err != nil {
-			log.Error().Err(err).Msg("failed to start application")
+	for {
+		select {
+		case err := <-appResult:
+			if err != nil {
+				log.Error().Err(err).Msg("failed to start application")
+			}
+			once.Do(shutdown)
+			log.Info().Msg("service stopped")
+			return
+		case err := <-errChan:
+			if err != nil {
+				log.Error().Err(err).Msg("server error")
+			}
+			once.Do(shutdown)
+		case sig := <-sigChan:
+			log.Info().Msgf("received signal: %v", sig)
+			once.Do(shutdown)
 		}
-		once.Do(shutdown)
-	case err := <-errChan:
-		if err != nil {
-			log.Error().Err(err).Msg("server error")
-		}
-		once.Do(shutdown)
-	case sig := <-sigChan:
-		log.Info().Msgf("received signal: %v", sig)
-		once.Do(shutdown)
 	}
 }
