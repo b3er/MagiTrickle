@@ -26,6 +26,7 @@ export async function fetcher<T>(...args: any[]): Promise<T> {
 fetcher.get = <T>(url: string) =>
   fetcher<T>(url, {
     method: "GET",
+    signal: AbortSignal.timeout(TIMEOUT),
   });
 
 fetcher.post = <T>(url: string, body: any) =>

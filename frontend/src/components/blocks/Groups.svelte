@@ -578,6 +578,14 @@
       margin-left: 2rem;
     }
 
+    :global(.group-actions > *:nth-child(1)) {
+      margin-right: auto;
+      width: 150px;
+    }
+    :global(.group-actions > *:nth-child(2)) {
+      margin-left: auto;
+    }
+
     .group-rules-header {
       height: 1px;
       & .group-rules-header-column {

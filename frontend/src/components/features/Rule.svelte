@@ -250,11 +250,11 @@
     }
     .type {
       order: 3;
-      width: calc(50% - 0.5rem);
+      margin-right: auto;
     }
     .actions {
       order: 4;
-      width: calc(50% - 0.5rem);
+      margin-left: auto;
       justify-content: end;
     }
   }
