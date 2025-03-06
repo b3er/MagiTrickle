@@ -6,9 +6,10 @@ import {
   pipe,
   string,
   object,
-  minLength,
   check,
   array,
+  regex,
+  length,
   type InferOutput,
 } from "valibot";
 
@@ -39,7 +40,7 @@ export function parseConfig(json: string): Config {
 
 export const RuleSchema = object({
   enable: boolean(),
-  id: fallback(pipe(string(), minLength(8)), randomId()),
+  id: fallback(pipe(string(), length(8), regex(/^[0-9a-f]{8}/)), randomId()),
   name: fallback(string(), ""),
   rule: string(),
   type: pipe(
@@ -50,7 +51,7 @@ export const RuleSchema = object({
 export type Rule = InferOutput<typeof RuleSchema>;
 
 export const GroupSchema = object({
-  id: fallback(pipe(string(), minLength(8)), randomId()),
+  id: fallback(pipe(string(), length(8), regex(/^[0-9a-f]{8}/)), randomId()),
   name: fallback(string(), ""),
   color: string(),
   interface: string(),
