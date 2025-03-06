@@ -8,15 +8,19 @@
   };
   let { trigger, ...rest }: Props = $props();
 
-  const childs = $derived(Object.values(rest).filter((f) => typeof f === "function"));
+  const items = $derived(
+    Object.entries(rest)
+      .filter(([name, f]) => typeof f === "function" && name.startsWith("item"))
+      .map(([, f]) => f),
+  );
 </script>
 
 <DropdownMenu.Root>
   <DropdownMenu.Trigger>{@render trigger()}</DropdownMenu.Trigger>
   <DropdownMenu.Content alignOffset={0} align="end">
-    {#each childs as child, index}
+    {#each items as item, index}
       <DropdownMenu.Item>
-        {@render child()}
+        {@render item()}
       </DropdownMenu.Item>
     {/each}
   </DropdownMenu.Content>
@@ -51,6 +55,7 @@
       border: 1px solid var(--bg-light-extra);
       box-shadow: var(--shadow-popover);
       z-index: 100;
+      min-width: 160px;
     }
 
     [data-dropdown-menu-item] {
@@ -66,7 +71,7 @@
     }
 
     .dd-icon {
-      width: 40px;
+      width: 30px;
       color: var(--text-2);
       display: flex;
       align-items: center;
@@ -76,6 +81,13 @@
     .dd-label {
       position: relative;
       top: 2px;
+      margin-right: auto;
+    }
+
+    .dd-check {
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
   }
 </style>

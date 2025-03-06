@@ -18,6 +18,8 @@
     MoveUp,
     MoveDown,
     Dots,
+    Check,
+    Toggle,
   } from "../common/icons";
   import Switch from "../common/Switch.svelte";
   import Tooltip from "../common/Tooltip.svelte";
@@ -295,9 +297,17 @@
                   <Dots size={20} />
                 {/snippet}
                 {#snippet item1()}
-                  <Button general>
-                    <div class="dd-icon"><Switch bind:checked={data[group_index].enable} /></div>
+                  <Button
+                    general
+                    onclick={() => (data[group_index].enable = !data[group_index].enable)}
+                  >
+                    <div class="dd-icon"><Toggle size={20} /></div>
                     <div class="dd-label">Enable Group</div>
+                    <div class="dd-check">
+                      {#if data[group_index].enable}
+                        <Check size={16} />
+                      {/if}
+                    </div>
                   </Button>
                 {/snippet}
                 {#snippet item2()}

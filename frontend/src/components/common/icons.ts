@@ -22,3 +22,4 @@ export { default as CircleCheck } from "lucide-svelte/icons/circle-check";
 export { default as CircleX } from "lucide-svelte/icons/circle-x";
 export { default as CircleInfo } from "lucide-svelte/icons/info";
 export { default as Dots } from "lucide-svelte/icons/ellipsis";
+export { default as Toggle } from "lucide-svelte/icons/toggle-left";
