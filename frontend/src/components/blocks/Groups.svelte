@@ -4,7 +4,7 @@
   import { onDestroy, onMount, untrack, tick } from "svelte";
   import { InfiniteLoader, loaderState } from "svelte-infinite";
 
-  import type { Group, Rule } from "../../types";
+  import { parseConfig, type Group, type Rule } from "../../types";
   import { defaultGroup, defaultRule } from "../../utils/defaults";
   import { fetcher } from "../../utils/fetcher";
   import { INTERFACES } from "../../data/interfaces.svelte";
@@ -147,7 +147,6 @@
     document.body.removeChild(link);
   }
 
-  // TODO: need schema validation
   function importConfig() {
     const input = document.getElementById("import-config") as HTMLInputElement;
     const file = input.files?.[0];
@@ -157,19 +156,22 @@
       const reader = new FileReader();
       reader.onload = function (event) {
         try {
-          let { groups } = JSON.parse(event.target?.result as string);
+          let { groups } = parseConfig(event.target?.result as string);
           for (let i = 0; i < groups.length; i++) {
             if (!INTERFACES.includes(groups[i].interface)) {
               groups[i].interface = INTERFACES.at(0) ?? ""; // fallback to first interface
             }
           }
           data = groups;
+          toast.success("Config imported");
         } catch (error) {
-          console.error("Error parsing CONFIG:", error);
+          console.error("Error parsing CONFIG:", error); // why is this not writing to console?
+          toast.error("Invalid config file");
         }
       };
       reader.onerror = function (event) {
         console.error("Error reading file:", event.target?.error);
+        toast.error("Invalid config file");
       };
       reader.readAsText(file);
       input.value = "";

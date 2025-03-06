@@ -1,3 +1,17 @@
+import { randomId } from "./utils/defaults.ts";
+import {
+  parse,
+  boolean,
+  fallback,
+  pipe,
+  string,
+  object,
+  minLength,
+  check,
+  array,
+  type InferOutput,
+} from "valibot";
+
 declare global {
   interface WindowEventMap {
     rule_drop: CustomEvent<{
@@ -19,22 +33,36 @@ declare global {
   }
 }
 
-export type Group = {
-  id: string;
-  name?: string;
-  color: string;
-  interface: string;
-  enable: boolean;
-  rules: Rule[];
-};
+export function parseConfig(json: string): Config {
+  return parse(ConfigSchema, JSON.parse(json));
+}
 
-export type Rule = {
-  enable: boolean;
-  id: string;
-  name?: string;
-  rule: string;
-  type: RuleTypeValue;
-};
+export const RuleSchema = object({
+  enable: boolean(),
+  id: fallback(pipe(string(), minLength(8)), randomId()),
+  name: fallback(string(), ""),
+  rule: string(),
+  type: pipe(
+    string(),
+    check((value) => RULE_TYPES.map((type) => type.value).includes(value))
+  ),
+});
+export type Rule = InferOutput<typeof RuleSchema>;
+
+export const GroupSchema = object({
+  id: fallback(pipe(string(), minLength(8)), randomId()),
+  name: fallback(string(), ""),
+  color: string(),
+  interface: string(),
+  enable: boolean(),
+  rules: array(RuleSchema),
+});
+export type Group = InferOutput<typeof GroupSchema>;
+
+export const ConfigSchema = object({
+  groups: array(GroupSchema),
+});
+export type Config = InferOutput<typeof ConfigSchema>;
 
 export const RULE_TYPES = [
   { value: "namespace", label: "Namespace" },
@@ -43,17 +71,8 @@ export const RULE_TYPES = [
   { value: "domain", label: "Domain" },
 ];
 
-export type RuleTypes = typeof RULE_TYPES;
-export type RuleTypeValue = RuleTypes[number]["value"];
-
 export type Interfaces = {
   interfaces: {
     id: string;
   }[];
-};
-
-export type Metadata = {
-  version: string;
-  types: { value: string; label: string }[];
-  interfaces: string[];
 };
