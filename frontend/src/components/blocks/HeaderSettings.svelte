@@ -3,11 +3,15 @@
   import { Locale, Github, Bug } from "../common/icons";
   import { t, getLocale, setLocale, locales } from "../../data/locale.svelte";
   const version = import.meta.env.VITE_UPSTREAM_VERSION || "0.0.0";
+  const isDev = import.meta.env.VITE_DEV?.toLowerCase() === "true";
 </script>
 
 <div class="container">
   <div class="version">
     <span>build: {version}</span>
+    {#if isDev}
+      <div class="under-construction">dev</div>
+    {/if}
   </div>
   <div class="links">
     <a
@@ -31,6 +35,15 @@
 </div>
 
 <style>
+  .under-construction {
+    background: repeating-linear-gradient(45deg, #ffcc00, #ffcc00 10px, #ff6600 10px, #ff6600 20px);
+    color: black;
+    font-weight: bold;
+    padding: 4px 4px;
+    border-radius: 4px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
   .container {
     display: flex;
     flex-direction: row;
