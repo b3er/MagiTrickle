@@ -122,6 +122,8 @@
     const rule = data[from_group_index].rules[from_rule_index];
     data[from_group_index].rules.splice(from_rule_index, 1);
     data[to_group_index].rules.splice(to_rule_index, 0, rule);
+    showed_limit[from_group_index]--;
+    showed_limit[to_group_index]++;
   }
 
   function addGroup() {
