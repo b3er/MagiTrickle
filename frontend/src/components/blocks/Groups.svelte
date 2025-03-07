@@ -40,6 +40,7 @@
   let counter = $state(-2); // skip first update on init
   let valid_rules = $state(true);
   let container_width = $state<number>(Infinity);
+  let is_desktop = $derived(container_width > 668);
 
   function onRuleDrop(event: CustomEvent) {
     const { from_group_index, from_rule_index, to_group_index, to_rule_index } = event.detail;
@@ -71,7 +72,7 @@
 
   onMount(async () => {
     data = (await fetcher.get<{ groups: Group[] }>("/groups?with_rules=true"))?.groups ?? [];
-    showed_limit = data.map((group) => (group.rules.length > 20 ? 20 : group.rules.length));
+    showed_limit = data.map((group) => (group.rules.length > 30 ? 30 : group.rules.length));
     window.addEventListener("rule_drop", onRuleDrop);
     window.addEventListener("beforeunload", unsavedChanges);
   });
@@ -124,6 +125,7 @@
 
   function addGroup() {
     data.push(defaultGroup());
+    showed_limit.push(30);
   }
 
   function groupMoveUp(index: number) {
@@ -212,8 +214,8 @@
   // }
 
   async function loadMore(group_index: number): Promise<void> {
-    if ((showed_limit[group_index] = data[group_index].rules.length)) return;
-    showed_limit[group_index] += 20;
+    if (showed_limit[group_index] >= data[group_index].rules.length) return;
+    showed_limit[group_index] += 40;
     if (showed_limit[group_index] > data[group_index].rules.length) {
       showed_limit[group_index] = data[group_index].rules.length;
       return;
@@ -278,7 +280,7 @@
               bind:selected={data[group_index].interface}
             />
 
-            {#if container_width > 668}
+            {#if is_desktop}
               <Tooltip value="Enable Group">
                 <Switch class="enable-group" bind:checked={data[group_index].enable} />
               </Tooltip>
