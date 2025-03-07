@@ -100,6 +100,13 @@
       [data-tabs-root] {
         width: 100%;
       }
+      [data-tabs-trigger] {
+        font-size: 1.2rem;
+        padding: 0.5rem 0.5rem;
+      }
+      [data-tabs-list] {
+        gap: 0.5rem;
+      }
     }
   }
 </style>
