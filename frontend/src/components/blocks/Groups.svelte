@@ -29,6 +29,9 @@
   import { overlay, toast } from "../../utils/events";
   import DropdownMenu from "../common/DropdownMenu.svelte";
 
+  const showLimit = 30;
+  const showBump = 40;
+
   let data: Group[] = $state([]);
   let showed_limit: number[] = $state([]);
   let showed_data: Group[] = $derived.by(() =>
@@ -72,7 +75,7 @@
 
   onMount(async () => {
     data = (await fetcher.get<{ groups: Group[] }>("/groups?with_rules=true"))?.groups ?? [];
-    showed_limit = data.map((group) => (group.rules.length > 30 ? 30 : group.rules.length));
+    showed_limit = data.map((group) => (group.rules.length > showLimit ? showLimit : group.rules.length));
     window.addEventListener("rule_drop", onRuleDrop);
     window.addEventListener("beforeunload", unsavedChanges);
   });
@@ -122,11 +125,13 @@
     const rule = data[from_group_index].rules[from_rule_index];
     data[from_group_index].rules.splice(from_rule_index, 1);
     data[to_group_index].rules.splice(to_rule_index, 0, rule);
+    showed_limit[from_group_index]--;
+    showed_limit[to_group_index]++;
   }
 
   function addGroup() {
     data.push(defaultGroup());
-    showed_limit.push(30);
+    showed_limit.push(showLimit);
   }
 
   function groupMoveUp(index: number) {
@@ -179,7 +184,7 @@
             }
           }
           data = groups;
-          showed_limit = data.map((group) => (group.rules.length > 30 ? 30 : group.rules.length));
+          showed_limit = data.map((group) => (group.rules.length > showLimit ? showLimit : group.rules.length));
           toast.success("Config imported");
         } catch (error) {
           console.error("Error parsing CONFIG:", error); // why is this not writing to console?
@@ -217,7 +222,7 @@
 
   async function loadMore(group_index: number): Promise<void> {
     if (showed_limit[group_index] >= data[group_index].rules.length) return;
-    showed_limit[group_index] += 40;
+    showed_limit[group_index] += showBump;
     if (showed_limit[group_index] > data[group_index].rules.length) {
       showed_limit[group_index] = data[group_index].rules.length;
       return;
