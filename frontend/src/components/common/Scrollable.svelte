@@ -4,11 +4,12 @@
 
   type Props = {
     children: Snippet;
+    [key: string]: any;
   };
-  let { children }: Props = $props();
+  let { children, ...rest }: Props = $props();
 </script>
 
-<ScrollArea.Root>
+<ScrollArea.Root {...rest}>
   <ScrollArea.Viewport>
     {@render children()}
   </ScrollArea.Viewport>

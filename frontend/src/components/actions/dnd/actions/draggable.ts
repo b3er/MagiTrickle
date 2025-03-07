@@ -8,11 +8,12 @@ import type { DragDropOptions, DragDropState } from "../types/index.ts";
 const DEFAULT_DRAGGING_CLASS = "dragging";
 
 interface DraggableOptions<T> extends DragDropOptions<T> {
-  // Add new option for interactive selectors
   interactive?: string[];
+  bypass?: boolean;
 }
 
 export function draggable<T>(node: HTMLElement, options: DraggableOptions<T>) {
+  if (options.bypass) return;
   const draggingClass = (options.attributes?.draggingClass || DEFAULT_DRAGGING_CLASS).split(" ");
   let initialX: number;
   let initialY: number;

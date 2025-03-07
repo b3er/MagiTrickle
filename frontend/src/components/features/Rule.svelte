@@ -36,6 +36,7 @@
   }: Props = $props();
 
   let input: HTMLInputElement;
+  let is_mobile = $state(window.screen.width < 700);
 
   function patternValidation() {
     if (
@@ -88,6 +89,7 @@
     container: `${group_id},${rule_id},${group_index},${rule_index}`,
     dragData: { rule_id, group_id, rule_index, group_index },
     interactive: ["[data-select-item]", ".interactive"],
+    bypass: is_mobile,
   }}
   use:droppable={{
     container: `${group_id},${rule_id},${group_index},${rule_index}`,
@@ -221,7 +223,7 @@
     display: none;
   }
 
-  @media (max-width: 600px) {
+  @media (max-width: 700px) {
     .container {
       display: flex;
       flex-direction: row;
@@ -250,11 +252,11 @@
     }
     .type {
       order: 3;
-      width: calc(50% - 0.5rem);
+      margin-right: auto;
     }
     .actions {
       order: 4;
-      width: calc(50% - 0.5rem);
+      margin-left: auto;
       justify-content: end;
     }
   }

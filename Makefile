@@ -54,7 +54,7 @@ build_frontend_legacy:
 
 build_frontend:
 	cd ./frontend && npm install
-	cd ./frontend && VITE_UPSTREAM_VERSION=$(UPSTREAM_VERSION) npm run build
+	cd ./frontend && VITE_UPSTREAM_VERSION=$(UPSTREAM_VERSION) VITE_DEV=$(if $(strip $(PRERELEASE_POSTFIX)),true,false) npm run build
 	mkdir -p $(PKG_DIR)/data/opt/usr/share/magitrickle/skins/default
 	cp -r ./frontend/dist/* $(PKG_DIR)/data/opt/usr/share/magitrickle/skins/default/
 

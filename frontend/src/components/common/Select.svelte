@@ -8,18 +8,18 @@
       label: string;
     }[];
     selected: string;
-    onSelectedChange?: (selected: string) => void;
+    onValueChange?: (selected: string) => void;
     [key: string]: any;
   };
 
-  let { options, selected = $bindable(), onSelectedChange, ...rest }: Props = $props();
+  let { options, selected = $bindable(), onValueChange, ...rest }: Props = $props();
   const selected_label = $derived(
     selected ? options.find((option) => option.value === selected)?.label : "...",
   );
 </script>
 
 <div class="container" {...rest}>
-  <Select.Root type="single" onValueChange={onSelectedChange} items={options} bind:value={selected}>
+  <Select.Root type="single" {onValueChange} items={options} bind:value={selected}>
     <Select.Trigger aria-label="...">
       <div class="selected">
         <div class="selected-value">

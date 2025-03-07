@@ -6,7 +6,13 @@ import type { DragDropOptions, DragDropState } from "../types/index.ts";
 
 const DEFAULT_DRAG_OVER_CLASS = "drag-over";
 
-export function droppable<T>(node: HTMLElement, options: DragDropOptions<T>) {
+interface DroppableOptions<T> extends DragDropOptions<T> {
+  interactive?: string[];
+  bypass?: boolean;
+}
+
+export function droppable<T>(node: HTMLElement, options: DroppableOptions<T>) {
+  if (options.bypass) return;
   const dragOverClass = (options.attributes?.draggingClass || DEFAULT_DRAG_OVER_CLASS).split(" ");
   let dragEnterCounter = 0; // Initialize the counter
 

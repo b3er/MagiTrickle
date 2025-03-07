@@ -16,20 +16,20 @@
 <style>
   :global {
     [data-switch-root] {
-      height: 18px;
-      min-height: 18px;
-      width: 32px;
-      flex-shrink: 0;
-      cursor: pointer;
-      align-items: center;
-      border-radius: 9999px;
-      padding-left: 2px;
-      padding-right: 2px;
-      transition: background-color 0.2s ease;
-      border: none;
-    }
+      & {
+        height: 18px;
+        min-height: 18px;
+        width: 32px;
+        flex-shrink: 0;
+        cursor: pointer;
+        align-items: center;
+        border-radius: 9999px;
+        padding-left: 2px;
+        padding-right: 2px;
+        transition: background-color 0.2s ease;
+        border: none;
+      }
 
-    [data-switch-root] {
       &:focus-visible {
         outline: none;
       }
