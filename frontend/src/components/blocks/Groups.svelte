@@ -100,6 +100,7 @@
 
   async function addRuleToGroup(group_index: number, rule: Rule, focus = false) {
     data[group_index].rules.unshift(rule);
+    showed_limit[group_index]++;
     if (!focus) return;
     await tick();
     const el = document.querySelector(`.rule[data-group-index="${group_index}"][data-index="0"]`);
@@ -128,11 +129,23 @@
   function groupMoveUp(index: number) {
     if (index === 0) return;
     data = [...data.slice(0, index - 1), data[index], data[index - 1], ...data.slice(index + 1)];
+    showed_limit = [
+      ...showed_limit.slice(0, index - 1),
+      showed_limit[index],
+      showed_limit[index - 1],
+      ...showed_limit.slice(index + 1),
+    ];
   }
 
   function groupMoveDown(index: number) {
     if (index === data.length - 1) return;
     data = [...data.slice(0, index), data[index + 1], data[index], ...data.slice(index + 2)];
+    showed_limit = [
+      ...showed_limit.slice(0, index),
+      showed_limit[index + 1],
+      showed_limit[index],
+      ...showed_limit.slice(index + 2),
+    ];
   }
 
   function exportConfig() {
