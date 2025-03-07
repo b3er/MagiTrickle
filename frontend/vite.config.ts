@@ -16,6 +16,7 @@ export default defineConfig(() => ({
     ViteMinifyPlugin(),
   ],
   build: {
+    cssTarget: "firefox115",
     emptyOutDir: true,
     target: "esnext",
     // assetsInlineLimit: 400000, // inline fonts

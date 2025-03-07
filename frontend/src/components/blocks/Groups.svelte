@@ -97,6 +97,7 @@
 
   function deleteGroup(index: number) {
     data.splice(index, 1);
+    showed_limit.splice(index, 1);
   }
 
   async function addRuleToGroup(group_index: number, rule: Rule, focus = false) {
@@ -178,6 +179,7 @@
             }
           }
           data = groups;
+          showed_limit = data.map((group) => (group.rules.length > 30 ? 30 : group.rules.length));
           toast.success("Config imported");
         } catch (error) {
           console.error("Error parsing CONFIG:", error); // why is this not writing to console?
