@@ -97,6 +97,7 @@
 
   function deleteGroup(index: number) {
     data.splice(index, 1);
+    showed_limit.splice(index, 1);
   }
 
   async function addRuleToGroup(group_index: number, rule: Rule, focus = false) {
