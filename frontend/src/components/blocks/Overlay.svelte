@@ -8,12 +8,28 @@
     switch (event.detail.type) {
       case "show":
         text = event.detail.content;
-        hide = false;
+        onShow();
         break;
       case "hide":
-        hide = true;
+        onHide();
         break;
     }
+  }
+
+  function onShow() {
+    document.documentElement.style.scrollbarGutter = "auto";
+    document.documentElement.style.overflow = "hidden";
+    hide = false;
+  }
+
+  function onHide() {
+    hide = true;
+    document.documentElement.style.scrollbarGutter = "stable both-edges";
+    document.documentElement.style.overflow = "auto";
+  }
+
+  function preventDefaultScroll(event: WheelEvent | TouchEvent) {
+    event.preventDefault();
   }
 
   onMount(() => {
@@ -37,13 +53,11 @@
     top: 0;
     left: 0;
     width: 100%;
-    height: 100vh;
-
+    height: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
     z-index: 9998;
-
     background-color: rgba(0, 0, 0, 0.7);
     backdrop-filter: blur(2px);
   }
