@@ -244,7 +244,7 @@
       position: relative;
     }
 
-    & :global(.dragover) {
+    &:global(.dragover) {
       outline: 1px solid var(--accent);
       box-shadow: inset 0 0 5px 0 var(--accent);
     }
@@ -303,7 +303,7 @@
       gap: 0.2rem;
     }
 
-    & :global([data-switch-root]) {
+    &:global([data-switch-root]) {
       margin: 0 0.3rem;
     }
   }
