@@ -99,6 +99,7 @@
     await tick();
     const el = document.querySelector(`.rule[data-group-index="${group_index}"][data-index="0"]`);
     el?.querySelector<HTMLInputElement>("div.name input")?.focus();
+    el?.querySelector<HTMLInputElement>("div.pattern input")?.classList.add("invalid");
   }
 
   function deleteRuleFromGroup(group_index: number, rule_index: number) {
