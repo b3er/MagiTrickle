@@ -4,6 +4,7 @@
   import { InfiniteLoader } from "svelte-infinite";
 
   import { type Group, type Rule } from "../../types";
+  import { droppable } from "../actions/dnd";
   import { defaultRule } from "../../utils/defaults";
   import { INTERFACES } from "../../data/interfaces.svelte";
   import {
@@ -68,7 +69,14 @@
 
 <div class="group" data-uuid={group.id}>
   <Collapsible.Root bind:open>
-    <div class="group-header" data-group-index={group_index}>
+    <div
+      class="group-header"
+      data-group-index={group_index}
+      use:droppable={{
+        data: { rule_id: "", rule_index: 0, group_id: group.id, group_index },
+        scope: "rule",
+      }}
+    >
       <div class="group-left">
         <label class="group-color" style="background: {group.color}">
           <input type="color" bind:value={group.color} />
@@ -226,13 +234,20 @@
   }
 
   .group-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.5rem;
-    border-radius: 0.5rem;
-    background-color: var(--bg-light);
-    position: relative;
+    & {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      background-color: var(--bg-light);
+      position: relative;
+    }
+
+    & :global(.dragover) {
+      outline: 1px solid var(--accent);
+      box-shadow: inset 0 0 5px 0 var(--accent);
+    }
   }
 
   .group-left {

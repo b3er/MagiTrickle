@@ -130,7 +130,6 @@
   function deleteGroup(index: number) {
     data.splice(index, 1);
     showed_limit.splice(index, 1);
-    delete open_state.current[data[index].id];
   }
 
   function groupMoveUp(index: number) {
@@ -204,24 +203,6 @@
       alert("Please select a CONFIG file to load.");
     }
   }
-  // FIXME: make group header droppable
-  // function handleDrop(state: DragDropState) {
-  //   const { sourceContainer, targetContainer } = state;
-
-  //   if (!targetContainer || sourceContainer === targetContainer) return;
-  //   const [, , from_group_index, from_rule_index] = sourceContainer.split(",");
-  //   const [, , to_group_index] = targetContainer.split(",");
-  //   window.dispatchEvent(
-  //     new CustomEvent("rule_drop", {
-  //       detail: {
-  //         from_group_index: +from_group_index,
-  //         from_rule_index: +from_rule_index,
-  //         to_group_index: +to_group_index,
-  //         to_rule_index: +data[+to_group_index].rules.length,
-  //       },
-  //     }),
-  //   );
-  // }
 
   async function loadMore(group_index: number): Promise<void> {
     if (showed_limit[group_index] >= data[group_index].rules.length) return;
@@ -263,12 +244,6 @@
     </Tooltip>
   </div>
 </div>
-
-<!-- FIXME: make group header droppable -->
-<!-- use:droppable={{
-  container: `${group.id},-,${group_index},-`,
-  callbacks: { onDrop: handleDrop },
-  }} -->
 
 {#each data as group, group_index (group.id)}
   <GroupComponent
