@@ -121,7 +121,7 @@
   async function addGroup() {
     data.unshift(defaultGroup());
     showed_limit.unshift(INITIAL_RULES_LIMIT);
-    open_state.current[data[0].id] = true;
+    open_state.current[data[0].id] = false;
     await tick();
     const el = document.querySelector(`.group-header[data-group-index="0"]`);
     el?.querySelector<HTMLInputElement>("input.group-name")?.focus();
