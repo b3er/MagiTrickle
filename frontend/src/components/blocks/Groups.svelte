@@ -7,6 +7,7 @@
   import { defaultGroup } from "../../utils/defaults";
   import { fetcher } from "../../utils/fetcher";
   import { overlay, toast } from "../../utils/events";
+  import { persistedState } from "../../utils/persisted-state.svelte";
   import { INTERFACES } from "../../data/interfaces.svelte";
   import { Add, Upload, Download, Save } from "../common/icons";
   import Tooltip from "../common/Tooltip.svelte";
@@ -20,6 +21,7 @@
   let showed_limit: number[] = $state([]);
   let counter = $state(-2); // skip first update on init
   let valid_rules = $state(true);
+  let open_state = persistedState<Record<string, boolean>>("group_open_state", {});
 
   function onRuleDrop(event: CustomEvent) {
     const { from_group_index, from_rule_index, to_group_index, to_rule_index } = event.detail;
@@ -51,11 +53,29 @@
     valid_rules = !document.querySelector(".rule input.invalid");
   }
 
+  function initOpenState() {
+    for (const group of data) {
+      if (!open_state.current[group.id]) {
+        open_state.current[group.id] = false;
+      }
+    }
+  }
+
+  function cleanOrphanedOpenState() {
+    for (const key of Object.keys(open_state.current)) {
+      if (!data.some((group) => group.id === key)) {
+        delete open_state.current[key];
+      }
+    }
+  }
+
   onMount(async () => {
     data = (await fetcher.get<{ groups: Group[] }>("/groups?with_rules=true"))?.groups ?? [];
     showed_limit = data.map((group) =>
       group.rules.length > INITIAL_RULES_LIMIT ? INITIAL_RULES_LIMIT : group.rules.length,
     );
+    initOpenState();
+    setTimeout(cleanOrphanedOpenState, 5000);
     window.addEventListener("rule_drop", onRuleDrop);
   });
 
@@ -101,6 +121,7 @@
   async function addGroup() {
     data.unshift(defaultGroup());
     showed_limit.unshift(INITIAL_RULES_LIMIT);
+    open_state.current[data[0].id] = true;
     await tick();
     const el = document.querySelector(`.group-header[data-group-index="0"]`);
     el?.querySelector<HTMLInputElement>("input.group-name")?.focus();
@@ -109,6 +130,7 @@
   function deleteGroup(index: number) {
     data.splice(index, 1);
     showed_limit.splice(index, 1);
+    delete open_state.current[data[index].id];
   }
 
   function groupMoveUp(index: number) {
@@ -165,6 +187,7 @@
           showed_limit = data.map((group) =>
             group.rules.length > INITIAL_RULES_LIMIT ? INITIAL_RULES_LIMIT : group.rules.length,
           );
+          initOpenState();
           toast.success("Config imported");
         } catch (error) {
           console.error("Error parsing CONFIG:", error); // why is this not writing to console?
@@ -253,6 +276,7 @@
     {group_index}
     bind:total_groups={data.length}
     bind:showed_limit={showed_limit[group_index]}
+    bind:open={open_state.current[group.id]}
     {deleteGroup}
     {addRuleToGroup}
     {deleteRuleFromGroup}

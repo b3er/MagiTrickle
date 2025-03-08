@@ -28,6 +28,7 @@
     group_index: number;
     total_groups: number;
     showed_limit: number;
+    open: boolean;
     deleteGroup: (index: number) => void;
     addRuleToGroup: (group_index: number, rule: Rule, focus?: boolean) => void;
     deleteRuleFromGroup: (group_index: number, rule_index: number) => void;
@@ -48,6 +49,7 @@
     group_index,
     total_groups = $bindable(),
     showed_limit = $bindable(),
+    open = $bindable(),
     deleteGroup,
     addRuleToGroup,
     deleteRuleFromGroup,
@@ -58,7 +60,6 @@
     ...rest
   }: Props = $props();
 
-  let open = $state(false);
   let client_width = $state<number>(Infinity);
   let is_desktop = $derived(client_width > 668);
 </script>
