@@ -119,7 +119,7 @@
     <input
       type="text"
       placeholder="rule pattern..."
-      class="table-input pattern-input interactive"
+      class="table-input pattern-input"
       bind:value={rule.rule}
       bind:this={input}
       oninput={patternValidation}
@@ -130,7 +130,7 @@
   </div>
   <div class="actions">
     <Tooltip value="Enable Rule">
-      <Switch bind:checked={rule.enable} class="interactive" />
+      <Switch bind:checked={rule.enable} />
     </Tooltip>
     <Tooltip value="Delete Rule">
       <Button
@@ -138,7 +138,6 @@
         onclick={() => onDelete?.(group_index, rule_index)}
         data-index={rule_index}
         data-group-index={group_index}
-        class="interactive"
       >
         <Delete size={20} />
       </Button>

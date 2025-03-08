@@ -8,13 +8,18 @@ export type DroppableOptions<T> = {
 export function droppable<T>(node: HTMLElement, options: DroppableOptions<T>) {
   node.setAttribute("data-droppable", options.scope);
 
+  let timer: number | null = null;
+
   function handleDrop(event: DragEvent) {
-    // console.log("TARGET drop", event, options);
     event.preventDefault();
     if (dnd_state.source_scope !== options.scope) return;
     dnd_state.target = options.data;
     dnd_state.valid_droppable = true;
-    if (event.target && event.target instanceof HTMLElement) {
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+    if (event.target instanceof HTMLElement) {
       const el = event.target.closest(`[data-droppable="${options.scope}"]`);
       el?.classList.remove("dragover");
     }
@@ -23,6 +28,10 @@ export function droppable<T>(node: HTMLElement, options: DroppableOptions<T>) {
   function handleDragOver(event: DragEvent) {
     if (dnd_state.source_scope !== options.scope || !event.target) return;
     if (event.target instanceof HTMLElement) {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
       const el = event.target.closest(`[data-droppable="${options.scope}"]`);
       el?.classList.add("dragover");
     }
@@ -32,6 +41,10 @@ export function droppable<T>(node: HTMLElement, options: DroppableOptions<T>) {
   function handleDragEnter(event: DragEvent) {
     if (dnd_state.source_scope !== options.scope || !event.target) return;
     if (event.target instanceof HTMLElement) {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
       const el = event.target.closest(`[data-droppable="${options.scope}"]`);
       el?.classList.add("dragover");
     }
@@ -43,6 +56,7 @@ export function droppable<T>(node: HTMLElement, options: DroppableOptions<T>) {
     if (event.target instanceof HTMLElement) {
       const el = event.target.closest(`[data-droppable="${options.scope}"]`);
       el?.classList.remove("dragover");
+      timer = setTimeout(() => node.classList.remove("dragover"), 50);
     }
     event.preventDefault();
   }
