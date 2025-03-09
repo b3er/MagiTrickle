@@ -46,5 +46,11 @@
         opacity: 1;
       }
     }
+
+    @media (max-width: 700px) {
+      &:after {
+        display: none;
+      }
+    }
   }
 </style>
