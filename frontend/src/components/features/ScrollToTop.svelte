@@ -3,10 +3,6 @@
   import { ToTop } from "../common/icons";
 
   let visible = $state(false);
-
-  $effect(() => {
-    $inspect(visible);
-  });
 </script>
 
 <svelte:window onscroll={() => (visible = window.pageYOffset > 300)} />
