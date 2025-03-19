@@ -67,7 +67,6 @@ func (r *IPSetToLink) insertIPTablesRules(ipt *iptables.IPTables, table string) 
 			}
 
 			for _, iptablesArgs := range [][]string{
-				{"-j", "CONNMARK", "--restore-mark"},
 				{"-j", "MARK", "--set-mark", strconv.Itoa(int(r.mark))},
 				{"-j", "CONNMARK", "--save-mark"},
 			} {
