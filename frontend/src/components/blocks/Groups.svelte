@@ -177,11 +177,11 @@
       reader.onload = function (event) {
         try {
           let { groups } = parseConfig(event.target?.result as string);
-          for (let i = 0; i < groups.length; i++) {
-            if (!INTERFACES.includes(groups[i].interface)) {
-              groups[i].interface = INTERFACES.at(0) ?? ""; // fallback to first interface
-            }
-          }
+          // for (let i = 0; i < groups.length; i++) {
+          // if (!INTERFACES.includes(groups[i].interface)) {
+          //   groups[i].interface = INTERFACES.at(0) ?? ""; // fallback to first interface
+          // }
+          // }
           data = groups;
           // TODO: eliminate mulitple groups iterations
           showed_limit = data.map((group) =>
