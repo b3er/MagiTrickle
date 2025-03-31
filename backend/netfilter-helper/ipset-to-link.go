@@ -48,7 +48,7 @@ func (r *IPSetToLink) insertIPTablesRules(ipt *iptables.IPTables, table string) 
 				return fmt.Errorf("failed to fix protect for IPv4: %w", err)
 			}
 
-			err = ipt.InsertUnique("filter", "FORWARD", 1, "-m", "set", "--match-set", r.ipset.ipsetName+"_4", "dst", "-j", r.chainName)
+			err = ipt.AppendUnique("filter", "FORWARD", "-m", "set", "--match-set", r.ipset.ipsetName+"_4", "dst", "-j", r.chainName)
 			if err != nil {
 				return fmt.Errorf("failed to append rule to PREROUTING: %w", err)
 			}
@@ -67,7 +67,6 @@ func (r *IPSetToLink) insertIPTablesRules(ipt *iptables.IPTables, table string) 
 			}
 
 			for _, iptablesArgs := range [][]string{
-				{"-j", "CONNMARK", "--restore-mark"},
 				{"-j", "MARK", "--set-mark", strconv.Itoa(int(r.mark))},
 				{"-j", "CONNMARK", "--save-mark"},
 			} {
@@ -77,7 +76,7 @@ func (r *IPSetToLink) insertIPTablesRules(ipt *iptables.IPTables, table string) 
 				}
 			}
 
-			err = ipt.InsertUnique("mangle", "PREROUTING", 1, "-m", "set", "--match-set", r.ipset.ipsetName+"_4", "dst", "-j", r.chainName)
+			err = ipt.AppendUnique("mangle", "PREROUTING", "-m", "set", "--match-set", r.ipset.ipsetName+"_4", "dst", "-j", r.chainName)
 			if err != nil {
 				return fmt.Errorf("failed to append rule to PREROUTING: %w", err)
 			}
