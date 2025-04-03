@@ -28,14 +28,14 @@ MagiTrickle - Маршрутизация трафика на основе DNS з
 ```bash
 opkg install magitrickle_<version>_<arch>.ipk
 ```
-2. Копируем конфиг:
+2. Копируем конфиг __**(⚠️ только для уверенных пользователей)**__:
 ```bash
 cp /opt/var/lib/magitrickle/config.yaml.example /opt/var/lib/magitrickle/config.yaml
 ```
-3. Настраиваем конфиг (если не понимаете что делаете - не трогайте группу "app"!):
+3. Настраиваем конфиг __**(⚠️ только для уверенных пользователей)**__:
 ```yaml
 configVersion: 0.1.2
-app:                          # Настройки программы - не трогайте, если не знаете что к чему
+app:                          # Настройки программы
   httpWeb:
     enabled: true             # Включение HTTP сервера
     host:
