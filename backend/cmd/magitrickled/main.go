@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -28,7 +29,45 @@ import (
 const (
 	noSkinFoundPlaceholder = "<!DOCTYPE html><html><head><title>MagiTrickle</title></head><body><h1>MagiTrickle</h1><p>Please install MagiTrickle skin before using WebUI!</p></body></html>"
 	skinsFolderLocation    = constant.AppShareDir + "/skins"
+	pidFileLocation        = constant.RunDir + "/magitrickle.pid"
 )
+
+func getPIDPath(pid int) (string, error) {
+	return os.Readlink(fmt.Sprintf("/proc/%d/exe", pid))
+}
+
+func checkPIDFile() error {
+	data, err := os.ReadFile(pidFileLocation)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
+	pid, err := strconv.Atoi(string(data))
+	if err != nil {
+		return errors.New("invalid PID file content")
+	}
+
+	currPID, _ := getPIDPath(os.Getpid())
+	filePID, _ := getPIDPath(pid)
+	if path.Base(currPID) == path.Base(filePID) {
+		return fmt.Errorf("process %d is already running", pid)
+	}
+
+	_ = os.Remove(pidFileLocation)
+	return nil
+}
+
+func createPIDFile() error {
+	pid := os.Getpid()
+	return os.WriteFile(pidFileLocation, []byte(strconv.Itoa(pid)), 0644)
+}
+
+func removePIDFile() {
+	_ = os.Remove(pidFileLocation)
+}
 
 func setupUnixSocket(apiRouter chi.Router, errChan chan error) (*http.Server, error) {
 	if err := os.Remove(api.SocketPath); err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -137,6 +176,14 @@ func main() {
 		Str("version", constant.Version).
 		Str("commit", constant.Commit).
 		Msg("starting MagiTrickle daemon")
+
+	if err := checkPIDFile(); err != nil {
+		log.Fatal().Err(err).Msg("failed to check PID file")
+	}
+	if err := createPIDFile(); err != nil {
+		log.Fatal().Err(err).Msg("failed to create PID file")
+	}
+	defer removePIDFile()
 
 	core := app.New()
 
