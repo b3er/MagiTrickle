@@ -91,50 +91,6 @@ func (g *Group) ListIPs() (map[string]*uint32, error) {
 	return g.listIPs()
 }
 
-func (g *Group) createIPSet() error {
-	ipset := g.app.nfHelper.IPSet(g.ID.String())
-	err := ipset.Enable()
-	if err != nil {
-		return fmt.Errorf("failed to initialize ipset: %w", err)
-	}
-	g.ipset = ipset
-	return nil
-}
-
-func (g *Group) deleteIPSet() error {
-	if g.ipset == nil {
-		return nil
-	}
-	err := g.ipset.Disable()
-	if err != nil {
-		return fmt.Errorf("failed to destroy ipset: %w", err)
-	}
-	g.ipset = nil
-	return nil
-}
-
-func (g *Group) linkIfaceToIPSet() error {
-	ipsetToLink := g.app.nfHelper.IPSetToLink(g.ID.String(), g.Interface, g.ipset)
-	err := ipsetToLink.Enable()
-	if err != nil {
-		return fmt.Errorf("failed to link ipset to interface: %w", err)
-	}
-	g.ipsetToLink = ipsetToLink
-	return nil
-}
-
-func (g *Group) unlinkIfaceFromIPSet() error {
-	if g.ipsetToLink == nil {
-		return nil
-	}
-	err := g.ipsetToLink.Disable()
-	if err != nil {
-		return fmt.Errorf("failed to unlink ipset from interface: %w", err)
-	}
-	g.ipsetToLink = nil
-	return nil
-}
-
 func (g *Group) enable() error {
 	if !g.enabled.CompareAndSwap(false, true) {
 		return nil
@@ -144,12 +100,21 @@ func (g *Group) enable() error {
 		return nil
 	}
 
-	if err := g.createIPSet(); err != nil {
-		return err
+	ipset := g.app.nfHelper.IPSet(g.ID.String())
+	ipsetToLink := g.app.nfHelper.IPSetToLink(g.ID.String(), g.Interface, ipset)
+	if err := ipsetToLink.ClearIfDisabled(); err != nil {
+		return fmt.Errorf("failed to clear iptables: %w", err)
 	}
-	if err := g.linkIfaceToIPSet(); err != nil {
-		return err
+
+	if err := ipset.Enable(); err != nil {
+		return fmt.Errorf("failed to initialize ipset: %w", err)
 	}
+	g.ipset = ipset
+
+	if err := ipsetToLink.Enable(); err != nil {
+		return fmt.Errorf("failed to link ipset to interface: %w", err)
+	}
+	g.ipsetToLink = ipsetToLink
 
 	return nil
 }
@@ -175,8 +140,26 @@ func (g *Group) disable() error {
 	}
 
 	var errs []error
-	errs = append(errs, g.unlinkIfaceFromIPSet())
-	errs = append(errs, g.deleteIPSet())
+	errs = append(errs, func() error {
+		if g.ipsetToLink == nil {
+			return nil
+		}
+		if err := g.ipsetToLink.Disable(); err != nil {
+			return fmt.Errorf("failed to unlink ipset from interface: %w", err)
+		}
+		g.ipsetToLink = nil
+		return nil
+	}())
+	errs = append(errs, func() error {
+		if g.ipset == nil {
+			return nil
+		}
+		if err := g.ipset.Disable(); err != nil {
+			return fmt.Errorf("failed to destroy ipset: %w", err)
+		}
+		g.ipset = nil
+		return nil
+	}())
 	return errors.Join(errs...)
 }
 

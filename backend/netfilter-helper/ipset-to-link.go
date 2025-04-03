@@ -116,53 +116,55 @@ func (r *IPSetToLink) deleteIPTablesRules(ipt *iptables.IPTables) error {
 	}
 	var errs []error
 
+	iptErr := new(*iptables.Error)
+
 	if ipt.Proto() == iptables.ProtocolIPv4 {
 		err := ipt.ClearChain("filter", r.chainName)
-		if err != nil {
+		if err != nil && !(errors.As(err, iptErr) && (*iptErr).ExitStatus() == 2) {
 			errs = append(errs, fmt.Errorf("failed to clear chain: %w", err))
 		}
 
 		err = ipt.DeleteIfExists("filter", "FORWARD", "-m", "set", "--match-set", r.ipset.ipsetName+"_4", "dst", "-j", r.chainName)
-		if err != nil {
+		if err != nil && !(errors.As(err, iptErr) && (*iptErr).ExitStatus() == 2) {
 			errs = append(errs, fmt.Errorf("failed to unlinking chain: %w", err))
 		}
 
 		err = ipt.DeleteChain("filter", r.chainName)
-		if err != nil {
+		if err != nil && !(errors.As(err, iptErr) && (*iptErr).ExitStatus() == 2) {
 			errs = append(errs, fmt.Errorf("failed to delete chain: %w", err))
 		}
 	}
 
 	if ipt.Proto() == iptables.ProtocolIPv4 {
 		err := ipt.ClearChain("mangle", r.chainName)
-		if err != nil {
+		if err != nil && !(errors.As(err, iptErr) && (*iptErr).ExitStatus() == 2) {
 			errs = append(errs, fmt.Errorf("failed to clear chain: %w", err))
 		}
 
 		err = ipt.DeleteIfExists("mangle", "PREROUTING", "-m", "set", "--match-set", r.ipset.ipsetName+"_4", "dst", "-j", r.chainName)
-		if err != nil {
+		if err != nil && !(errors.As(err, iptErr) && (*iptErr).ExitStatus() == 2) {
 			errs = append(errs, fmt.Errorf("failed to unlinking chain: %w", err))
 		}
 
 		err = ipt.DeleteChain("mangle", r.chainName)
-		if err != nil {
+		if err != nil && !(errors.As(err, iptErr) && (*iptErr).ExitStatus() == 2) {
 			errs = append(errs, fmt.Errorf("failed to delete chain: %w", err))
 		}
 	}
 
 	if ipt.Proto() == iptables.ProtocolIPv4 {
 		err := ipt.ClearChain("nat", r.chainName)
-		if err != nil {
+		if err != nil && !(errors.As(err, iptErr) && (*iptErr).ExitStatus() == 2) {
 			errs = append(errs, fmt.Errorf("failed to clear chain: %w", err))
 		}
 
 		err = ipt.DeleteIfExists("nat", "POSTROUTING", "-m", "set", "--match-set", r.ipset.ipsetName+"_4", "dst", "-j", r.chainName)
-		if err != nil {
+		if err != nil && !(errors.As(err, iptErr) && (*iptErr).ExitStatus() == 2) {
 			errs = append(errs, fmt.Errorf("failed to unlinking chain: %w", err))
 		}
 
 		err = ipt.DeleteChain("nat", r.chainName)
-		if err != nil {
+		if err != nil && !(errors.As(err, iptErr) && (*iptErr).ExitStatus() == 2) {
 			errs = append(errs, fmt.Errorf("failed to delete chain: %w", err))
 		}
 	}
@@ -356,6 +358,22 @@ func (r *IPSetToLink) Disable() error {
 	defer r.locker.Unlock()
 
 	return r.disable()
+}
+
+func (r *IPSetToLink) ClearIfDisabled() error {
+	r.locker.Lock()
+	defer r.locker.Unlock()
+
+	if r.enabled.Load() {
+		return nil
+	}
+
+	var errs []error
+	errs = append(errs, r.deleteIPRoute())
+	errs = append(errs, r.deleteIPRule())
+	errs = append(errs, r.deleteIPTablesRules(r.nh.IPTables4))
+	errs = append(errs, r.deleteIPTablesRules(r.nh.IPTables6))
+	return errors.Join(errs...)
 }
 
 func (r *IPSetToLink) NetfilterDHook(iptType, table string) error {
