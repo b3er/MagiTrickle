@@ -2,23 +2,15 @@ package app
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	netfilterHelper "magitrickle/netfilter-helper"
 	"os"
 	"runtime/debug"
-	"strconv"
-	"syscall"
 
-	"magitrickle/constant"
+	netfilterHelper "magitrickle/netfilter-helper"
 
 	"github.com/rs/zerolog"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
-)
-
-const (
-	pidFileLocation = constant.RunDir + "/magitrickle.pid"
 )
 
 // Start запускает приложение (ядро)
@@ -33,14 +25,6 @@ func (a *App) Start(ctx context.Context) error {
 			fmt.Fprintf(os.Stderr, "panic: %s\n", debug.Stack())
 		}
 	}()
-
-	if err := checkPIDFile(); err != nil {
-		return fmt.Errorf("failed to check PID file: %w", err)
-	}
-	if err := createPIDFile(); err != nil {
-		return fmt.Errorf("failed to create PID file: %w", err)
-	}
-	defer removePIDFile()
 
 	a.setupLogging()
 	a.initDNSMITM()
@@ -128,37 +112,6 @@ func (a *App) setupLogging() {
 	default:
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	}
-}
-
-func checkPIDFile() error {
-	data, err := os.ReadFile(pidFileLocation)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-
-	pid, err := strconv.Atoi(string(data))
-	if err != nil {
-		return errors.New("invalid PID file content")
-	}
-
-	if err := syscall.Kill(pid, 0); err == nil {
-		return fmt.Errorf("process %d is already running", pid)
-	}
-
-	_ = os.Remove(pidFileLocation)
-	return nil
-}
-
-func createPIDFile() error {
-	pid := os.Getpid()
-	return os.WriteFile(pidFileLocation, []byte(strconv.Itoa(pid)), 0644)
-}
-
-func removePIDFile() {
-	_ = os.Remove(pidFileLocation)
 }
 
 func (a *App) createNetfilterHelper() (*netfilterHelper.NetfilterHelper, error) {
