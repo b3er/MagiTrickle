@@ -30,6 +30,7 @@ type DNSProxy struct {
 	DisableRemap53  bool
 	DisableFakePTR  bool
 	DisableDropAAAA bool
+	EnableEDNS0     bool
 }
 
 type DNSProxyServer struct {

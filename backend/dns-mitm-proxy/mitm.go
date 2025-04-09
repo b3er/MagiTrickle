@@ -21,7 +21,8 @@ type DNSMITMProxy struct {
 }
 
 func (p DNSMITMProxy) requestDNS(req []byte, network string) ([]byte, error) {
-	upstreamConn, err := net.Dial(network, fmt.Sprintf("%s:%d", p.UpstreamDNSAddress, p.UpstreamDNSPort))
+	// Use net.JoinHostPort for proper IPv6 address handling
+	upstreamConn, err := net.Dial(network, net.JoinHostPort(p.UpstreamDNSAddress, fmt.Sprintf("%d", p.UpstreamDNSPort)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to dial DNS upstream: %w", err)
 	}
@@ -73,8 +74,15 @@ func (p DNSMITMProxy) processReq(clientAddr net.Addr, req []byte, network string
 		}
 	}
 
+	// Store original request for potential retry without EDNS0
+	originalReqMsg := reqMsg.Copy()
+	var modifiedReq *dns.Msg
+	var hasEDNS0 bool
+
 	if p.RequestHook != nil {
-		modifiedReq, modifiedResp, err := p.RequestHook(clientAddr, reqMsg, network)
+		var modifiedResp *dns.Msg
+		var err error
+		modifiedReq, modifiedResp, err = p.RequestHook(clientAddr, reqMsg, network)
 		if err != nil {
 			return nil, fmt.Errorf("request hook error: %w", err)
 		}
@@ -87,6 +95,15 @@ func (p DNSMITMProxy) processReq(clientAddr net.Addr, req []byte, network string
 		}
 		if modifiedReq != nil {
 			reqMsg = *modifiedReq
+			
+			// Check if EDNS0 was added by the hook
+			for _, rr := range reqMsg.Extra {
+				if rr.Header().Rrtype == dns.TypeOPT {
+					hasEDNS0 = true
+					break
+				}
+			}
+			
 			req, err = reqMsg.Pack()
 			if err != nil {
 				return nil, fmt.Errorf("failed to pack modified request: %w", err)
@@ -97,6 +114,28 @@ func (p DNSMITMProxy) processReq(clientAddr net.Addr, req []byte, network string
 	resp, err := p.requestDNS(req, network)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	
+	// Check if we received a refused response and should retry without EDNS0
+	if hasEDNS0 {
+		var respMsg dns.Msg
+		if err := respMsg.Unpack(resp); err == nil && respMsg.Rcode == dns.RcodeRefused {
+			log.Warn().
+				Str("clientAddr", clientAddr.String()).
+				Msg("DNS query refused with EDNS0, retrying without EDNS0")
+				
+			// Retry with original request (no EDNS0)
+			originalReq, err := originalReqMsg.Pack()
+			if err != nil {
+				log.Error().Err(err).Msg("failed to pack original request for retry")
+			} else {
+				retryResp, retryErr := p.requestDNS(originalReq, network)
+				if retryErr == nil {
+					// Successfully retried without EDNS0
+					return retryResp, nil
+				}
+			}
+		}
 	}
 
 	if p.ResponseHook != nil {

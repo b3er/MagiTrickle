@@ -48,6 +48,10 @@ func (a *App) startDNSListeners(ctx context.Context, errChan chan error) {
 }
 
 // dnsRequestHook обрабатывает входящие DNS-запросы
+// usedEDNS0 is a context flag to track if we added EDNS0 to a request
+type usedEDNS0Key struct{}
+var usedEDNS0ContextKey = usedEDNS0Key{}
+
 func (a *App) dnsRequestHook(clientAddr net.Addr, reqMsg dns.Msg, network string) (*dns.Msg, *dns.Msg, error) {
 	var clientAddrStr string
 	var clientIP net.IP
@@ -72,8 +76,11 @@ func (a *App) dnsRequestHook(clientAddr net.Addr, reqMsg dns.Msg, network string
 	// Create a modified request to send upstream
 	modifiedReq := reqMsg.Copy()
 
-	// Add EDNS0 Client Subnet option if we have a valid client IP
-	if clientIP != nil {
+	// Check if EDNS0 is enabled in config
+	enableEDNS0 := a.config.DNSProxy.EnableEDNS0
+
+	// Add EDNS0 Client Subnet option if we have a valid client IP and EDNS0 is enabled
+	if enableEDNS0 && clientIP != nil {
 		// Determine subnet mask (use /24 for IPv4 and /56 for IPv6)
 		mask := 24
 		if clientIP.To4() == nil {
@@ -95,6 +102,8 @@ func (a *App) dnsRequestHook(clientAddr net.Addr, reqMsg dns.Msg, network string
 			opt.Hdr.Name = "."
 			opt.Hdr.Rrtype = dns.TypeOPT
 			opt.Hdr.Class = dns.DefaultMsgSize
+			// Set EDNS version to 0 (very important)
+			opt.Hdr.Ttl = 0 // This sets EDNS version to 0 with no flags
 			modifiedReq.Extra = append(modifiedReq.Extra, opt)
 		}
 
@@ -111,6 +120,13 @@ func (a *App) dnsRequestHook(clientAddr net.Addr, reqMsg dns.Msg, network string
 
 		// Add the ECS option to the OPT record
 		opt.Option = append(opt.Option, e)
+		
+		// Log that we're adding EDNS0 Client Subnet
+		log.Debug().
+			Str("clientIP", clientIP.String()).
+			Uint8("mask", uint8(mask)).
+			Str("family", fmt.Sprintf("%d", e.Family)).
+			Msg("adding EDNS0 client subnet")
 	}
 
 	if a.config.DNSProxy.DisableFakePTR {
