@@ -50,8 +50,14 @@ func (a *App) startDNSListeners(ctx context.Context, errChan chan error) {
 // dnsRequestHook обрабатывает входящие DNS-запросы
 func (a *App) dnsRequestHook(clientAddr net.Addr, reqMsg dns.Msg, network string) (*dns.Msg, *dns.Msg, error) {
 	var clientAddrStr string
+	var clientIP net.IP
 	if clientAddr != nil {
 		clientAddrStr = clientAddr.String()
+		// Extract IP from client address (strip port)
+		host, _, err := net.SplitHostPort(clientAddrStr)
+		if err == nil {
+			clientIP = net.ParseIP(host)
+		}
 	}
 	for _, q := range reqMsg.Question {
 		log.Trace().
@@ -63,8 +69,52 @@ func (a *App) dnsRequestHook(clientAddr net.Addr, reqMsg dns.Msg, network string
 			Msg("requested record")
 	}
 
+	// Create a modified request to send upstream
+	modifiedReq := reqMsg.Copy()
+
+	// Add EDNS0 Client Subnet option if we have a valid client IP
+	if clientIP != nil {
+		// Determine subnet mask (use /24 for IPv4 and /56 for IPv6)
+		mask := 24
+		if clientIP.To4() == nil {
+			mask = 56
+		}
+
+		// Create or update the OPT record
+		var opt *dns.OPT
+		for _, rr := range modifiedReq.Extra {
+			if rr.Header().Rrtype == dns.TypeOPT {
+				opt = rr.(*dns.OPT)
+				break
+			}
+		}
+
+		if opt == nil {
+			// Create new OPT record if it doesn't exist
+			opt = new(dns.OPT)
+			opt.Hdr.Name = "."
+			opt.Hdr.Rrtype = dns.TypeOPT
+			opt.Hdr.Class = dns.DefaultMsgSize
+			modifiedReq.Extra = append(modifiedReq.Extra, opt)
+		}
+
+		// Add client subnet option
+		e := new(dns.EDNS0_SUBNET)
+		e.Code = dns.EDNS0SUBNET
+		e.Family = 1 // IPv4
+		if clientIP.To4() == nil {
+			e.Family = 2 // IPv6
+		}
+		e.SourceNetmask = uint8(mask)
+		e.SourceScope = 0
+		e.Address = clientIP
+
+		// Add the ECS option to the OPT record
+		opt.Option = append(opt.Option, e)
+	}
+
 	if a.config.DNSProxy.DisableFakePTR {
-		return nil, nil, nil
+		return modifiedReq, nil, nil
 	}
 
 	if len(reqMsg.Question) == 1 && reqMsg.Question[0].Qtype == dns.TypePTR {
@@ -80,7 +130,7 @@ func (a *App) dnsRequestHook(clientAddr net.Addr, reqMsg dns.Msg, network string
 		return nil, respMsg, nil
 	}
 
-	return nil, nil, nil
+	return modifiedReq, nil, nil
 }
 
 // dnsResponseHook обрабатывает ответы DNS
