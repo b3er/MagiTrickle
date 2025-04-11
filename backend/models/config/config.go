@@ -26,11 +26,14 @@ type HTTPWebServer struct {
 }
 
 type DNSProxy struct {
-	Host            *DNSProxyServer `yaml:"host"`
-	Upstream        *DNSProxyServer `yaml:"upstream"`
-	DisableRemap53  *bool           `yaml:"disableRemap53"`
-	DisableFakePTR  *bool           `yaml:"disableFakePTR"`
-	DisableDropAAAA *bool           `yaml:"disableDropAAAA"`
+	// Host is kept for backward compatibility but will be deprecated
+	Host *DNSProxyServer `yaml:"host"`
+	// Hosts is a list of DNS proxy servers to listen on
+	Hosts           *[]DNSProxyServer `yaml:"hosts"`
+	Upstream        *DNSProxyServer   `yaml:"upstream"`
+	DisableRemap53  *bool             `yaml:"disableRemap53"`
+	DisableFakePTR  *bool             `yaml:"disableFakePTR"`
+	DisableDropAAAA *bool             `yaml:"disableDropAAAA"`
 }
 
 type DNSProxyServer struct {

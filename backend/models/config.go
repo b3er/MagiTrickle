@@ -26,6 +26,7 @@ type HTTPWebServer struct {
 
 type DNSProxy struct {
 	Host            DNSProxyServer
+	Hosts           []DNSProxyServer
 	Upstream        DNSProxyServer
 	DisableRemap53  bool
 	DisableFakePTR  bool

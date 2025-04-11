@@ -7,6 +7,7 @@ import (
 	"time"
 
 	dnsMitmProxy "magitrickle/dns-mitm-proxy"
+	"magitrickle/models"
 	"magitrickle/records"
 
 	"github.com/miekg/dns"
@@ -23,28 +24,54 @@ func (a *App) initDNSMITM() {
 	a.records = records.New()
 }
 
-func (a *App) startDNSListeners(ctx context.Context, errChan chan error) {
-	go func() {
-		addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", a.config.DNSProxy.Host.Address, a.config.DNSProxy.Host.Port))
-		if err != nil {
-			errChan <- fmt.Errorf("failed to resolve udp address: %v", err)
-			return
-		}
-		if err = a.dnsMITM.ListenUDP(ctx, addr); err != nil {
-			errChan <- fmt.Errorf("failed to serve DNS UDP proxy: %v", err)
-		}
-	}()
+// getDNSServers returns a list of all DNS servers to listen on, including the legacy Host and the new Hosts list
+func (a *App) getDNSServers() []models.DNSProxyServer {
+	var servers []models.DNSProxyServer
 
-	go func() {
-		addr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", a.config.DNSProxy.Host.Address, a.config.DNSProxy.Host.Port))
-		if err != nil {
-			errChan <- fmt.Errorf("failed to resolve tcp address: %v", err)
-			return
-		}
-		if err = a.dnsMITM.ListenTCP(ctx, addr); err != nil {
-			errChan <- fmt.Errorf("failed to serve DNS TCP proxy: %v", err)
-		}
-	}()
+	// Always add the main host (legacy configuration)
+	servers = append(servers, a.config.DNSProxy.Host)
+
+	// Add hosts from the Hosts list if it exists
+	if len(a.config.DNSProxy.Hosts) > 0 {
+		servers = append(servers, a.config.DNSProxy.Hosts...)
+	}
+
+	return servers
+}
+
+func (a *App) startDNSListeners(ctx context.Context, errChan chan error) {
+	// Start listeners for all DNS hosts
+	servers := a.getDNSServers()
+
+	// Start UDP listeners
+	for _, server := range servers {
+		go func(server models.DNSProxyServer) {
+			addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", server.Address, server.Port))
+			if err != nil {
+				errChan <- fmt.Errorf("failed to resolve udp address %s:%d: %v", server.Address, server.Port, err)
+				return
+			}
+			log.Info().Str("address", addr.String()).Msg("starting DNS UDP listener")
+			if err = a.dnsMITM.ListenUDP(ctx, addr); err != nil {
+				errChan <- fmt.Errorf("failed to serve DNS UDP proxy on %s:%d: %v", server.Address, server.Port, err)
+			}
+		}(server)
+	}
+
+	// Start TCP listeners
+	for _, server := range servers {
+		go func(server models.DNSProxyServer) {
+			addr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", server.Address, server.Port))
+			if err != nil {
+				errChan <- fmt.Errorf("failed to resolve tcp address %s:%d: %v", server.Address, server.Port, err)
+				return
+			}
+			log.Info().Str("address", addr.String()).Msg("starting DNS TCP listener")
+			if err = a.dnsMITM.ListenTCP(ctx, addr); err != nil {
+				errChan <- fmt.Errorf("failed to serve DNS TCP proxy on %s:%d: %v", server.Address, server.Port, err)
+			}
+		}(server)
+	}
 }
 
 // dnsRequestHook обрабатывает входящие DNS-запросы

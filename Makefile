@@ -19,9 +19,9 @@ else
 endif
 
 PLATFORM ?= entware
-TARGET ?= mipsel-3.4
+TARGET ?= aarch64-3.10
 GOOS ?= linux
-GOARCH ?= mipsle
+GOARCH ?= arm64
 GOMIPS ?= softfloat
 GOARM ?=
 

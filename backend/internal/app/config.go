@@ -93,6 +93,19 @@ func (a *App) ImportConfig(cfg config.Config) error {
 					a.config.DNSProxy.Host.Port = *cfg.App.DNSProxy.Host.Port
 				}
 			}
+			// Import Hosts list for multiple DNS listeners
+			if cfg.App.DNSProxy.Hosts != nil {
+				// Convert from config.DNSProxyServer to models.DNSProxyServer
+				a.config.DNSProxy.Hosts = make([]models.DNSProxyServer, 0, len(*cfg.App.DNSProxy.Hosts))
+				for _, host := range *cfg.App.DNSProxy.Hosts {
+					if host.Address != nil && host.Port != nil {
+						a.config.DNSProxy.Hosts = append(a.config.DNSProxy.Hosts, models.DNSProxyServer{
+							Address: *host.Address,
+							Port:    *host.Port,
+						})
+					}
+				}
+			}
 			if cfg.App.DNSProxy.DisableRemap53 != nil {
 				a.config.DNSProxy.DisableRemap53 = *cfg.App.DNSProxy.DisableRemap53
 			}
@@ -179,6 +192,24 @@ func (a *App) ImportConfig(cfg config.Config) error {
 	return nil
 }
 
+// Helper function to convert from models.DNSProxyServer to config.DNSProxyServer
+func exportDNSProxyHosts(hosts []models.DNSProxyServer) *[]config.DNSProxyServer {
+	if len(hosts) == 0 {
+		return nil
+	}
+
+	result := make([]config.DNSProxyServer, 0, len(hosts))
+	for _, host := range hosts {
+		address := host.Address
+		port := host.Port
+		result = append(result, config.DNSProxyServer{
+			Address: &address,
+			Port:    &port,
+		})
+	}
+	return &result
+}
+
 func (a *App) ExportConfig() config.Config {
 	groups := make([]config.Group, len(a.groups))
 	for idx, group := range a.groups {
@@ -218,6 +249,7 @@ func (a *App) ExportConfig() config.Config {
 					Address: &a.config.DNSProxy.Host.Address,
 					Port:    &a.config.DNSProxy.Host.Port,
 				},
+				Hosts: exportDNSProxyHosts(a.config.DNSProxy.Hosts),
 				Upstream: &config.DNSProxyServer{
 					Address: &a.config.DNSProxy.Upstream.Address,
 					Port:    &a.config.DNSProxy.Upstream.Port,
