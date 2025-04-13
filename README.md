@@ -126,7 +126,7 @@ magitrickled
 
 ## Поддержка
 
-* Форум на [Keenetic Community](https://forum.keenetic.ru/topic/20125-magitrickle)
+* [Форум на Keenetic Community](https://forum.keenetic.ru/topic/20125-magitrickle)
 * [Канал Telegram](https://t.me/MagiTrickle)
 * [Чат Telegram](https://t.me/MagiTrickleChat)
 * [Поддержать проект (Оставить чаевые)](https://hipolink.net/magitrickle)
