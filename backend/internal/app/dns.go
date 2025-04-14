@@ -74,7 +74,7 @@ func (a *App) startDNSListeners(ctx context.Context, errChan chan error) {
 	}
 }
 
-// dnsRequestHook обрабатывает входящие DNS-запросы
+// dnsRequestHook processes incoming DNS requests
 func (a *App) dnsRequestHook(clientAddr net.Addr, reqMsg dns.Msg, network string) (*dns.Msg, *dns.Msg, error) {
 	var clientAddrStr string
 	if clientAddr != nil {
@@ -90,11 +90,39 @@ func (a *App) dnsRequestHook(clientAddr net.Addr, reqMsg dns.Msg, network string
 			Msg("requested record")
 	}
 
-	if a.config.DNSProxy.DisableFakePTR {
+	// If fake PTR responses are disabled, but the request is specifically a PTR query
+	if a.config.DNSProxy.DisableFakePTR && len(reqMsg.Question) == 1 && reqMsg.Question[0].Qtype == dns.TypePTR {
+		// Check if the request is in the cache
+		ptrName := reqMsg.Question[0].Name
+		cachedRecord := a.records.GetPTRRecord(ptrName)
+		if cachedRecord != nil {
+			// Return the cached response
+			ptrRR, err := dns.NewRR(fmt.Sprintf("%s PTR %s", ptrName, cachedRecord.Hostname))
+			if err == nil {
+				respMsg := &dns.Msg{
+					MsgHdr: dns.MsgHdr{
+						Id:                 reqMsg.Id,
+						Response:           true,
+						RecursionAvailable: true,
+						Rcode:              dns.RcodeSuccess,
+					},
+					Question: reqMsg.Question,
+					Answer:   []dns.RR{ptrRR},
+				}
+				log.Debug().
+					Str("ptr", ptrName).
+					Str("cached_hostname", cachedRecord.Hostname).
+					Msg("using cached PTR record")
+				return nil, respMsg, nil
+			}
+		}
+		// If the record is not in cache, let the request go to the upstream server
+		// but we've modified dnsResponseHook to cache the responses
 		return nil, nil, nil
 	}
 
-	if len(reqMsg.Question) == 1 && reqMsg.Question[0].Qtype == dns.TypePTR {
+	// If PTR faking is enabled and the request is a PTR query - simply return NXDOMAIN
+	if !a.config.DNSProxy.DisableFakePTR && len(reqMsg.Question) == 1 && reqMsg.Question[0].Qtype == dns.TypePTR {
 		respMsg := &dns.Msg{
 			MsgHdr: dns.MsgHdr{
 				Id:                 reqMsg.Id,
@@ -110,15 +138,42 @@ func (a *App) dnsRequestHook(clientAddr net.Addr, reqMsg dns.Msg, network string
 	return nil, nil, nil
 }
 
-// dnsResponseHook обрабатывает ответы DNS
+// dnsResponseHook processes DNS responses
 func (a *App) dnsResponseHook(clientAddr net.Addr, reqMsg dns.Msg, respMsg dns.Msg, network string) (*dns.Msg, error) {
 	defer a.handleMessage(respMsg, clientAddr, &network)
+
+	// If this is a response to a PTR query and PTR caching is enabled (DisableFakePTR=true),
+	// save the result in the cache
+	if a.config.DNSProxy.DisableFakePTR && len(reqMsg.Question) == 1 && reqMsg.Question[0].Qtype == dns.TypePTR {
+		ptrName := reqMsg.Question[0].Name
+		
+		// Process only successful responses
+		if respMsg.Rcode == dns.RcodeSuccess {
+			for _, answer := range respMsg.Answer {
+				if ptr, ok := answer.(*dns.PTR); ok {
+					// Cache the PTR record
+					a.records.AddPTRRecord(ptrName, ptr.Ptr, ptr.Hdr.Ttl)
+					log.Debug().
+						Str("ptr", ptrName).
+						Str("hostname", ptr.Ptr).
+						Uint32("ttl", ptr.Hdr.Ttl).
+						Msg("caching PTR record")
+				}
+			}
+		} else if respMsg.Rcode == dns.RcodeNameError {
+			// Also cache negative responses (NXDOMAIN) with a short TTL
+			a.records.AddPTRRecord(ptrName, "", 300) // TTL of 5 minutes for negative responses
+			log.Debug().
+				Str("ptr", ptrName).
+				Msg("caching negative PTR response")
+		}
+	}
 
 	if a.config.DNSProxy.DisableDropAAAA {
 		return nil, nil
 	}
 
-	// фильтрация записей AAAA
+	// filtering AAAA records
 	var filteredAnswers []dns.RR
 	for _, answer := range respMsg.Answer {
 		if answer.Header().Rrtype != dns.TypeAAAA {
@@ -130,14 +185,14 @@ func (a *App) dnsResponseHook(clientAddr net.Addr, reqMsg dns.Msg, respMsg dns.M
 	return &respMsg, nil
 }
 
-// handleMessage обрабатывает полученное DNS-сообщение
+// handleMessage processes the received DNS message
 func (a *App) handleMessage(msg dns.Msg, clientAddr net.Addr, network *string) {
 	for _, rr := range msg.Answer {
 		a.handleRecord(rr, clientAddr, network)
 	}
 }
 
-// handleRecord маршрутизирует обработку DNS-записи в зависимости от её типа (A или CNAME)
+// handleRecord routes the processing of DNS record depending on its type (A or CNAME)
 func (a *App) handleRecord(rr dns.RR, clientAddr net.Addr, network *string) {
 	switch v := rr.(type) {
 	case *dns.A:

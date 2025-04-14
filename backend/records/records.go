@@ -5,6 +5,7 @@ import (
 	"net"
 	"sync"
 	"time"
+	"strings"
 )
 
 type ARecord struct {
@@ -17,9 +18,16 @@ type CNameRecord struct {
 	Deadline time.Time
 }
 
+type PTRRecord struct {
+	Hostname string
+	Deadline time.Time
+}
+
 type Records struct {
 	locker  sync.Mutex
 	records map[string]interface{}
+	// Cache for PTR records to optimize reverse lookups
+	ptrCache map[string]*PTRRecord
 }
 
 func (r *Records) AddCNameRecord(domainName, alias string, ttl uint32) {
@@ -160,8 +168,47 @@ func (r *Records) cleanupRecords() {
 	}
 }
 
+func (r *Records) AddPTRRecord(ip string, hostname string, ttl uint32) {
+	r.locker.Lock()
+	defer r.locker.Unlock()
+	
+	// Normalize the IP address to use as a key
+	ipNormalized := strings.TrimSuffix(ip, ".")
+	
+	r.ptrCache[ipNormalized] = &PTRRecord{
+		Hostname: hostname,
+		Deadline: time.Now().Add(time.Duration(ttl) * time.Second),
+	}
+}
+
+func (r *Records) GetPTRRecord(ip string) *PTRRecord {
+	r.locker.Lock()
+	defer r.locker.Unlock()
+	
+	// Check and clean up expired records
+	r.cleanupPTRRecords()
+	
+	// Normalize the IP address for lookup
+	ipNormalized := strings.TrimSuffix(ip, ".")
+	
+	if record, ok := r.ptrCache[ipNormalized]; ok {
+		return record
+	}
+	return nil
+}
+
+func (r *Records) cleanupPTRRecords() {
+	now := time.Now()
+	for ip, record := range r.ptrCache {
+		if now.After(record.Deadline) {
+			delete(r.ptrCache, ip)
+		}
+	}
+}
+
 func New() *Records {
 	return &Records{
 		records: make(map[string]interface{}),
+		ptrCache: make(map[string]*PTRRecord),
 	}
 }
