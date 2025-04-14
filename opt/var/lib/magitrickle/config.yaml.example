@@ -16,6 +16,7 @@ app:
     disableRemap53: false
     disableFakePTR: false
     disableDropAAAA: false
+    enableEDNS0: false
   netfilter:
     iptables:
       chainPrefix: MT_

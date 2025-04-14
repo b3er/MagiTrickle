@@ -58,6 +58,7 @@ app:                          # Настройки программы
     disableRemap53: false     # Флаг отключения перепривязки 53 порта
     disableFakePTR: false     # Флаг отключения подделки PTR записи (без неё есть проблемы, может быть будет исправлено в будущем)
     disableDropAAAA: false    # Флаг отключения откидывания AAAA записей
+    enableEDNS0: false        # Флаг включения EDNS0 для передачи IP клиента апстриму (полезно для CDN и геолокации)
   netfilter:
     iptables:
       chainPrefix: MT_        # Префикс для названий цепочек IPTables

@@ -89,6 +89,65 @@ func (a *App) dnsRequestHook(clientAddr net.Addr, reqMsg dns.Msg, network string
 			Msg("requested record")
 	}
 
+	// Add EDNS0 option with client IP if enabled
+	if a.config.DNSProxy.EnableEDNS0 && clientAddr != nil {
+		// Extract client IP from UDP or TCP address
+		var ip net.IP
+		switch addr := clientAddr.(type) {
+		case *net.UDPAddr:
+			ip = addr.IP
+		case *net.TCPAddr:
+			ip = addr.IP
+		default:
+			log.Debug().Msg("Unknown client address type, can't add to EDNS0")
+		}
+
+		if ip != nil {
+			// Create a modified request with EDNS0 option
+			modifiedReq := reqMsg
+
+			// Check if request already has OPT record
+			opt := modifiedReq.IsEdns0()
+			if opt == nil {
+				// Add new OPT record
+				opt = new(dns.OPT)
+				opt.Hdr.Name = "."
+				opt.Hdr.Rrtype = dns.TypeOPT
+				opt.SetUDPSize(4096)
+				modifiedReq.Extra = append(modifiedReq.Extra, opt)
+			}
+
+			// EDNS Client Subnet option
+			// Format described in RFC 7871: https://tools.ietf.org/html/rfc7871
+			subnet := new(dns.EDNS0_SUBNET)
+			subnet.Code = dns.EDNS0SUBNET
+			
+			// Different handling for IPv4 and IPv6
+			if ip4 := ip.To4(); ip4 != nil {
+				// IPv4
+				subnet.Family = 1      // IPv4
+				subnet.SourceNetmask = 32  // Full client IP
+				subnet.SourceScope = 0
+				subnet.Address = ip4
+			} else if ip6 := ip.To16(); ip6 != nil {
+				// IPv6
+				subnet.Family = 2      // IPv6
+				subnet.SourceNetmask = 128 // Full client IP
+				subnet.SourceScope = 0
+				subnet.Address = ip6
+			}
+
+			// Add the subnet option to OPT record
+			opt.Option = append(opt.Option, subnet)
+
+			// Return the modified request
+			log.Debug().
+				Str("client_ip", ip.String()).
+				Msg("Added client IP to EDNS0 request")
+			return &modifiedReq, nil, nil
+		}
+	}
+
 	// If fake PTR responses are disabled, but the request is specifically a PTR query
 	if a.config.DNSProxy.DisableFakePTR && len(reqMsg.Question) == 1 && reqMsg.Question[0].Qtype == dns.TypePTR {
 		// Check if the request is in the cache
@@ -140,6 +199,29 @@ func (a *App) dnsRequestHook(clientAddr net.Addr, reqMsg dns.Msg, network string
 // dnsResponseHook processes DNS responses
 func (a *App) dnsResponseHook(clientAddr net.Addr, reqMsg dns.Msg, respMsg dns.Msg, network string) (*dns.Msg, error) {
 	defer a.handleMessage(respMsg, clientAddr, &network)
+
+	// Check if the response indicates a REFUSED error and we need to retry without EDNS0
+	if a.config.DNSProxy.EnableEDNS0 && respMsg.Rcode == dns.RcodeRefused {
+		// Check if the request had EDNS0
+		if reqMsg.IsEdns0() != nil {
+			// Create a copy of the request without EDNS0
+			noEDNS0Req := reqMsg
+			
+			// Remove EDNS0 records
+			var newExtra []dns.RR
+			for _, rr := range noEDNS0Req.Extra {
+				if rr.Header().Rrtype != dns.TypeOPT {
+					newExtra = append(newExtra, rr)
+				}
+			}
+			noEDNS0Req.Extra = newExtra
+
+			log.Info().Msg("DNS server refused query with EDNS0, retrying without EDNS0")
+			
+			// Signal to the caller that they should retry with this modified request
+			return &noEDNS0Req, fmt.Errorf("retry without EDNS0")
+		}
+	}
 
 	// If this is a response to a PTR query and PTR caching is enabled (DisableFakePTR=true),
 	// save the result in the cache
