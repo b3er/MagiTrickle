@@ -28,14 +28,13 @@ func (a *App) initDNSMITM() {
 func (a *App) getDNSServers() []models.DNSProxyServer {
 	var servers []models.DNSProxyServer
 
-	// Always add the main host (legacy configuration)
-	servers = append(servers, a.config.DNSProxy.Host)
-
 	// Add hosts from the Hosts list if it exists
 	if len(a.config.DNSProxy.Hosts) > 0 {
 		servers = append(servers, a.config.DNSProxy.Hosts...)
+	} else {
+		// Add the main host only if hosts are not defined (legacy configuration)
+		servers = append(servers, a.config.DNSProxy.Host)
 	}
-
 	return servers
 }
 
@@ -146,7 +145,7 @@ func (a *App) dnsResponseHook(clientAddr net.Addr, reqMsg dns.Msg, respMsg dns.M
 	// save the result in the cache
 	if a.config.DNSProxy.DisableFakePTR && len(reqMsg.Question) == 1 && reqMsg.Question[0].Qtype == dns.TypePTR {
 		ptrName := reqMsg.Question[0].Name
-		
+
 		// Process only successful responses
 		if respMsg.Rcode == dns.RcodeSuccess {
 			for _, answer := range respMsg.Answer {
