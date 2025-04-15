@@ -8,8 +8,9 @@ import (
 	"strings"
 )
 
+// ARecord can represent both IPv4 (A) and IPv6 (AAAA) addresses.
 type ARecord struct {
-	Address  net.IP
+	Address  net.IP // Can be either IPv4 or IPv6
 	Deadline time.Time
 }
 

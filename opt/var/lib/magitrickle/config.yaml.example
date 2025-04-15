@@ -8,25 +8,42 @@ app:
     skin: default
   dnsProxy:
     host:
-      address: "[::]"
+      address: "[::]"         # Listen on all IPv6 and IPv4 addresses (dual-stack)
       port: 3553
+    hosts:
+      - address: '127.0.0.1'  # Additional IPv4 address
+        port: 3553
+      - address: '192.168.1.1' # Additional IPv4 address
+        port: 3553
+      - address: '::1'        # Additional IPv6 loopback
+        port: 3553
+      - address: 'fd00::1'    # Example: Unique local IPv6 address
+        port: 3553
     upstream:
-      address: 127.0.0.1
+      address: '2001:4860:4860::8888'  # Example: Google Public DNS IPv6
       port: 53
     disableRemap53: false
     disableFakePTR: false
-    disableDropAAAA: false
+    disableDropAAAA: false    # Set to true to drop AAAA responses (IPv6)
   netfilter:
     iptables:
       chainPrefix: MT_
     ipset:
       tablePrefix: mt_
       additionalTTL: 3600
-    disableIPv4: false
-    disableIPv6: false
+    disableIPv4: false        # Set to true to disable IPv4 firewall/routing
+    disableIPv6: false        # Set to true to disable IPv6 firewall/routing
   link:
     - br0
+    - br1
   logLevel: info
+
+# Example notes:
+# - Use '[::]' to listen on all interfaces (IPv4 and IPv6).
+# - You can specify IPv6 addresses (e.g. '::1', 'fd00::1', '2001:db8::1') wherever an address is required.
+# - Set disableIPv6: true to turn off IPv6 netfilter/routing support.
+# - The upstream DNS can be IPv4 or IPv6.
+# - Add more interfaces under 'link' as needed.
 groups:
   - id: d663876a
     name: Example
