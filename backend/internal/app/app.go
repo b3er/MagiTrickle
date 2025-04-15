@@ -1,9 +1,12 @@
 package app
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
+	"os"
+	"io"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -86,6 +89,13 @@ func New() *App {
 		logBuffer: logbuffer.NewRingBuffer(500), // store last 500 logs (adjust as needed)
 	}
 
+	// Attach custom writer to capture logs to buffer and console
+	tee := &TeeLogWriter{
+		mainWriter: os.Stdout,
+		buffer:     a.logBuffer,
+	}
+	log.Logger = zerolog.New(tee).With().Timestamp().Logger()
+
 	// Set initial log level from config (or info if missing)
 	lvl, err := zerolog.ParseLevel(a.config.LogLevel)
 	if err != nil {
@@ -93,14 +103,68 @@ func New() *App {
 	}
 	a.SetLogLevel(lvl.String())
 
-	// Attach zerolog hook to capture logs to buffer
-	log.Logger = log.Logger.Hook(logToBufferHook{app: a})
-
 	if err := a.LoadConfig(); err != nil {
 		log.Error().Err(err).Msg("failed to load config file")
 	}
+	// Set log level again in case LoadConfig changed it
+	a.SetLogLevel(a.config.LogLevel)
+
 	return a
 }
+
+// TeeLogWriter writes logs to both the main output (console) and the log buffer
+// (place this type at the bottom of the file or in its own file)
+type TeeLogWriter struct {
+	mainWriter io.Writer
+	buffer     *logbuffer.RingBuffer
+}
+
+func (w *TeeLogWriter) Write(p []byte) (n int, err error) {
+	n, err = w.mainWriter.Write(p)
+	line := string(p)
+	if len(line) > 0 && line[len(line)-1] == '\n' {
+		line = line[:len(line)-1]
+	}
+	// Attempt to parse zerolog JSON line with all fields
+	var parsed map[string]interface{}
+	var entry logbuffer.LogEntry
+	if err := json.Unmarshal([]byte(line), &parsed); err == nil {
+		var t time.Time
+		if ts, ok := parsed["time"].(string); ok {
+			t, _ = time.Parse(time.RFC3339, ts)
+		}
+		if t.IsZero() {
+			t = time.Now()
+		}
+		level, _ := parsed["level"].(string)
+		msg, _ := parsed["message"].(string)
+		errStr, _ := parsed["error"].(string)
+		fields := make(map[string]interface{})
+		for k, v := range parsed {
+			if k != "time" && k != "level" && k != "message" && k != "error" {
+				fields[k] = v
+			}
+		}
+		entry = logbuffer.LogEntry{
+			Time:    t,
+			Level:   level,
+			Message: msg,
+			Error:   errStr,
+			Fields:  fields,
+		}
+	} else {
+		// Fallback: store raw message
+		entry = logbuffer.LogEntry{
+			Time:    time.Now(),
+			Level:   "",
+			Message: line,
+			Fields:  nil,
+		}
+	}
+	w.buffer.Add(entry)
+	return
+}
+
 
 // SetLogLevel sets the in-memory log level (not persisted)
 func (a *App) SetLogLevel(level string) bool {
@@ -128,17 +192,7 @@ type logToBufferHook struct {
 	app *App
 }
 
-func (h logToBufferHook) Run(e *zerolog.Event, level zerolog.Level, msg string) {
-	// Use the current local time as per user context (UTC+3)
-	timestamp := time.Now().In(time.FixedZone("UTC+3", 3*60*60))
-	entry := logbuffer.LogEntry{
-		Time:    timestamp,
-		Level:   level.String(),
-		Message: msg,
-	}
-	// TODO: Optionally extract error from context if needed
-	h.app.logBuffer.Add(entry)
-}
+
 
 
 // Config возвращает конфигурацию

@@ -7,10 +7,11 @@ import (
 
 // LogEntry defines the format of a log entry for the API.
 type LogEntry struct {
-	Time    time.Time `json:"time"`
-	Level   string    `json:"level"`
-	Message string    `json:"message"`
-	Error   string    `json:"error,omitempty"`
+	Time    time.Time              `json:"time"`
+	Level   string                 `json:"level"`
+	Message string                 `json:"message"`
+	Error   string                 `json:"error,omitempty"`
+	Fields  map[string]interface{} `json:"fields,omitempty"`
 }
 
 // RingBuffer is a fixed-size, thread-safe buffer for log entries.

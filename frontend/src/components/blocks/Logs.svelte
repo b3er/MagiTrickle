@@ -53,6 +53,7 @@
     level: string;
     message: string;
     error?: string;
+    fields?: Record<string, any>;
   };
 
   // Backend log level state
@@ -228,7 +229,7 @@
         value: item,
       }))}
       bind:selected={level}
-      style="width: 240px"
+      style="width: 250px"
     />
     <Select
       options={Object.keys(levels).map((item) => ({
@@ -237,7 +238,7 @@
       }))}
       bind:selected={backendLogLevel}
       disabled={logLevelLoading}
-      style="width: 240px; margin-left: 1rem;"
+      style="width: 250px; margin-left: 1rem;"
       onValueChange={(val) => {
         if (logLevelInitialized && val && val !== lastBackendLogLevel) {
           setBackendLogLevel(val);
@@ -287,11 +288,18 @@
 >
   <div class="spacer" style="height: {spacer_height}px;"></div>
 
-  {#each visible_items as { time, level, message, error }, index (index)}
+  {#each visible_items as item, index (index)}
     <div class="line" style="top: {(start + index) * LINE_HEIGHT + 5}px; height: {LINE_HEIGHT}px;">
-      <span class="time">{time}</span>
-      <span class={level}>{level.toLocaleUpperCase()}</span>
-      {message}{error ? ", " + error : ""}
+      <span class="time">{item.time}</span>
+      <span class={item.level}>{item.level.toLocaleUpperCase()}</span>
+      {item.message}{item.error ? ", " + item.error : ""}
+      {#if item.fields && Object.keys(item.fields).length}
+        <span class="fields">
+          {#each Object.entries(item.fields) as [k, v]}
+            <span class="field"><b>{k}:</b> {typeof v === 'object' ? JSON.stringify(v) : String(v)} </span>
+          {/each}
+        </span>
+      {/if}
     </div>
   {/each}
 </div>
@@ -370,6 +378,14 @@
     font-family: var(--font-mono);
     font-size: 0.8rem;
     white-space: nowrap;
+  }
+  .fields {
+    margin-left: 0.5em;
+    color: var(--text-2);
+    font-size: 0.8em;
+  }
+  .field {
+    margin-right: 0.5em;
   }
 
   .time {
