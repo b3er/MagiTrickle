@@ -1,12 +1,49 @@
 <script lang="ts">
-  import { tick } from "svelte";
+  import { tick, onDestroy } from "svelte";
   import Tooltip from "../common/Tooltip.svelte";
   import Select from "../common/Select.svelte";
   import Button from "../common/Button.svelte";
   import { API_BASE } from "../../utils/fetcher";
-  import { Clear, Filter, ScrollToBottom, Save } from "../common/icons";
+  import { Clear, Filter, ScrollToBottom, Save, CircleCheck } from "../common/icons";
 
   const LOGS_BUFFER_LIMIT = 10000 as const;
+
+  // Auto-refresh intervals in seconds
+  const AUTOREFRESH_INTERVALS = [1, 5, 10, 30, 60];
+  let autoRefresh = $state(0); // 0 means off
+  let autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
+
+  // Manual polling fallback (for refresh/auto-refresh)
+  async function fetchLogs() {
+    try {
+      const resp = await fetch(`${API_BASE}/logs`);
+      if (!resp.ok) throw new Error("Failed to fetch logs");
+      const data = await resp.json();
+      if (Array.isArray(data)) {
+        items = data;
+      }
+    } catch (e) {
+      console.error("Failed to fetch logs via polling:", e);
+    }
+  }
+
+  function onManualRefresh() {
+    fetchLogs();
+  }
+
+  $effect(() => {
+    if (autoRefreshTimer) {
+      clearInterval(autoRefreshTimer);
+      autoRefreshTimer = null;
+    }
+    if (autoRefresh > 0) {
+      autoRefreshTimer = setInterval(fetchLogs, autoRefresh * 1000);
+    }
+  });
+
+  onDestroy(() => {
+    if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+  });
   const SCROLL_TO_BOTTOM_DELTA = 40 as const;
   const LINE_HEIGHT = 16 as const;
   const OVERSCAN = 20 as const;
@@ -17,6 +54,49 @@
     message: string;
     error?: string;
   };
+
+  // Backend log level state
+  let backendLogLevel: string = $state('info');
+  let logLevelLoading: boolean = $state(false);
+
+  async function fetchBackendLogLevel() {
+    try {
+      logLevelLoading = true;
+      const resp = await fetch(`${API_BASE}/loglevel`);
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.level) backendLogLevel = data.level;
+      }
+    } finally {
+      logLevelLoading = false;
+    }
+  }
+
+  async function setBackendLogLevel(level: string) {
+    try {
+      logLevelLoading = true;
+      const resp = await fetch(`${API_BASE}/loglevel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ level })
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.level) backendLogLevel = data.level;
+      }
+    } finally {
+      logLevelLoading = false;
+    }
+  }
+
+  function onBackendLogLevelChange(e: CustomEvent) {
+    setBackendLogLevel(e.detail);
+  }
+
+  // Fetch backend log level on mount
+  $effect(() => {
+    fetchBackendLogLevel();
+  });
 
   const levels: Record<string, number> = {
     trace: -1,
@@ -125,15 +205,40 @@
     <input type="text" class="filter-input" placeholder="filter logs..." bind:value={filter} />
     <Select
       options={Object.keys(levels).map((item) => ({
-        label: item,
+        label: `filter: ${item}`,
         value: item,
       }))}
       bind:selected={level}
-      style="width: 100px"
+      style="width: 240px"
     />
+    <Select
+      options={Object.keys(levels).map((item) => ({
+        label: `level: ${item}`,
+        value: item,
+      }))}
+      bind:selected={backendLogLevel}
+      on:change={onBackendLogLevelChange}
+      disabled={logLevelLoading}
+      style="width: 240px; margin-left: 1rem;"
+    />
+    {#if logLevelLoading}
+      <span class="loglevel-spinner">⏳</span>
+    {/if}
   </div>
 
   <div class="logs-controls-actions">
+    <Tooltip value="Refresh">
+      <Button onclick={onManualRefresh}>
+        <CircleCheck size={22} />
+      </Button>
+    </Tooltip>
+    <Tooltip value="Auto-refresh">
+      <Select
+        options={[{label: 'off', value: 0}, ...AUTOREFRESH_INTERVALS.map(i => ({label: `${i}s`, value: i}))]}
+        bind:selected={autoRefresh}
+        style="width: 90px"
+      />
+    </Tooltip>
     <Tooltip value="Save Logs">
       <Button onclick={saveLogs}>
         <Save size={22} />
@@ -166,6 +271,12 @@
 </div>
 
 <style>
+  .selector-caption {
+    font-size: 0.8rem;
+    color: var(--text-2);
+    margin-bottom: 0.1rem;
+    margin-left: 0.2rem;
+  }
   .container {
     position: relative;
     height: 600px;

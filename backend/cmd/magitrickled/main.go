@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"magitrickle/api"
 	"magitrickle/constant"
@@ -29,7 +30,7 @@ import (
 const (
 	noSkinFoundPlaceholder = "<!DOCTYPE html><html><head><title>MagiTrickle</title></head><body><h1>MagiTrickle</h1><p>Please install MagiTrickle skin before using WebUI!</p></body></html>"
 	skinsFolderLocation    = constant.AppShareDir + "/skins"
-	pidFileLocation        = constant.RunDir + "/magitrickle.pid"
+	pidFileLocation        = constant.RunDir + "/magitrickle-debug.pid"
 )
 
 func getPIDPath(pid int) (string, error) {
@@ -227,11 +228,21 @@ func main() {
 	shutdown := func() {
 		log.Info().Msg("shutting down service")
 		cancel()
-		if err := srvHTTP.Shutdown(context.Background()); err != nil {
-			log.Error().Err(err).Msg("HTTP server shutdown error")
+		shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelShutdown()
+		if err := srvHTTP.Shutdown(shutdownCtx); err != nil {
+			if err == context.DeadlineExceeded {
+				log.Warn().Msg("HTTP server shutdown timed out; some connections may not have closed cleanly")
+			} else {
+				log.Error().Err(err).Msg("HTTP server shutdown error")
+			}
 		}
-		if err := srvUnix.Shutdown(context.Background()); err != nil {
-			log.Error().Err(err).Msg("UNIX socket server shutdown error")
+		if err := srvUnix.Shutdown(shutdownCtx); err != nil {
+			if err == context.DeadlineExceeded {
+				log.Warn().Msg("UNIX socket server shutdown timed out; some connections may not have closed cleanly")
+			} else {
+				log.Error().Err(err).Msg("UNIX socket server shutdown error")
+			}
 		}
 	}
 

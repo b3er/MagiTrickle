@@ -4,13 +4,17 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"sync"
 	"sync/atomic"
+	"time"
 
 	dnsMitmProxy "magitrickle/dns-mitm-proxy"
 	"magitrickle/models"
 	netfilterHelper "magitrickle/netfilter-helper"
 	"magitrickle/records"
+	"magitrickle/internal/logbuffer"
 
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
@@ -53,12 +57,23 @@ var defaultAppConfig = models.App{
 }
 
 // App – основная структура ядра приложения
+
+// LogBuffer returns the ring buffer for logs.
+func (a *App) LogBuffer() *logbuffer.RingBuffer {
+	return a.logBuffer
+}
+
 type App struct {
 	config   models.App
 	dnsMITM  *dnsMitmProxy.DNSMITMProxy
 	nfHelper *netfilterHelper.NetfilterHelper
 	records  *records.Records
 	groups   []*Group
+	// Log ring buffer for API log streaming/polling
+	logBuffer *logbuffer.RingBuffer
+	// In-memory log level (not persisted)
+	logLevel zerolog.Level
+	logLevelMu sync.RWMutex
 	// TODO: доделать
 	enabled      atomic.Bool
 	dnsOverrider *netfilterHelper.PortRemap
@@ -67,13 +82,64 @@ type App struct {
 // New создаёт новый экземпляр App
 func New() *App {
 	a := &App{
-		config: defaultAppConfig,
+		config:    defaultAppConfig,
+		logBuffer: logbuffer.NewRingBuffer(500), // store last 500 logs (adjust as needed)
 	}
+
+	// Set initial log level from config (or info if missing)
+	lvl, err := zerolog.ParseLevel(a.config.LogLevel)
+	if err != nil {
+		lvl = zerolog.InfoLevel
+	}
+	a.SetLogLevel(lvl.String())
+
+	// Attach zerolog hook to capture logs to buffer
+	log.Logger = log.Logger.Hook(logToBufferHook{app: a})
+
 	if err := a.LoadConfig(); err != nil {
 		log.Error().Err(err).Msg("failed to load config file")
 	}
 	return a
 }
+
+// SetLogLevel sets the in-memory log level (not persisted)
+func (a *App) SetLogLevel(level string) bool {
+	lvl, err := zerolog.ParseLevel(level)
+	if err != nil {
+		return false
+	}
+	a.logLevelMu.Lock()
+	defer a.logLevelMu.Unlock()
+	a.logLevel = lvl
+	zerolog.SetGlobalLevel(lvl)
+	return true
+}
+
+// GetLogLevel returns the current in-memory log level
+func (a *App) GetLogLevel() string {
+	a.logLevelMu.RLock()
+	defer a.logLevelMu.RUnlock()
+	return a.logLevel.String()
+}
+
+// logToBufferHook implements zerolog.Hook to push logs into the ring buffer
+// and formats them for API consumption.
+type logToBufferHook struct {
+	app *App
+}
+
+func (h logToBufferHook) Run(e *zerolog.Event, level zerolog.Level, msg string) {
+	// Use the current local time as per user context (UTC+3)
+	timestamp := time.Now().In(time.FixedZone("UTC+3", 3*60*60))
+	entry := logbuffer.LogEntry{
+		Time:    timestamp,
+		Level:   level.String(),
+		Message: msg,
+	}
+	// TODO: Optionally extract error from context if needed
+	h.app.logBuffer.Add(entry)
+}
+
 
 // Config возвращает конфигурацию
 func (a *App) Config() models.App {
