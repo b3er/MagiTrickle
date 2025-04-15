@@ -131,16 +131,27 @@
   let items: LogEntry[] = $state([]);
   let level: string = $state("trace");
   let filter: string = $state("");
-  let items_filtered: LogEntry[] = $derived.by(() =>
-    items.filter(
-      (item) =>
-        levels[item.level] >= levels[level] &&
-        (!filter ||
-          filter.length === 0 ||
-          item.message.includes(filter) ||
-          item.error?.includes(filter)),
-    ),
-  );
+  let items_filtered: LogEntry[] = $derived.by(() => {
+    const f = filter?.toLowerCase() ?? "";
+    return items.filter((item) => {
+      if (levels[item.level] < levels[level]) return false;
+      if (!f || f.length === 0) return true;
+      // Check message and error (case-insensitive)
+      if (item.message?.toLowerCase().includes(f) || item.error?.toLowerCase().includes(f)) return true;
+      // Check fields (args), keys and all value types
+      if (item.fields) {
+        for (const [k, v] of Object.entries(item.fields)) {
+          const keyMatch = k.toLowerCase().includes(f);
+          let valStr = "";
+          if (typeof v === 'string') valStr = v.toLowerCase();
+          else if (typeof v === 'number' || typeof v === 'boolean') valStr = String(v).toLowerCase();
+          else valStr = JSON.stringify(v).toLowerCase();
+          if (keyMatch || valStr.includes(f)) return true;
+        }
+      }
+      return false;
+    });
+  });
 
   let spacer_height = $derived(items_filtered.length * LINE_HEIGHT);
   let container: HTMLDivElement = $state(document.createElement("div"));
