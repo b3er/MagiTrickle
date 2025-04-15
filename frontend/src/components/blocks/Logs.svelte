@@ -60,6 +60,7 @@
   let logLevelLoading: boolean = $state(false);
   let logLevelError: string = $state("");
   let lastBackendLogLevel: string = '';
+  let logLevelInitialized: boolean = false;
 
 
   async function fetchBackendLogLevel() {
@@ -69,7 +70,10 @@
       const resp = await fetch(`${API_BASE}/loglevel`);
       if (resp.ok) {
         const data = await resp.json();
-        if (data.level) backendLogLevel = data.level;
+        if (data.level) {
+          backendLogLevel = data.level;
+          lastBackendLogLevel = data.level; // keep in sync
+        }
       } else {
         logLevelError = "Failed to fetch log level from backend.";
       }
@@ -77,6 +81,7 @@
       logLevelError = "Failed to fetch log level: " + (e?.message || e);
     } finally {
       logLevelLoading = false;
+      logLevelInitialized = true; // Mark as initialized after first fetch
     }
   }
 
@@ -91,10 +96,12 @@
       });
       if (resp.ok) {
         const data = await resp.json();
-        if (data.level) backendLogLevel = data.level;
+        if (data.level) {
+          backendLogLevel = data.level;
+          lastBackendLogLevel = data.level; // keep in sync
+        }
       } else {
         logLevelError = `Failed to set log level (${resp.status})`;
-        // Optionally, revert the select to previous value
         await fetchBackendLogLevel();
       }
     } catch (e) {
@@ -104,17 +111,6 @@
       logLevelLoading = false;
     }
   }
-
-  $effect(() => {
-    if (
-      backendLogLevel &&
-      backendLogLevel !== lastBackendLogLevel &&
-      !logLevelLoading
-    ) {
-      lastBackendLogLevel = backendLogLevel;
-      setBackendLogLevel(backendLogLevel);
-    }
-  });
 
   // Fetch backend log level on mount
   $effect(() => {
@@ -242,6 +238,11 @@
       bind:selected={backendLogLevel}
       disabled={logLevelLoading}
       style="width: 240px; margin-left: 1rem;"
+      onValueChange={(val) => {
+        if (logLevelInitialized && val && val !== lastBackendLogLevel) {
+          setBackendLogLevel(val);
+        }
+      }}
     />
     {#if logLevelLoading}
       <span class="loglevel-spinner">⏳</span>
