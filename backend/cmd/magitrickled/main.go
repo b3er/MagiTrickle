@@ -30,7 +30,7 @@ import (
 const (
 	noSkinFoundPlaceholder = "<!DOCTYPE html><html><head><title>MagiTrickle</title></head><body><h1>MagiTrickle</h1><p>Please install MagiTrickle skin before using WebUI!</p></body></html>"
 	skinsFolderLocation    = constant.AppShareDir + "/skins"
-	pidFileLocation        = constant.RunDir + "/magitrickle-debug.pid"
+	pidFileLocation        = constant.RunDir + "/magitrickle.pid"
 )
 
 func getPIDPath(pid int) (string, error) {
