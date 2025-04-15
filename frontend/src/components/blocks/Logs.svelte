@@ -177,10 +177,20 @@
   }
 
   function saveLogs() {
-    const blob = new Blob(
-      [items_filtered.map(({ time, level, message }) => `${time} ${level} ${message}`).join("\n")],
-      { type: "text/plain" },
-    );
+    const lines = items_filtered.map(({ time, level, message, error, fields }) => {
+      let line = `${time} ${level} ${message}`;
+      if (error) line += `, ${error}`;
+      if (fields && Object.keys(fields).length) {
+        const fieldsStr = Object.entries(fields)
+          .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : String(v)}`)
+          .join(', ');
+        line += ` | ${fieldsStr}`;
+      }
+      return line;
+    });
+    const blob = new Blob([
+      lines.join("\n")
+    ], { type: "text/plain" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = `${new Date().getTime()}-mtrickle.log`;
