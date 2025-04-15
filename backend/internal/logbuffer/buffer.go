@@ -23,6 +23,16 @@ type RingBuffer struct {
 	mu      sync.Mutex
 }
 
+// Clear empties the buffer
+func (rb *RingBuffer) Clear() {
+	rb.mu.Lock()
+	defer rb.mu.Unlock()
+	rb.entries = make([]LogEntry, rb.size)
+	rb.start = 0
+	rb.count = 0
+}
+
+
 // NewRingBuffer creates a new ring buffer of the given size.
 func NewRingBuffer(size int) *RingBuffer {
 	return &RingBuffer{

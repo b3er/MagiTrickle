@@ -183,7 +183,12 @@
     container.scrollTop = container.scrollHeight;
   }
 
-  function clearLinesBuf() {
+  async function clearLinesBuf() {
+    try {
+      await fetch(`${API_BASE}/logs/clear`, { method: 'POST' });
+    } catch (e) {
+      // Optionally show an error
+    }
     items = [];
   }
 

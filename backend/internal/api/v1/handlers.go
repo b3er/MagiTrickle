@@ -15,6 +15,13 @@ import (
 )
 
 // Handler предоставляет набор методов для обработки API запросов.
+
+// ClearLogs clears the log buffer
+func (h *Handler) ClearLogs(w http.ResponseWriter, r *http.Request) {
+	h.app.LogBuffer().Clear()
+	WriteJson(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
 type Handler struct {
 	app *app.App
 }
