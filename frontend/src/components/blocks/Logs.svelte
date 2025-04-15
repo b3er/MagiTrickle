@@ -250,7 +250,7 @@
         value: item,
       }))}
       bind:selected={level}
-      style="width: 250px"
+      style="width: 260px"
     />
     <Select
       options={Object.keys(levels).map((item) => ({
