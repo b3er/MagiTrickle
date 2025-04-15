@@ -58,15 +58,23 @@
   // Backend log level state
   let backendLogLevel: string = $state('info');
   let logLevelLoading: boolean = $state(false);
+  let logLevelError: string = $state("");
+  let lastBackendLogLevel: string = '';
+
 
   async function fetchBackendLogLevel() {
     try {
       logLevelLoading = true;
+      logLevelError = "";
       const resp = await fetch(`${API_BASE}/loglevel`);
       if (resp.ok) {
         const data = await resp.json();
         if (data.level) backendLogLevel = data.level;
+      } else {
+        logLevelError = "Failed to fetch log level from backend.";
       }
+    } catch (e) {
+      logLevelError = "Failed to fetch log level: " + (e?.message || e);
     } finally {
       logLevelLoading = false;
     }
@@ -75,6 +83,7 @@
   async function setBackendLogLevel(level: string) {
     try {
       logLevelLoading = true;
+      logLevelError = "";
       const resp = await fetch(`${API_BASE}/loglevel`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -83,15 +92,29 @@
       if (resp.ok) {
         const data = await resp.json();
         if (data.level) backendLogLevel = data.level;
+      } else {
+        logLevelError = `Failed to set log level (${resp.status})`;
+        // Optionally, revert the select to previous value
+        await fetchBackendLogLevel();
       }
+    } catch (e) {
+      logLevelError = "Failed to set log level: " + (e?.message || e);
+      await fetchBackendLogLevel();
     } finally {
       logLevelLoading = false;
     }
   }
 
-  function onBackendLogLevelChange(e: CustomEvent) {
-    setBackendLogLevel(e.detail);
-  }
+  $effect(() => {
+    if (
+      backendLogLevel &&
+      backendLogLevel !== lastBackendLogLevel &&
+      !logLevelLoading
+    ) {
+      lastBackendLogLevel = backendLogLevel;
+      setBackendLogLevel(backendLogLevel);
+    }
+  });
 
   // Fetch backend log level on mount
   $effect(() => {
@@ -217,12 +240,14 @@
         value: item,
       }))}
       bind:selected={backendLogLevel}
-      on:change={onBackendLogLevelChange}
       disabled={logLevelLoading}
       style="width: 240px; margin-left: 1rem;"
     />
     {#if logLevelLoading}
       <span class="loglevel-spinner">⏳</span>
+    {/if}
+    {#if logLevelError}
+      <span class="loglevel-error">{logLevelError}</span>
     {/if}
   </div>
 
