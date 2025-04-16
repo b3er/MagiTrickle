@@ -14,6 +14,13 @@ func NewRouter(h *Handler) chi.Router {
 	r := chi.NewRouter()
 
 	r.Route("/v1", func(r chi.Router) {
+		// Logs endpoint: supports GET and SSE
+		r.Get("/logs", h.GetLogs)
+		r.Post("/logs/clear", h.ClearLogs)
+		// Log level endpoints
+		r.Get("/loglevel", h.GetLogLevel)
+		r.Post("/loglevel", h.SetLogLevel)
+
 		r.Route("/groups", func(r chi.Router) {
 			r.Get("/", h.GetGroups)
 			r.Put("/", h.PutGroups)

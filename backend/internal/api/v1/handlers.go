@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
+	"encoding/json"
 
 	"magitrickle/api/types"
 	"magitrickle/internal/app"
@@ -13,9 +15,128 @@ import (
 )
 
 // Handler предоставляет набор методов для обработки API запросов.
+
+// ClearLogs clears the log buffer
+func (h *Handler) ClearLogs(w http.ResponseWriter, r *http.Request) {
+	h.app.LogBuffer().Clear()
+	WriteJson(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
 type Handler struct {
 	app *app.App
 }
+
+// GetLogLevel
+//
+// @Summary      Получить текущий уровень логирования
+// @Description  Возвращает текущий уровень логирования (in-memory)
+// @Tags         logs
+// @Produce      json
+// @Success      200 {object} map[string]string
+// @Router       /api/v1/loglevel [get]
+func (h *Handler) GetLogLevel(w http.ResponseWriter, r *http.Request) {
+	WriteJson(w, http.StatusOK, map[string]string{"level": h.app.GetLogLevel()})
+}
+
+// SetLogLevel
+//
+// @Summary      Изменить уровень логирования
+// @Description  Устанавливает уровень логирования (in-memory)
+// @Tags         logs
+// @Accept       json
+// @Produce      json
+// @Param        level body map[string]string true "Уровень логирования (debug, info, warn, error, etc.)"
+// @Success      200 {object} map[string]string
+// @Failure      400 {object} map[string]string
+// @Router       /api/v1/loglevel [post]
+func (h *Handler) SetLogLevel(w http.ResponseWriter, r *http.Request) {
+	var req map[string]string
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		WriteJson(w, http.StatusBadRequest, map[string]string{"error": "invalid request"})
+		return
+	}
+	level, ok := req["level"]
+	if !ok || !h.app.SetLogLevel(level) {
+		WriteJson(w, http.StatusBadRequest, map[string]string{"error": "invalid log level"})
+		return
+	}
+	WriteJson(w, http.StatusOK, map[string]string{"level": h.app.GetLogLevel()})
+}
+
+
+// GetLogs
+//
+// @Summary      Получить логи
+// @Description  Получает последние логи (polling) или подписывается на новые (SSE)
+// @Tags         logs
+// @Produce      json
+// @Param        level query string false "Фильтр по уровню (info, warn, error, ...)"
+// @Param        limit query int false "Максимум записей (только для polling)"
+// @Success      200 {array} logbuffer.LogEntry
+// @Router       /api/v1/logs [get]
+func (h *Handler) GetLogs(w http.ResponseWriter, r *http.Request) {
+	// Check if client wants SSE
+	if r.Header.Get("Accept") == "text/event-stream" || r.Header.Get("Connection") == "keep-alive" {
+		h.streamLogsSSE(w, r)
+		return
+	}
+	// Default: polling
+	h.pollLogs(w, r)
+}
+
+// pollLogs handles HTTP GET polling for logs
+func (h *Handler) pollLogs(w http.ResponseWriter, r *http.Request) {
+	level := r.URL.Query().Get("level")
+	limit := 0
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if n, err := strconv.Atoi(l); err == nil {
+			limit = n
+		}
+	}
+	logs := h.app.LogBuffer().GetFiltered(level, limit)
+	WriteJson(w, http.StatusOK, logs)
+}
+
+// streamLogsSSE streams logs as Server-Sent Events
+func (h *Handler) streamLogsSSE(w http.ResponseWriter, r *http.Request) {
+	level := r.URL.Query().Get("level")
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		WriteError(w, http.StatusInternalServerError, "Streaming unsupported")
+		return
+	}
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	lastSent := 0
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case <-ticker.C:
+			logs := h.app.LogBuffer().GetFiltered(level, 0)
+			if len(logs) > lastSent {
+				for _, entry := range logs[lastSent:] {
+					event := fmt.Sprintf("data: %s\n\n", toJson(entry))
+					w.Write([]byte(event))
+				}
+				lastSent = len(logs)
+				flusher.Flush()
+			}
+		}
+	}
+}
+
+// toJson serializes a value to JSON string (for SSE)
+func toJson(v interface{}) string {
+	b, _ := json.Marshal(v)
+	return string(b)
+}
+
 
 // NewHandler создаёт новый обработчик для API v1.
 func NewHandler(a *app.App) *Handler {

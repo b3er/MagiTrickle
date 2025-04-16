@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"magitrickle/api"
 	"magitrickle/constant"
@@ -227,11 +228,21 @@ func main() {
 	shutdown := func() {
 		log.Info().Msg("shutting down service")
 		cancel()
-		if err := srvHTTP.Shutdown(context.Background()); err != nil {
-			log.Error().Err(err).Msg("HTTP server shutdown error")
+		shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelShutdown()
+		if err := srvHTTP.Shutdown(shutdownCtx); err != nil {
+			if err == context.DeadlineExceeded {
+				log.Warn().Msg("HTTP server shutdown timed out; some connections may not have closed cleanly")
+			} else {
+				log.Error().Err(err).Msg("HTTP server shutdown error")
+			}
 		}
-		if err := srvUnix.Shutdown(context.Background()); err != nil {
-			log.Error().Err(err).Msg("UNIX socket server shutdown error")
+		if err := srvUnix.Shutdown(shutdownCtx); err != nil {
+			if err == context.DeadlineExceeded {
+				log.Warn().Msg("UNIX socket server shutdown timed out; some connections may not have closed cleanly")
+			} else {
+				log.Error().Err(err).Msg("UNIX socket server shutdown error")
+			}
 		}
 	}
 
