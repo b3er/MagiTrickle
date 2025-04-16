@@ -4,7 +4,7 @@
   import Select from "../common/Select.svelte";
   import Button from "../common/Button.svelte";
   import { API_BASE } from "../../utils/fetcher";
-  import { Clear, Filter, ScrollToBottom, Save, CircleCheck } from "../common/icons";
+  import { Clear, Filter, ScrollToBottom, Save, Refresh } from "../common/icons";
 
   const LOGS_BUFFER_LIMIT = 10000 as const;
 
@@ -283,7 +283,7 @@
   <div class="logs-controls-actions">
     <Tooltip value="Refresh">
       <Button onclick={onManualRefresh}>
-        <CircleCheck size={22} />
+        <Refresh size={22} />
       </Button>
     </Tooltip>
     <Tooltip value="Auto-refresh">
