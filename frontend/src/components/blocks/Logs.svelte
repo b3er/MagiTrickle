@@ -10,7 +10,7 @@
 
   // Auto-refresh intervals in seconds
   const AUTOREFRESH_INTERVALS = [1, 5, 10, 30, 60];
-  let autoRefresh = $state(0); // 0 means off
+  let autoRefresh = $state('0'); // 0 means off
   let autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
   // Manual polling fallback (for refresh/auto-refresh)
@@ -36,8 +36,9 @@
       clearInterval(autoRefreshTimer);
       autoRefreshTimer = null;
     }
-    if (autoRefresh > 0) {
-      autoRefreshTimer = setInterval(fetchLogs, autoRefresh * 1000);
+    let autoRefreshInt = parseInt(autoRefresh);
+    if (autoRefreshInt > 0) {
+      autoRefreshTimer = setInterval(fetchLogs, autoRefreshInt * 1000);
     }
   });
 
@@ -287,7 +288,7 @@
     </Tooltip>
     <Tooltip value="Auto-refresh">
       <Select
-        options={[{label: 'off', value: 0}, ...AUTOREFRESH_INTERVALS.map(i => ({label: `${i}s`, value: i}))]}
+        options={[{label: 'off', value: '0'}, ... AUTOREFRESH_INTERVALS.map(i => ({label: `${i}s`, value:`${i}`}))]}
         bind:selected={autoRefresh}
         style="width: 90px"
       />
