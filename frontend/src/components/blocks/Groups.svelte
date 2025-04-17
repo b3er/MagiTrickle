@@ -284,7 +284,13 @@ let comboboxOpen = $state(false);
       bind:value={searchQuery}
       class="group-search-input"
       autocomplete="off"
-      onblur={() => setTimeout(() => comboboxOpen = false, 100)}
+      onblur={(e) => {
+        // Only close if focus moves outside the combobox
+        const related = e.relatedTarget as HTMLElement | null;
+        if (!related || !related.closest('.combobox')) {
+          comboboxOpen = false;
+        }
+      }}
       style="padding-right: 2.2rem;"
     />
     <button type="button" class="combobox-dropdown-btn" aria-label="Show rule names" onclick={() => comboboxOpen = !comboboxOpen} tabindex="-1">
