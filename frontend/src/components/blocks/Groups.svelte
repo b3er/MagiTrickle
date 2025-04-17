@@ -302,6 +302,8 @@ let comboboxOpen = $state(false);
           {#if option.value === ""}
             <div class="combobox-group-label">{option.label}</div>
           {:else}
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div class="combobox-item" onclick={() => { searchQuery = option.value; selectedRuleName = option.value; comboboxOpen = false; }}>
               {option.label}
             </div>
@@ -319,17 +321,28 @@ let comboboxOpen = $state(false);
     }
     .combobox-dropdown-btn {
       position: absolute;
-      right: 0.3rem;
+      right: 0.6rem;
       top: 50%;
       transform: translateY(-50%);
       background: none;
       border: none;
       cursor: pointer;
       z-index: 2;
-      padding: 0.2rem;
+      padding: 0;
+      width: 2rem;
+      height: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       color: var(--text-2);
-      border-radius: 0.2rem;
+      border-radius: 0.3rem;
       transition: background 0.1s;
+    }
+    .combobox-dropdown-btn svg {
+      width: 1.2rem;
+      height: 1.2rem;
+      pointer-events: none;
+      display: block;
     }
     .combobox-dropdown-btn:hover {
       background: var(--bg-light-extra);
