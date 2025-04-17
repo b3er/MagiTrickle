@@ -45,7 +45,8 @@ let comboboxOpen = $state(false);
       const uniqueNames = Array.from(new Set(group.rules.map(r => r.name).filter(Boolean)));
       if (uniqueNames.length > 0) {
         options.push({ label: `--- ${group.name} ---`, value: "" });
-        options = options.concat(uniqueNames.map(name => ({ label: name, value: name })));
+        const sortedNames = uniqueNames.slice().sort((a, b) => a.localeCompare(b, undefined, {sensitivity: 'base'}));
+        options = options.concat(sortedNames.map(name => ({ label: name, value: name })));
       }
     });
     return options;
