@@ -34,12 +34,72 @@
 
   let data: Group[] = $state([]);
   let showed_limit: number[] = $state([]);
+  let searchQuery = $state("");
+  let selectedRuleName = $state("");
+let comboboxOpen = $state(false);
+let groupExpanded = $state<boolean[]>([]);
+
+// Auto-expand groups with filtered items when searchQuery changes, but never collapse
+$effect(() => {
+  if (!data) return;
+  if (!searchQuery.trim()) return; // do not collapse on empty
+  const newExpanded = groupExpanded.length === data.length
+    ? groupExpanded.map((open, i) => open || showed_data[i].rules.length > 0)
+    : showed_data.map(g => g.rules.length > 0);
+  // Only update if changed, to avoid infinite loop
+  if (groupExpanded.length !== newExpanded.length || groupExpanded.some((v, i) => v !== newExpanded[i])) {
+    groupExpanded = newExpanded;
+  }
+});
+
+  // Compute grouped rule name options for dropdown
+  let groupedRuleNameOptions: {label: string, value: string}[] = $derived.by(() => {
+    let options: {label: string, value: string}[] = [];
+    data.forEach(group => {
+      const uniqueNames = Array.from(new Set(group.rules.map(r => r.name).filter(Boolean)));
+      if (uniqueNames.length > 0) {
+        options.push({ label: `--- ${group.name} ---`, value: "" });
+        const sortedNames = uniqueNames.slice().sort((a, b) => a.localeCompare(b, undefined, {sensitivity: 'base'}));
+        options = options.concat(sortedNames.map(name => ({ label: name, value: name })));
+      }
+    });
+    return options;
+  });
+
+  // Derived variable for filtered and paginated groups
   let showed_data: Group[] = $derived.by(() =>
-    data.map((group, index) => ({
-      ...group,
-      rules: group.rules.slice(0, showed_limit[index]),
-    })),
+    data.map((group, index) => {
+      let filteredRules = group.rules;
+      const hasSearch = searchQuery.trim() !== "";
+      if (hasSearch) {
+        const q = searchQuery.trim().toLowerCase();
+        filteredRules = group.rules.filter(
+          (rule: Rule) =>
+            (rule.name && rule.name.toLowerCase().includes(q)) ||
+            (rule.rule && rule.rule.toLowerCase().includes(q))
+        );
+        // When searching, show all matches, ignore pagination
+        return {
+          ...group,
+          rules: filteredRules,
+        };
+      } else {
+        // No search: paginate as before
+        return {
+          ...group,
+          rules: group.rules.slice(0, showed_limit[index]),
+        };
+      }
+    })
   );
+
+  // When the user types in the input, reset selectedRuleName if it doesn't match
+  $effect(() => {
+    if (selectedRuleName && searchQuery !== selectedRuleName) {
+      selectedRuleName = "";
+    }
+  });
+
   let counter = $state(-2); // skip first update on init
   let valid_rules = $state(true);
   let container_width = $state<number>(Infinity);
@@ -229,9 +289,125 @@
     }
     loaderState.loaded();
   }
+  // Close combobox on outside click
+  let comboboxEl: HTMLDivElement | null = null;
+  $effect(() => {
+    if (comboboxOpen) {
+      const handler = (e: MouseEvent) => {
+        if (comboboxEl && !comboboxEl.contains(e.target as Node)) {
+          comboboxOpen = false;
+        }
+      };
+      window.addEventListener('mousedown', handler, true);
+      onDestroy(() => window.removeEventListener('mousedown', handler, true));
+    }
+  });
 </script>
 
 <div class="group-controls">
+  <div class="group-controls-search combobox" bind:this={comboboxEl} style="position: relative; display: flex; align-items: center; gap: 0.5rem;">
+    <input
+      type="text"
+      placeholder="Search rules..."
+      bind:value={searchQuery}
+      class="group-search-input"
+      autocomplete="off"
+      onblur={(e) => {
+        // Only close if focus moves outside the combobox
+        const related = e.relatedTarget as HTMLElement | null;
+        if (!related || !related.closest('.combobox')) {
+          comboboxOpen = false;
+        }
+      }}
+      style="padding-right: 2.2rem;"
+    />
+    <button type="button" class="combobox-dropdown-btn" aria-label="Show rule names" onclick={() => comboboxOpen = !comboboxOpen} tabindex="-1">
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M5 8l5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    {#if comboboxOpen}
+      <div class="combobox-dropdown" tabindex="-1">
+        {#each groupedRuleNameOptions as option}
+          {#if option.value === ""}
+            <div class="combobox-group-label">{option.label}</div>
+          {:else}
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div class="combobox-item" onclick={() => { searchQuery = option.value; selectedRuleName = option.value; comboboxOpen = false; }}>
+              {option.label}
+            </div>
+          {/if}
+        {/each}
+      </div>
+    {/if}
+  </div>
+
+  <style>
+    .combobox {
+      position: relative;
+      width: 100%;
+      max-width: 320px;
+    }
+    .combobox-dropdown-btn {
+      position: absolute;
+      right: 0.6rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      z-index: 2;
+      padding: 0;
+      width: 2rem;
+      height: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-2);
+      border-radius: 0.3rem;
+      transition: background 0.1s;
+    }
+    .combobox-dropdown-btn svg {
+      width: 1.2rem;
+      height: 1.2rem;
+      pointer-events: none;
+      display: block;
+    }
+    .combobox-dropdown-btn:hover {
+      background: var(--bg-light-extra);
+    }
+    .combobox-dropdown {
+      position: absolute;
+      left: 0;
+      top: 110%;
+      width: 100%;
+      background: var(--bg-light);
+      border: 1px solid var(--bg-light-extra);
+      border-radius: 0.4rem;
+      box-shadow: var(--shadow-popover);
+      z-index: 10;
+      max-height: 260px;
+      overflow-y: auto;
+      margin-top: 0.2rem;
+    }
+    .combobox-group-label {
+      font-size: 0.9em;
+      color: var(--text-2);
+      padding: 0.4em 0.8em 0.2em 0.8em;
+      font-weight: 600;
+      background: var(--bg-light-extra);
+    }
+    .combobox-item {
+      padding: 0.4em 0.8em;
+      cursor: pointer;
+      font-size: 1em;
+      color: var(--text);
+      transition: background 0.1s;
+    }
+    .combobox-item:hover {
+      background: var(--bg-dark-extra);
+      color: var(--accent);
+    }
+  </style>
   <div class="group-controls-actions">
     {#if counter > 0 && valid_rules}
       <div transition:scale>
@@ -268,7 +444,7 @@
 <div bind:clientWidth={container_width}>
   {#each showed_data as group, group_index (group.id)}
     <div class="group" data-uuid={group.id}>
-      <Collapsible.Root open={false}>
+      <Collapsible.Root open={groupExpanded[group_index]}>
         <div class="group-header" data-group-index={group_index}>
           <div class="group-left">
             <label class="group-color" style="background: {group.color}">
@@ -387,27 +563,57 @@
                 <div class="group-rules-header-column">Name</div>
                 <div class="group-rules-header-column">Type</div>
                 <div class="group-rules-header-column">Pattern</div>
-                <div class="group-rules-header-column">Enabled</div>
-                <div></div>
               </div>
             {/if}
             <div class="group-rules">
-              <InfiniteLoader triggerLoad={() => loadMore(group_index)} loopDetectionTimeout={10}>
-                {#each group.rules as rule, rule_index (rule.id)}
-                  <RuleComponent
-                    key={rule.id}
-                    bind:rule={data[group_index].rules[rule_index]}
-                    {rule_index}
-                    {group_index}
-                    rule_id={rule.id}
-                    group_id={group.id}
-                    onChangeIndex={changeRuleIndex}
-                    onDelete={deleteRuleFromGroup}
-                    style={rule_index % 2 ? "" : "background-color: var(--bg-light)"}
-                  />
-                {/each}
-              </InfiniteLoader>
-            </div>
+  {#if !searchQuery.trim()}
+    <InfiniteLoader triggerLoad={() => loadMore(group_index)} loopDetectionTimeout={10}>
+      {#each group.rules as rule, rule_index (rule.id)}
+        <RuleComponent
+          key={rule.id}
+          rule={rule}
+          {rule_index}
+          {group_index}
+          rule_id={rule.id}
+          group_id={group.id}
+          onChangeIndex={changeRuleIndex}
+          onDelete={deleteRuleFromGroup}
+          onRuleDrop={(fromIndex: number, toIndex: number) => {
+            const rules = data[group_index].rules;
+            const [moved] = rules.splice(fromIndex, 1);
+            rules.splice(toIndex, 0, moved);
+          }}
+          style={rule_index % 2 ? "" : "background-color: var(--bg-light)"}
+        />
+      {/each}
+    </InfiniteLoader>
+  {:else}
+    {#each showed_data[group_index].rules as rule, rule_index (rule.id)}
+      <RuleComponent
+        key={rule.id}
+        rule={rule}
+        {rule_index}
+        {group_index}
+        rule_id={rule.id}
+        group_id={group.id}
+        onChangeIndex={changeRuleIndex}
+        onDelete={deleteRuleFromGroup}
+        onRuleDrop={(fromIndex: number, toIndex: number) => {
+          const fromRule = showed_data[group_index].rules[fromIndex];
+          const toRule = showed_data[group_index].rules[toIndex];
+          const rules = data[group_index].rules;
+          const fromIndexInFull = rules.indexOf(fromRule);
+          const toIndexInFull = rules.indexOf(toRule);
+          if (fromIndexInFull !== -1 && toIndexInFull !== -1) {
+            const [moved] = rules.splice(fromIndexInFull, 1);
+            rules.splice(toIndexInFull, 0, moved);
+          }
+        }}
+        style={rule_index % 2 ? "" : "background-color: var(--bg-light)"}
+      />
+    {/each}
+  {/if}
+</div>
           </div>
         </Collapsible.Content>
       </Collapsible.Root>
@@ -617,4 +823,24 @@
       }
     }
   }
+.group-controls-search {
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+}
+.group-search-input {
+  width: 100%;
+  max-width: 300px;
+  padding: 0.4rem 0.8rem;
+  border-radius: 0.4rem;
+  border: 1px solid var(--bg-light-extra);
+  font-size: 1rem;
+  background: var(--bg-light);
+  color: var(--text);
+  outline: none;
+  margin-right: 1rem;
+}
+.group-search-input:focus {
+  border-color: var(--accent);
+}
 </style>

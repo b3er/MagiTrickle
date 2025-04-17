@@ -20,6 +20,7 @@
       to_group_index: number,
       to_rule_index: number,
     ) => void;
+    onRuleDrop?: (from_index: number, to_index: number) => void;
     onDelete?: (from_group_index: number, from_rule_index: number) => void;
     [key: string]: any;
   };
@@ -31,6 +32,7 @@
     rule_id,
     group_id,
     onChangeIndex,
+    onRuleDrop,
     onDelete,
     ...rest
   }: Props = $props();
@@ -52,18 +54,16 @@
   function handleDrop(state: DragDropState) {
     const { sourceContainer, targetContainer } = state;
     if (!targetContainer || sourceContainer === targetContainer) return;
-    const [, , from_group_index, from_rule_index] = sourceContainer.split(",");
-    const [, , to_group_index, to_rule_index] = targetContainer.split(",");
-    window.dispatchEvent(
-      new CustomEvent("rule_drop", {
-        detail: {
-          from_group_index: +from_group_index,
-          from_rule_index: +from_rule_index,
-          to_group_index: +to_group_index,
-          to_rule_index: +to_rule_index,
-        },
-      }),
-    );
+    const [, , , from_rule_index] = sourceContainer.split(",");
+    const [, , , to_rule_index] = targetContainer.split(",");
+    if (onRuleDrop) {
+      onRuleDrop(+from_rule_index, +to_rule_index);
+    } else if (onChangeIndex) {
+      // fallback to legacy
+      const [, , from_group_index, from_rule_index_full] = sourceContainer.split(",");
+      const [, , to_group_index, to_rule_index_full] = targetContainer.split(",");
+      onChangeIndex(+from_group_index, +from_rule_index_full, +to_group_index, +to_rule_index_full);
+    }
   }
 
   function onFocusInput(event: FocusEvent) {
