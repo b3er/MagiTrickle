@@ -34,12 +34,27 @@
 
   let data: Group[] = $state([]);
   let showed_limit: number[] = $state([]);
-  let showed_data: Group[] = $derived.by(() =>
-    data.map((group, index) => ({
+  let searchQuery = $state("");
+
+let showed_data: Group[] = $derived.by(() =>
+  data.map((group, index) => {
+    // Filter rules by search query if present
+    let filteredRules = group.rules;
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      filteredRules = group.rules.filter(
+        rule =>
+          (rule.name && rule.name.toLowerCase().includes(q)) ||
+          (rule.type && rule.type.toLowerCase().includes(q)) ||
+          (rule.pattern && rule.pattern.toLowerCase().includes(q))
+      );
+    }
+    return {
       ...group,
-      rules: group.rules.slice(0, showed_limit[index]),
-    })),
-  );
+      rules: filteredRules.slice(0, showed_limit[index]),
+    };
+  })
+);
   let counter = $state(-2); // skip first update on init
   let valid_rules = $state(true);
   let container_width = $state<number>(Infinity);
@@ -232,6 +247,15 @@
 </script>
 
 <div class="group-controls">
+  <div class="group-controls-search">
+    <input
+      type="text"
+      placeholder="Search rules..."
+      bind:value={searchQuery}
+      class="group-search-input"
+      autocomplete="off"
+    />
+  </div>
   <div class="group-controls-actions">
     {#if counter > 0 && valid_rules}
       <div transition:scale>
@@ -617,4 +641,24 @@
       }
     }
   }
+.group-controls-search {
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+}
+.group-search-input {
+  width: 100%;
+  max-width: 300px;
+  padding: 0.4rem 0.8rem;
+  border-radius: 0.4rem;
+  border: 1px solid var(--bg-light-extra);
+  font-size: 1rem;
+  background: var(--bg-light);
+  color: var(--text);
+  outline: none;
+  margin-right: 1rem;
+}
+.group-search-input:focus {
+  border-color: var(--accent);
+}
 </style>
