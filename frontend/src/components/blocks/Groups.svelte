@@ -36,6 +36,7 @@
   let showed_limit: number[] = $state([]);
   let searchQuery = $state("");
   let selectedRuleName = $state("");
+let comboboxOpen = $state(false);
 
   // Compute grouped rule name options for dropdown
   let groupedRuleNameOptions: {label: string, value: string}[] = $derived.by(() => {
@@ -77,12 +78,9 @@
     })
   );
 
-  // Keep searchQuery and selectedRuleName in sync
+  // When the user types in the input, reset selectedRuleName if it doesn't match
   $effect(() => {
     if (selectedRuleName && searchQuery !== selectedRuleName) {
-      searchQuery = selectedRuleName;
-    }
-    if (!selectedRuleName && searchQuery === "") {
       selectedRuleName = "";
     }
   });
@@ -279,25 +277,90 @@
 </script>
 
 <div class="group-controls">
-  <div class="group-controls-search" style="gap: 0.5rem;">
-    <Select
-      options={groupedRuleNameOptions}
-      bind:selected={selectedRuleName}
-      style="max-width: 220px; min-width: 120px;"
-      onValueChange={(val) => {
-        selectedRuleName = val;
-        searchQuery = val || "";
-      }}
-      placeholder="Select rule name..."
-    />
+  <div class="group-controls-search combobox" style="position: relative; display: flex; align-items: center; gap: 0.5rem;">
     <input
       type="text"
       placeholder="Search rules..."
       bind:value={searchQuery}
       class="group-search-input"
       autocomplete="off"
+      onblur={() => setTimeout(() => comboboxOpen = false, 100)}
+      style="padding-right: 2.2rem;"
     />
+    <button type="button" class="combobox-dropdown-btn" aria-label="Show rule names" onclick={() => comboboxOpen = !comboboxOpen} tabindex="-1">
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M5 8l5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    {#if comboboxOpen}
+      <div class="combobox-dropdown" tabindex="-1">
+        {#each groupedRuleNameOptions as option}
+          {#if option.value === ""}
+            <div class="combobox-group-label">{option.label}</div>
+          {:else}
+            <div class="combobox-item" onclick={() => { searchQuery = option.value; selectedRuleName = option.value; comboboxOpen = false; }}>
+              {option.label}
+            </div>
+          {/if}
+        {/each}
+      </div>
+    {/if}
   </div>
+
+  <style>
+    .combobox {
+      position: relative;
+      width: 100%;
+      max-width: 320px;
+    }
+    .combobox-dropdown-btn {
+      position: absolute;
+      right: 0.3rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      z-index: 2;
+      padding: 0.2rem;
+      color: var(--text-2);
+      border-radius: 0.2rem;
+      transition: background 0.1s;
+    }
+    .combobox-dropdown-btn:hover {
+      background: var(--bg-light-extra);
+    }
+    .combobox-dropdown {
+      position: absolute;
+      left: 0;
+      top: 110%;
+      width: 100%;
+      background: var(--bg-light);
+      border: 1px solid var(--bg-light-extra);
+      border-radius: 0.4rem;
+      box-shadow: var(--shadow-popover);
+      z-index: 10;
+      max-height: 260px;
+      overflow-y: auto;
+      margin-top: 0.2rem;
+    }
+    .combobox-group-label {
+      font-size: 0.9em;
+      color: var(--text-2);
+      padding: 0.4em 0.8em 0.2em 0.8em;
+      font-weight: 600;
+      background: var(--bg-light-extra);
+    }
+    .combobox-item {
+      padding: 0.4em 0.8em;
+      cursor: pointer;
+      font-size: 1em;
+      color: var(--text);
+      transition: background 0.1s;
+    }
+    .combobox-item:hover {
+      background: var(--bg-dark-extra);
+      color: var(--accent);
+    }
+  </style>
   <div class="group-controls-actions">
     {#if counter > 0 && valid_rules}
       <div transition:scale>
