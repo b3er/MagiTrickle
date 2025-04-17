@@ -35,32 +35,58 @@
   let data: Group[] = $state([]);
   let showed_limit: number[] = $state([]);
   let searchQuery = $state("");
+  let selectedRuleName = $state("");
 
-let showed_data: Group[] = $derived.by(() =>
-  data.map((group, index) => {
-    let filteredRules = group.rules;
-    const hasSearch = searchQuery.trim() !== "";
-    if (hasSearch) {
-      const q = searchQuery.trim().toLowerCase();
-      filteredRules = group.rules.filter(
-        rule =>
-          (rule.name && rule.name.toLowerCase().includes(q)) ||
-          (rule.rule && rule.rule.toLowerCase().includes(q))
-      );
-      // When searching, show all matches, ignore pagination
-      return {
-        ...group,
-        rules: filteredRules,
-      };
-    } else {
-      // No search: paginate as before
-      return {
-        ...group,
-        rules: group.rules.slice(0, showed_limit[index]),
-      };
+  // Compute grouped rule name options for dropdown
+  let groupedRuleNameOptions: {label: string, value: string}[] = $derived.by(() => {
+    let options: {label: string, value: string}[] = [];
+    data.forEach(group => {
+      const uniqueNames = Array.from(new Set(group.rules.map(r => r.name).filter(Boolean)));
+      if (uniqueNames.length > 0) {
+        options.push({ label: `--- ${group.name} ---`, value: "" });
+        options = options.concat(uniqueNames.map(name => ({ label: name, value: name })));
+      }
+    });
+    return options;
+  });
+
+  // Derived variable for filtered and paginated groups
+  let showed_data: Group[] = $derived.by(() =>
+    data.map((group, index) => {
+      let filteredRules = group.rules;
+      const hasSearch = searchQuery.trim() !== "";
+      if (hasSearch) {
+        const q = searchQuery.trim().toLowerCase();
+        filteredRules = group.rules.filter(
+          (rule: Rule) =>
+            (rule.name && rule.name.toLowerCase().includes(q)) ||
+            (rule.rule && rule.rule.toLowerCase().includes(q))
+        );
+        // When searching, show all matches, ignore pagination
+        return {
+          ...group,
+          rules: filteredRules,
+        };
+      } else {
+        // No search: paginate as before
+        return {
+          ...group,
+          rules: group.rules.slice(0, showed_limit[index]),
+        };
+      }
+    })
+  );
+
+  // Keep searchQuery and selectedRuleName in sync
+  $effect(() => {
+    if (selectedRuleName && searchQuery !== selectedRuleName) {
+      searchQuery = selectedRuleName;
     }
-  })
-);
+    if (!selectedRuleName && searchQuery === "") {
+      selectedRuleName = "";
+    }
+  });
+
   let counter = $state(-2); // skip first update on init
   let valid_rules = $state(true);
   let container_width = $state<number>(Infinity);
@@ -253,7 +279,17 @@ let showed_data: Group[] = $derived.by(() =>
 </script>
 
 <div class="group-controls">
-  <div class="group-controls-search">
+  <div class="group-controls-search" style="gap: 0.5rem;">
+    <Select
+      options={groupedRuleNameOptions}
+      bind:selected={selectedRuleName}
+      style="max-width: 220px; min-width: 120px;"
+      onValueChange={(val) => {
+        selectedRuleName = val;
+        searchQuery = val || "";
+      }}
+      placeholder="Select rule name..."
+    />
     <input
       type="text"
       placeholder="Search rules..."
