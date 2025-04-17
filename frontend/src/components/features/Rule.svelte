@@ -14,6 +14,7 @@
     group_index: number;
     rule_id: string;
     group_id: string;
+    dndEnabled?: boolean;
     onChangeIndex?: (
       from_group_index: number,
       from_rule_index: number,
@@ -30,6 +31,7 @@
     group_index,
     rule_id,
     group_id,
+    dndEnabled = true,
     onChangeIndex,
     onDelete,
     ...rest
@@ -79,71 +81,129 @@
   }
 </script>
 
-<div
-  class="container rule"
-  data-index={rule_index}
-  data-group-index={group_index}
-  data-uuid={rule_id}
-  data-group-uuid={group_id}
-  use:draggable={{
-    container: `${group_id},${rule_id},${group_index},${rule_index}`,
-    dragData: { rule_id, group_id, rule_index, group_index },
-    interactive: ["[data-select-item]", ".interactive"],
-    bypass: is_mobile,
-  }}
-  use:droppable={{
-    container: `${group_id},${rule_id},${group_index},${rule_index}`,
-    callbacks: { onDrop: handleDrop },
-  }}
-  {...rest}
->
-  <div class="grip" data-index={rule_index} data-group-index={group_index}><Grip /></div>
-  <div class="name">
-    <div class="label">Name</div>
-    <input
-      type="text"
-      placeholder="rule name..."
-      class="table-input"
-      bind:value={rule.name}
-      onfocus={onFocusInput}
-      onblur={onBlurInput}
-    />
+{#if dndEnabled}
+  <div
+    class="container rule"
+    data-index={rule_index}
+    data-group-index={group_index}
+    data-uuid={rule_id}
+    data-group-uuid={group_id}
+    use:draggable={{
+      container: `${group_id},${rule_id},${group_index},${rule_index}`,
+      dragData: { rule_id, group_id, rule_index, group_index },
+      interactive: ["[data-select-item]", ".interactive"],
+      bypass: is_mobile,
+    }}
+    use:droppable={{
+      container: `${group_id},${rule_id},${group_index},${rule_index}`,
+      callbacks: { onDrop: handleDrop },
+    }}
+    {...rest}
+  >
+    <div class="grip" data-index={rule_index} data-group-index={group_index}><Grip /></div>
+    <div class="name">
+      <div class="label">Name</div>
+      <input
+        type="text"
+        placeholder="rule name..."
+        class="table-input"
+        bind:value={rule.name}
+        onfocus={onFocusInput}
+        onblur={onBlurInput}
+      />
+    </div>
+    <div class="type">
+      <div class="label">Type</div>
+      <Select options={RULE_TYPES} bind:selected={rule.type} onSelectedChange={patternValidation} />
+    </div>
+    <div class="pattern">
+      <div class="label">Pattern</div>
+      <input
+        type="text"
+        placeholder="rule pattern..."
+        class="table-input pattern-input interactive"
+        bind:value={rule.rule}
+        bind:this={input}
+        oninput={patternValidation}
+        onfocusout={patternValidation}
+        onfocus={onFocusInput}
+        onblur={onBlurInput}
+      />
+    </div>
+    <div class="actions">
+      <Tooltip value="Enable Rule">
+        <Switch bind:checked={rule.enable} class="interactive" />
+      </Tooltip>
+      <Tooltip value="Delete Rule">
+        <Button
+          small
+          onclick={() => onDelete?.(group_index, rule_index)}
+          data-index={rule_index}
+          data-group-index={group_index}
+          class="interactive"
+        >
+          <Delete size={20} />
+        </Button>
+      </Tooltip>
+    </div>
   </div>
-  <div class="type">
-    <div class="label">Type</div>
-    <Select options={RULE_TYPES} bind:selected={rule.type} onSelectedChange={patternValidation} />
+{:else}
+  <div
+    class="container rule"
+    data-index={rule_index}
+    data-group-index={group_index}
+    data-uuid={rule_id}
+    data-group-uuid={group_id}
+    {...rest}
+  >
+    <div class="grip" data-index={rule_index} data-group-index={group_index}><Grip /></div>
+    <div class="name">
+      <div class="label">Name</div>
+      <input
+        type="text"
+        placeholder="rule name..."
+        class="table-input"
+        bind:value={rule.name}
+        onfocus={onFocusInput}
+        onblur={onBlurInput}
+      />
+    </div>
+    <div class="type">
+      <div class="label">Type</div>
+      <Select options={RULE_TYPES} bind:selected={rule.type} onSelectedChange={patternValidation} />
+    </div>
+    <div class="pattern">
+      <div class="label">Pattern</div>
+      <input
+        type="text"
+        placeholder="rule pattern..."
+        class="table-input pattern-input interactive"
+        bind:value={rule.rule}
+        bind:this={input}
+        oninput={patternValidation}
+        onfocusout={patternValidation}
+        onfocus={onFocusInput}
+        onblur={onBlurInput}
+      />
+    </div>
+    <div class="actions">
+      <Tooltip value="Enable Rule">
+        <Switch bind:checked={rule.enable} class="interactive" />
+      </Tooltip>
+      <Tooltip value="Delete Rule">
+        <Button
+          small
+          onclick={() => onDelete?.(group_index, rule_index)}
+          data-index={rule_index}
+          data-group-index={group_index}
+          class="interactive"
+        >
+          <Delete size={20} />
+        </Button>
+      </Tooltip>
+    </div>
   </div>
-  <div class="pattern">
-    <div class="label">Pattern</div>
-    <input
-      type="text"
-      placeholder="rule pattern..."
-      class="table-input pattern-input interactive"
-      bind:value={rule.rule}
-      bind:this={input}
-      oninput={patternValidation}
-      onfocusout={patternValidation}
-      onfocus={onFocusInput}
-      onblur={onBlurInput}
-    />
-  </div>
-  <div class="actions">
-    <Tooltip value="Enable Rule">
-      <Switch bind:checked={rule.enable} class="interactive" />
-    </Tooltip>
-    <Tooltip value="Delete Rule">
-      <Button
-        small
-        onclick={() => onDelete?.(group_index, rule_index)}
-        data-index={rule_index}
-        data-group-index={group_index}
-        class="interactive"
-      >
-        <Delete size={20} />
-      </Button>
-    </Tooltip>
-  </div>
-</div>
+{/if}
 
 <style>
   .container {

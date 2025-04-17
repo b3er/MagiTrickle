@@ -432,6 +432,7 @@ let showed_data: Group[] = $derived.by(() =>
           {group_index}
           rule_id={rule.id}
           group_id={group.id}
+          dndEnabled={!searchQuery.trim()}
           onChangeIndex={changeRuleIndex}
           onDelete={deleteRuleFromGroup}
           style={rule_index % 2 ? "" : "background-color: var(--bg-light)"}
@@ -447,6 +448,7 @@ let showed_data: Group[] = $derived.by(() =>
         {group_index}
         rule_id={rule.id}
         group_id={group.id}
+        dndEnabled={false}
         onChangeIndex={changeRuleIndex}
         onDelete={deleteRuleFromGroup}
         style={rule_index % 2 ? "" : "background-color: var(--bg-light)"}
