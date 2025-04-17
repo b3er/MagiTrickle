@@ -37,6 +37,20 @@
   let searchQuery = $state("");
   let selectedRuleName = $state("");
 let comboboxOpen = $state(false);
+let groupExpanded = $state<boolean[]>([]);
+
+// Auto-expand groups with filtered items when searchQuery changes, but never collapse
+$effect(() => {
+  if (!data) return;
+  if (!searchQuery.trim()) return; // do not collapse on empty
+  const newExpanded = groupExpanded.length === data.length
+    ? groupExpanded.map((open, i) => open || showed_data[i].rules.length > 0)
+    : showed_data.map(g => g.rules.length > 0);
+  // Only update if changed, to avoid infinite loop
+  if (groupExpanded.length !== newExpanded.length || groupExpanded.some((v, i) => v !== newExpanded[i])) {
+    groupExpanded = newExpanded;
+  }
+});
 
   // Compute grouped rule name options for dropdown
   let groupedRuleNameOptions: {label: string, value: string}[] = $derived.by(() => {
@@ -430,7 +444,7 @@ let comboboxOpen = $state(false);
 <div bind:clientWidth={container_width}>
   {#each showed_data as group, group_index (group.id)}
     <div class="group" data-uuid={group.id}>
-      <Collapsible.Root open={false}>
+      <Collapsible.Root open={groupExpanded[group_index]}>
         <div class="group-header" data-group-index={group_index}>
           <div class="group-left">
             <label class="group-color" style="background: {group.color}">
