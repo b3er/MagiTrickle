@@ -45,8 +45,7 @@ let showed_data: Group[] = $derived.by(() =>
       filteredRules = group.rules.filter(
         rule =>
           (rule.name && rule.name.toLowerCase().includes(q)) ||
-          (rule.type && rule.type.toLowerCase().includes(q)) ||
-          (rule.pattern && rule.pattern.toLowerCase().includes(q))
+          (rule.rule && rule.rule.toLowerCase().includes(q))
       );
       // When searching, show all matches, ignore pagination
       return {
