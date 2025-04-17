@@ -38,9 +38,9 @@
 
 let showed_data: Group[] = $derived.by(() =>
   data.map((group, index) => {
-    // Filter rules by search query if present
     let filteredRules = group.rules;
-    if (searchQuery.trim()) {
+    const hasSearch = searchQuery.trim() !== "";
+    if (hasSearch) {
       const q = searchQuery.trim().toLowerCase();
       filteredRules = group.rules.filter(
         rule =>
@@ -48,11 +48,18 @@ let showed_data: Group[] = $derived.by(() =>
           (rule.type && rule.type.toLowerCase().includes(q)) ||
           (rule.pattern && rule.pattern.toLowerCase().includes(q))
       );
+      // When searching, show all matches, ignore pagination
+      return {
+        ...group,
+        rules: filteredRules,
+      };
+    } else {
+      // No search: paginate as before
+      return {
+        ...group,
+        rules: group.rules.slice(0, showed_limit[index]),
+      };
     }
-    return {
-      ...group,
-      rules: filteredRules.slice(0, showed_limit[index]),
-    };
   })
 );
   let counter = $state(-2); // skip first update on init
@@ -416,22 +423,38 @@ let showed_data: Group[] = $derived.by(() =>
               </div>
             {/if}
             <div class="group-rules">
-              <InfiniteLoader triggerLoad={() => loadMore(group_index)} loopDetectionTimeout={10}>
-                {#each group.rules as rule, rule_index (rule.id)}
-                  <RuleComponent
-                    key={rule.id}
-                    bind:rule={data[group_index].rules[rule_index]}
-                    {rule_index}
-                    {group_index}
-                    rule_id={rule.id}
-                    group_id={group.id}
-                    onChangeIndex={changeRuleIndex}
-                    onDelete={deleteRuleFromGroup}
-                    style={rule_index % 2 ? "" : "background-color: var(--bg-light)"}
-                  />
-                {/each}
-              </InfiniteLoader>
-            </div>
+  {#if !searchQuery.trim()}
+    <InfiniteLoader triggerLoad={() => loadMore(group_index)} loopDetectionTimeout={10}>
+      {#each group.rules as rule, rule_index (rule.id)}
+        <RuleComponent
+          key={rule.id}
+          bind:rule={data[group_index].rules[rule_index]}
+          {rule_index}
+          {group_index}
+          rule_id={rule.id}
+          group_id={group.id}
+          onChangeIndex={changeRuleIndex}
+          onDelete={deleteRuleFromGroup}
+          style={rule_index % 2 ? "" : "background-color: var(--bg-light)"}
+        />
+      {/each}
+    </InfiniteLoader>
+  {:else}
+    {#each group.rules as rule, rule_index (rule.id)}
+      <RuleComponent
+        key={rule.id}
+        rule={rule}
+        {rule_index}
+        {group_index}
+        rule_id={rule.id}
+        group_id={group.id}
+        onChangeIndex={changeRuleIndex}
+        onDelete={deleteRuleFromGroup}
+        style={rule_index % 2 ? "" : "background-color: var(--bg-light)"}
+      />
+    {/each}
+  {/if}
+</div>
           </div>
         </Collapsible.Content>
       </Collapsible.Root>
