@@ -274,10 +274,23 @@ let comboboxOpen = $state(false);
     }
     loaderState.loaded();
   }
+  // Close combobox on outside click
+  let comboboxEl: HTMLDivElement | null = null;
+  $effect(() => {
+    if (comboboxOpen) {
+      const handler = (e: MouseEvent) => {
+        if (comboboxEl && !comboboxEl.contains(e.target as Node)) {
+          comboboxOpen = false;
+        }
+      };
+      window.addEventListener('mousedown', handler, true);
+      onDestroy(() => window.removeEventListener('mousedown', handler, true));
+    }
+  });
 </script>
 
 <div class="group-controls">
-  <div class="group-controls-search combobox" style="position: relative; display: flex; align-items: center; gap: 0.5rem;">
+  <div class="group-controls-search combobox" bind:this={comboboxEl} style="position: relative; display: flex; align-items: center; gap: 0.5rem;">
     <input
       type="text"
       placeholder="Search rules..."
