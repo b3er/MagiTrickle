@@ -417,8 +417,6 @@ let showed_data: Group[] = $derived.by(() =>
                 <div class="group-rules-header-column">Name</div>
                 <div class="group-rules-header-column">Type</div>
                 <div class="group-rules-header-column">Pattern</div>
-                <div class="group-rules-header-column">Enabled</div>
-                <div></div>
               </div>
             {/if}
             <div class="group-rules">
@@ -427,20 +425,24 @@ let showed_data: Group[] = $derived.by(() =>
       {#each group.rules as rule, rule_index (rule.id)}
         <RuleComponent
           key={rule.id}
-          bind:rule={data[group_index].rules[rule_index]}
+          rule={rule}
           {rule_index}
           {group_index}
           rule_id={rule.id}
           group_id={group.id}
-          dndEnabled={!searchQuery.trim()}
           onChangeIndex={changeRuleIndex}
           onDelete={deleteRuleFromGroup}
+          onRuleDrop={(fromIndex: number, toIndex: number) => {
+            const rules = data[group_index].rules;
+            const [moved] = rules.splice(fromIndex, 1);
+            rules.splice(toIndex, 0, moved);
+          }}
           style={rule_index % 2 ? "" : "background-color: var(--bg-light)"}
         />
       {/each}
     </InfiniteLoader>
   {:else}
-    {#each group.rules as rule, rule_index (rule.id)}
+    {#each showed_data[group_index].rules as rule, rule_index (rule.id)}
       <RuleComponent
         key={rule.id}
         rule={rule}
@@ -448,9 +450,19 @@ let showed_data: Group[] = $derived.by(() =>
         {group_index}
         rule_id={rule.id}
         group_id={group.id}
-        dndEnabled={false}
         onChangeIndex={changeRuleIndex}
         onDelete={deleteRuleFromGroup}
+        onRuleDrop={(fromIndex: number, toIndex: number) => {
+          const fromRule = showed_data[group_index].rules[fromIndex];
+          const toRule = showed_data[group_index].rules[toIndex];
+          const rules = data[group_index].rules;
+          const fromIndexInFull = rules.indexOf(fromRule);
+          const toIndexInFull = rules.indexOf(toRule);
+          if (fromIndexInFull !== -1 && toIndexInFull !== -1) {
+            const [moved] = rules.splice(fromIndexInFull, 1);
+            rules.splice(toIndexInFull, 0, moved);
+          }
+        }}
         style={rule_index % 2 ? "" : "background-color: var(--bg-light)"}
       />
     {/each}
