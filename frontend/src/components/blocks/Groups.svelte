@@ -20,6 +20,7 @@
     Dots,
     Check,
     Toggle,
+    CircleX,
   } from "../common/icons";
   import Switch from "../common/Switch.svelte";
   import Tooltip from "../common/Tooltip.svelte";
@@ -36,21 +37,22 @@
   let showed_limit: number[] = $state([]);
   let searchQuery = $state("");
   let selectedRuleName = $state("");
-let comboboxOpen = $state(false);
-let groupExpanded = $state<boolean[]>([]);
+  let comboboxOpen = $state(false);
+  let comboboxEl = $state<HTMLDivElement | null>(null);
+  let groupExpanded = $state<boolean[]>([]);
 
-// Auto-expand groups with filtered items when searchQuery changes, but never collapse
-$effect(() => {
-  if (!data) return;
-  if (!searchQuery.trim()) return; // do not collapse on empty
-  const newExpanded = groupExpanded.length === data.length
-    ? groupExpanded.map((open, i) => open || showed_data[i].rules.length > 0)
-    : showed_data.map(g => g.rules.length > 0);
-  // Only update if changed, to avoid infinite loop
-  if (groupExpanded.length !== newExpanded.length || groupExpanded.some((v, i) => v !== newExpanded[i])) {
-    groupExpanded = newExpanded;
-  }
-});
+  // Auto-expand groups with filtered items when searchQuery changes, but never collapse
+  $effect(() => {
+    if (!data) return;
+    if (!searchQuery.trim()) return; // do not collapse on empty
+    const newExpanded = groupExpanded.length === data.length
+      ? groupExpanded.map((open, i) => open || showed_data[i].rules.length > 0)
+      : showed_data.map(g => g.rules.length > 0);
+    // Only update if changed, to avoid infinite loop
+    if (groupExpanded.length !== newExpanded.length || groupExpanded.some((v, i) => v !== newExpanded[i])) {
+      groupExpanded = newExpanded;
+    }
+  });
 
   // Compute grouped rule name options for dropdown
   let groupedRuleNameOptions: {label: string, value: string}[] = $derived.by(() => {
@@ -291,7 +293,6 @@ $effect(() => {
     loaderState.loaded();
   }
   // Close combobox on outside click
-  let comboboxEl: HTMLDivElement | null = null;
   $effect(() => {
     if (comboboxOpen) {
       const handler = (e: MouseEvent) => {
@@ -303,25 +304,45 @@ $effect(() => {
       onDestroy(() => window.removeEventListener('mousedown', handler, true));
     }
   });
+
+  // Add a function to filter dropdown options based on input
+  function filterDropdownOptions(query: string) {
+    if (query.trim() !== "") {
+      comboboxOpen = true;
+    }
+  }
+
+  // Add a function to clear the search query
+  function clearSearchQuery() {
+    searchQuery = "";
+    comboboxOpen = false;
+  }
 </script>
 
 <div class="group-controls">
   <div class="group-controls-search combobox" bind:this={comboboxEl} style="position: relative; display: flex; align-items: center; gap: 0.5rem;">
-    <input
-      type="text"
-      placeholder="Search rules..."
-      bind:value={searchQuery}
-      class="group-search-input"
-      autocomplete="off"
-      onblur={(e) => {
-        // Only close if focus moves outside the combobox
-        const related = e.relatedTarget as HTMLElement | null;
-        if (!related || !related.closest('.combobox')) {
-          comboboxOpen = false;
-        }
-      }}
-      style="padding-right: 2.2rem;"
-    />
+    <div class="search-input-container">
+      <input
+        type="text"
+        placeholder="Search rules..."
+        bind:value={searchQuery}
+        class="group-search-input"
+        autocomplete="off"
+        oninput={() => filterDropdownOptions(searchQuery)}
+        onblur={(e) => {
+          // Only close if focus moves outside the combobox
+          const related = e.relatedTarget as HTMLElement | null;
+          if (!related || !related.closest('.combobox')) {
+            comboboxOpen = false;
+          }
+        }}
+      />
+      {#if searchQuery}
+        <button type="button" class="clear-btn" aria-label="Clear search" onclick={clearSearchQuery}>
+          <CircleX size={16} />
+        </button>
+      {/if}
+    </div>
     <button type="button" class="combobox-dropdown-btn" aria-label="Show rule names" onclick={() => comboboxOpen = !comboboxOpen} tabindex="-1">
       <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M5 8l5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
@@ -333,7 +354,11 @@ $effect(() => {
           {:else}
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <div class="combobox-item" onclick={() => { searchQuery = option.value; selectedRuleName = option.value; comboboxOpen = false; }}>
+            <div 
+              class="combobox-item" 
+              onclick={() => { searchQuery = option.value; selectedRuleName = option.value; comboboxOpen = false; }}
+              style="display: {!searchQuery || option.label.toLowerCase().includes(searchQuery.toLowerCase()) ? 'block' : 'none'}"
+            >
               {option.label}
             </div>
           {/if}
@@ -347,6 +372,33 @@ $effect(() => {
       position: relative;
       width: 100%;
       max-width: 320px;
+    }
+    .search-input-container {
+      position: relative;
+      width: 100%;
+    }
+    .clear-btn {
+      position: absolute;
+      right: 2.5rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      z-index: 2;
+      padding: 0;
+      width: 1.8rem;
+      height: 1.8rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-2);
+      border-radius: 0.3rem;
+      transition: background 0.1s;
+    }
+    .clear-btn:hover {
+      background: var(--bg-light-extra);
+      color: var(--accent);
     }
     .combobox-dropdown-btn {
       position: absolute;
