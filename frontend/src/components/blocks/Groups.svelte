@@ -36,21 +36,22 @@
   let showed_limit: number[] = $state([]);
   let searchQuery = $state("");
   let selectedRuleName = $state("");
-let comboboxOpen = $state(false);
-let groupExpanded = $state<boolean[]>([]);
+  let comboboxOpen = $state(false);
+  let comboboxEl = $state<HTMLDivElement | null>(null);
+  let groupExpanded = $state<boolean[]>([]);
 
-// Auto-expand groups with filtered items when searchQuery changes, but never collapse
-$effect(() => {
-  if (!data) return;
-  if (!searchQuery.trim()) return; // do not collapse on empty
-  const newExpanded = groupExpanded.length === data.length
-    ? groupExpanded.map((open, i) => open || showed_data[i].rules.length > 0)
-    : showed_data.map(g => g.rules.length > 0);
-  // Only update if changed, to avoid infinite loop
-  if (groupExpanded.length !== newExpanded.length || groupExpanded.some((v, i) => v !== newExpanded[i])) {
-    groupExpanded = newExpanded;
-  }
-});
+  // Auto-expand groups with filtered items when searchQuery changes, but never collapse
+  $effect(() => {
+    if (!data) return;
+    if (!searchQuery.trim()) return; // do not collapse on empty
+    const newExpanded = groupExpanded.length === data.length
+      ? groupExpanded.map((open, i) => open || showed_data[i].rules.length > 0)
+      : showed_data.map(g => g.rules.length > 0);
+    // Only update if changed, to avoid infinite loop
+    if (groupExpanded.length !== newExpanded.length || groupExpanded.some((v, i) => v !== newExpanded[i])) {
+      groupExpanded = newExpanded;
+    }
+  });
 
   // Compute grouped rule name options for dropdown
   let groupedRuleNameOptions: {label: string, value: string}[] = $derived.by(() => {
@@ -291,7 +292,6 @@ $effect(() => {
     loaderState.loaded();
   }
   // Close combobox on outside click
-  let comboboxEl: HTMLDivElement | null = null;
   $effect(() => {
     if (comboboxOpen) {
       const handler = (e: MouseEvent) => {
@@ -303,6 +303,13 @@ $effect(() => {
       onDestroy(() => window.removeEventListener('mousedown', handler, true));
     }
   });
+
+  // Add a function to filter dropdown options based on input
+  function filterDropdownOptions(query: string) {
+    if (query.trim() !== "") {
+      comboboxOpen = true;
+    }
+  }
 </script>
 
 <div class="group-controls">
@@ -313,6 +320,7 @@ $effect(() => {
       bind:value={searchQuery}
       class="group-search-input"
       autocomplete="off"
+      oninput={() => filterDropdownOptions(searchQuery)}
       onblur={(e) => {
         // Only close if focus moves outside the combobox
         const related = e.relatedTarget as HTMLElement | null;
@@ -333,7 +341,11 @@ $effect(() => {
           {:else}
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <div class="combobox-item" onclick={() => { searchQuery = option.value; selectedRuleName = option.value; comboboxOpen = false; }}>
+            <div 
+              class="combobox-item" 
+              onclick={() => { searchQuery = option.value; selectedRuleName = option.value; comboboxOpen = false; }}
+              style="display: {!searchQuery || option.label.toLowerCase().includes(searchQuery.toLowerCase()) ? 'block' : 'none'}"
+            >
               {option.label}
             </div>
           {/if}
