@@ -172,8 +172,9 @@ $effect(() => {
     el?.querySelector<HTMLInputElement>("div.name input")?.focus();
   }
 
-  function deleteRuleFromGroup(group_index: number, rule_index: number) {
-    data[group_index].rules.splice(rule_index, 1);
+  function deleteRuleFromGroup(group_index: number, rule_id: string) {
+    const idx = data[group_index].rules.findIndex(r => r.id === rule_id);
+    if (idx !== -1) data[group_index].rules.splice(idx, 1);
   }
 
   function changeRuleIndex(
@@ -577,7 +578,11 @@ $effect(() => {
           rule_id={rule.id}
           group_id={group.id}
           onChangeIndex={changeRuleIndex}
-          onDelete={deleteRuleFromGroup}
+          onDelete={(group_index, rule_index) => {
+  const rules = searchQuery.trim() ? showed_data[group_index].rules : data[group_index].rules;
+  const rule = rules[rule_index];
+  if (rule) deleteRuleFromGroup(group_index, rule.id);
+}}
           onRuleDrop={(fromIndex: number, toIndex: number) => {
             const rules = data[group_index].rules;
             const [moved] = rules.splice(fromIndex, 1);
@@ -597,7 +602,11 @@ $effect(() => {
         rule_id={rule.id}
         group_id={group.id}
         onChangeIndex={changeRuleIndex}
-        onDelete={deleteRuleFromGroup}
+        onDelete={(group_index, rule_index) => {
+  const rules = searchQuery.trim() ? showed_data[group_index].rules : data[group_index].rules;
+  const rule = rules[rule_index];
+  if (rule) deleteRuleFromGroup(group_index, rule.id);
+}}
         onRuleDrop={(fromIndex: number, toIndex: number) => {
           const fromRule = showed_data[group_index].rules[fromIndex];
           const toRule = showed_data[group_index].rules[toIndex];

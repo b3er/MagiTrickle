@@ -134,7 +134,7 @@
     <Tooltip value="Delete Rule">
       <Button
         small
-        onclick={() => onDelete?.(group_index, rule_index)}
+        onclick={() => onDelete?.(group_index, rule_index) }
         data-index={rule_index}
         data-group-index={group_index}
         class="interactive"
