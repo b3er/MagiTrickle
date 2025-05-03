@@ -5,7 +5,7 @@
   let visible = $state(false);
 </script>
 
-<svelte:window onscroll={() => (visible = window.pageYOffset > 300)} />
+<svelte:window onscroll={() => (visible = window.pageYOffset > 0)} />
 
 {#if visible}
   <button transition:fly onclick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
