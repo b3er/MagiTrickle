@@ -130,6 +130,10 @@ func (a *App) ImportConfig(cfg config.Config) error {
 			a.config.Link = *cfg.App.Link
 		}
 
+		if cfg.App.ShowAllInterfaces != nil {
+			a.config.ShowAllInterfaces = *cfg.App.ShowAllInterfaces
+		}
+
 		if cfg.App.LogLevel != nil {
 			a.config.LogLevel = *cfg.App.LogLevel
 		}
@@ -237,8 +241,9 @@ func (a *App) ExportConfig() config.Config {
 				DisableIPv4: &a.config.Netfilter.DisableIPv4,
 				DisableIPv6: &a.config.Netfilter.DisableIPv6,
 			},
-			Link:     &a.config.Link,
-			LogLevel: &a.config.LogLevel,
+			Link:              &a.config.Link,
+			ShowAllInterfaces: &a.config.ShowAllInterfaces,
+			LogLevel:          &a.config.LogLevel,
 		},
 		Groups: &groups,
 	}

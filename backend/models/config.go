@@ -6,11 +6,12 @@ type Config struct {
 }
 
 type App struct {
-	HTTPWeb   HTTPWeb
-	DNSProxy  DNSProxy
-	Netfilter Netfilter
-	Link      []string
-	LogLevel  string
+	HTTPWeb           HTTPWeb
+	DNSProxy          DNSProxy
+	Netfilter         Netfilter
+	Link              []string
+	ShowAllInterfaces bool
+	LogLevel          string
 }
 
 type HTTPWeb struct {
