@@ -4,7 +4,7 @@
   import { loaderState } from "svelte-infinite";
 
   import { parseConfig, type Group, type Rule } from "../../types";
-  import { defaultGroup } from "../../utils/defaults";
+  import { defaultGroup, defaultRule } from "../../utils/defaults";
   import { fetcher } from "../../utils/fetcher";
   import { overlay, toast } from "../../utils/events";
   import { persistedState } from "../../utils/persisted-state.svelte";
@@ -122,7 +122,8 @@
   async function addGroup() {
     data.unshift(defaultGroup());
     showed_limit.unshift(INITIAL_RULES_LIMIT);
-    open_state.current[data[0].id] = false;
+    open_state.current[data[0].id] = true;
+    await addRuleToGroup(0, defaultRule(), false);
     await tick();
     const el = document.querySelector(`.group-header[data-group-index="0"]`);
     el?.querySelector<HTMLInputElement>("input.group-name")?.focus();
