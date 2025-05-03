@@ -14,7 +14,7 @@
 
   let { options, selected = $bindable(), onValueChange, ...rest }: Props = $props();
   const selected_label = $derived(
-    selected ? options.find((option) => option.value === selected)?.label : "...",
+    options.find((option) => option.value === selected)?.label || selected,
   );
 </script>
 

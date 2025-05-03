@@ -45,19 +45,13 @@ build_backend:
 	$(GO_FLAGS) go build -C ./backend $(PARAMS) -o ../$(BIN_DIR)/magitrickled ./cmd/magitrickled
 	upx -9 --lzma $(BIN_DIR)/magitrickled
 
-build_frontend_legacy:
-	cd ./frontend_legacy && npm install
-	cd ./frontend_legacy && npm run build
-	mkdir -p $(PKG_DIR)/data/opt/usr/share/magitrickle/skins/legacy
-	cp -r ./frontend_legacy/dist/* $(PKG_DIR)/data/opt/usr/share/magitrickle/skins/legacy/
-
 build_frontend:
 	cd ./frontend && npm install
 	cd ./frontend && VITE_UPSTREAM_VERSION=$(UPSTREAM_VERSION) VITE_DEV=$(if $(strip $(PRERELEASE_POSTFIX)),true,false) npm run build
 	mkdir -p $(PKG_DIR)/data/opt/usr/share/magitrickle/skins/default
 	cp -r ./frontend/dist/* $(PKG_DIR)/data/opt/usr/share/magitrickle/skins/default/
 
-build: build_backend build_frontend_legacy build_frontend
+build: build_backend build_frontend
 
 package:
 	mkdir -p $(PKG_DIR)/control
