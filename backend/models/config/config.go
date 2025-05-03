@@ -7,11 +7,12 @@ type Config struct {
 }
 
 type App struct {
-	HTTPWeb   *HTTPWeb   `yaml:"httpWeb"`
-	DNSProxy  *DNSProxy  `yaml:"dnsProxy"`
-	Netfilter *Netfilter `yaml:"netfilter"`
-	Link      *[]string  `yaml:"link"`
-	LogLevel  *string    `yaml:"logLevel"`
+	HTTPWeb           *HTTPWeb   `yaml:"httpWeb"`
+	DNSProxy          *DNSProxy  `yaml:"dnsProxy"`
+	Netfilter         *Netfilter `yaml:"netfilter"`
+	Link              *[]string  `yaml:"link"`
+	ShowAllInterfaces *bool      `yaml:"showAllInterfaces"`
+	LogLevel          *string    `yaml:"logLevel"`
 }
 
 type HTTPWeb struct {

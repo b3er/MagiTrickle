@@ -48,8 +48,9 @@ var defaultAppConfig = models.App{
 		DisableIPv4: false,
 		DisableIPv6: false,
 	},
-	Link:     []string{"br0"},
-	LogLevel: "info",
+	Link:              []string{"br0"},
+	ShowAllInterfaces: false,
+	LogLevel:          "info",
 }
 
 // App – основная структура ядра приложения
@@ -136,20 +137,22 @@ func (a *App) RemoveGroupByIndex(idx int) {
 
 // ListInterfaces возвращает список сетевых интерфейсов, удовлетворяющих заданным критериям
 func (a *App) ListInterfaces() ([]net.Interface, error) {
-	var filteredInterfaces []net.Interface
-
 	interfaces, err := net.Interfaces()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get interfaces: %w", err)
 	}
 
+	if a.config.ShowAllInterfaces {
+		return interfaces, nil
+	}
+
+	var filteredInterfaces []net.Interface
 	for _, iface := range interfaces {
 		if iface.Flags&net.FlagPointToPoint == 0 {
 			continue
 		}
 		filteredInterfaces = append(filteredInterfaces, iface)
 	}
-
 	return filteredInterfaces, nil
 }
 

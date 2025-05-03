@@ -63,6 +63,7 @@ app:                          # Настройки программы
   link:                       # Список адресов где будет подменяться DNS
     - br0
     - br1
+  showAllInterfaces: false    # Показывать все интерфейсы (не только с флагом PointToPoint)
   logLevel: info              # Уровень логов (trace, debug, info, warn, error)
 ```
 4. Запускаем сервис:

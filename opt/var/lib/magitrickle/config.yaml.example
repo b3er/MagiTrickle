@@ -26,6 +26,7 @@ app:
     disableIPv6: false
   link:
     - br0
+  showAllInterfaces: false
   logLevel: info
 groups:
   - id: d663876a
