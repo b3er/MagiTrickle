@@ -9,12 +9,14 @@ PKG_REVISION ?= 1
 TAG = $(shell git describe --tags --abbrev=0 2> /dev/null)
 COMMITS_SINCE_TAG = $(shell git rev-list ${TAG}..HEAD --count 2>/dev/null)
 PRERELEASE_POSTFIX =
-PRERELEASE_DATE = $(shell date +%Y%m%d)
+PRERELEASE_DATE = $(shell date +%Y%m%d%H%M%S)
 ifneq ($(TAG),)
     ifneq ($(COMMITS_SINCE_TAG), 0)
+    	UPSTREAM_VERSION := $(shell v=$(UPSTREAM_VERSION); echo $${v%.*}.$$(( $${v##*.} + 1 )) )
         PRERELEASE_POSTFIX = ~git$(PRERELEASE_DATE).$(COMMIT)
     endif
 else
+    UPSTREAM_VERSION := $(shell v=$(UPSTREAM_VERSION); echo $${v%.*}.$$(( $${v##*.} + 1 )) )
     PRERELEASE_POSTFIX = ~git$(PRERELEASE_DATE).$(COMMIT)
 endif
 
