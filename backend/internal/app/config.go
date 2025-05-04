@@ -6,16 +6,15 @@ import (
 	"os"
 	"strings"
 
-	"github.com/dlclark/regexp2"
-
 	"magitrickle/constant"
 	"magitrickle/models"
 	"magitrickle/models/config"
 
+	"github.com/dlclark/regexp2"
 	"gopkg.in/yaml.v3"
 )
 
-var colorRegExp = regexp2.MustCompile(`^#[0-9A-Fa-f]{6}$`, 0)
+var colorRegExp = regexp2.MustCompile(`^#[0-9a-f]{6}$`, regexp2.IgnoreCase)
 
 const cfgFolderLocation = constant.AppDataDir
 const cfgFileLocation = cfgFolderLocation + "/config.yaml"
@@ -161,6 +160,8 @@ func (a *App) ImportConfig(cfg config.Config) error {
 			}
 			if match, _ := colorRegExp.MatchString(group.Color); !match {
 				group.Color = "#ffffff"
+			} else {
+				group.Color = strings.ToLower(group.Color)
 			}
 			// TODO: Make required after 1.0.0
 			enable := true
