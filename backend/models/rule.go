@@ -1,12 +1,12 @@
 package models
 
 import (
-	"regexp"
 	"strings"
 
 	"magitrickle/api/types"
 
 	"github.com/IGLOU-EU/go-wildcard/v2"
+	"github.com/dlclark/regexp2"
 )
 
 type Rule struct {
@@ -26,7 +26,7 @@ func (d *Rule) IsMatch(domainName string) bool {
 	case "wildcard":
 		return wildcard.Match(d.Rule, domainName)
 	case "regex":
-		ok, _ := regexp.MatchString(d.Rule, domainName)
+		ok, _ := regexp2.MustCompile(d.Rule, regexp2.IgnoreCase).MatchString(domainName)
 		return ok
 	case "domain":
 		return domainName == d.Rule
