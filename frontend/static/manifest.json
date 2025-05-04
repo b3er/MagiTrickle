@@ -4,12 +4,5 @@
     "start_url": "/",
     "display": "standalone",
     "orientation": "any",
-    "prefer_related_applications": false,
-    "icons": [
-        {
-            "src": "favicon.ico",
-            "sizes": "any",
-            "type": "image/x-icon"
-        }
-    ]
+    "prefer_related_applications": false
 }
