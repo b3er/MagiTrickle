@@ -1,0 +1,8 @@
+{
+    "name": "MagiTrickle WebUI",
+    "short_name": "MagiTricle",
+    "start_url": "/",
+    "display": "standalone",
+    "orientation": "any",
+    "prefer_related_applications": false
+}
