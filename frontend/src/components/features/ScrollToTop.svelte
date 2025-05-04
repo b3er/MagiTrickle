@@ -5,7 +5,8 @@
   let visible = $state(false);
 </script>
 
-<svelte:window onscroll={() => (visible = window.pageYOffset > 0)} />
+<!-- TODO: Move "is_desktop" to const -->
+<svelte:window onscroll={() => (visible = window.pageYOffset > 0 && window.innerWidth > 668)} />
 
 {#if visible}
   <button transition:fly onclick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
