@@ -1,6 +1,6 @@
 {
     "name": "MagiTrickle WebUI",
-    "short_name": "MagiTricle",
+    "short_name": "MagiTrickle",
     "start_url": "/",
     "display": "standalone",
     "icons": [
