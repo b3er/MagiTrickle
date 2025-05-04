@@ -9,7 +9,7 @@ export { default as Upload } from "lucide-svelte/icons/upload";
 export { default as Download } from "lucide-svelte/icons/download";
 export { default as Locale } from "lucide-svelte/icons/languages";
 export { default as User } from "lucide-svelte/icons/user";
-export { default as Github } from "lucide-svelte/icons/github";
+export { default as Gitlab } from "lucide-svelte/icons/gitlab";
 export { default as Save } from "lucide-svelte/icons/save";
 export { default as ScrollToBottom } from "lucide-svelte/icons/arrow-down-to-line";
 export { default as Clear } from "lucide-svelte/icons/eraser";

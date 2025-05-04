@@ -1,6 +1,6 @@
 <script lang="ts">
   import Select from "../common/Select.svelte";
-  import { Locale, Github, Bug } from "../common/icons";
+  import { Locale, Gitlab, Bug } from "../common/icons";
   import { t, locale, locales } from "../../data/locale.svelte";
   const version = import.meta.env.VITE_UPSTREAM_VERSION || "0.0.0";
   const isDev = import.meta.env.VITE_DEV?.toLowerCase() === "true";
@@ -17,10 +17,10 @@
     <a
       target="_blank"
       rel="noopener noreferrer"
-      href="https://github.com/Ponywka/MagiTrickle/issues"><Bug size={22} /></a
+      href="https://gitlab.com/magitrickle/magitrickle/-/boards"><Bug size={22} /></a
     >
-    <a target="_blank" rel="noopener noreferrer" href="https://github.com/Ponywka/MagiTrickle"
-      ><Github size={22} /></a
+    <a target="_blank" rel="noopener noreferrer" href="https://gitlab.com/magitrickle/magitrickle"
+      ><Gitlab size={22} /></a
     >
   </div>
   <!-- <div class="locale">
