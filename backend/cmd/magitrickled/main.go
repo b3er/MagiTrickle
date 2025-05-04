@@ -149,6 +149,8 @@ func setupHTTP(a *app.App, apiRouter chi.Router, errChan chan error) (*http.Serv
 			w.Header().Set("Content-Type", "application/javascript")
 		case ".ico":
 			w.Header().Set("Content-Type", "image/x-icon")
+		case ".png":
+			w.Header().Set("Content-Type", "image/png")
 		default:
 			w.Header().Set("Content-Type", "text/plain")
 		}
