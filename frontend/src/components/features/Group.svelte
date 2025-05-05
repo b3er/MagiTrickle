@@ -10,6 +10,7 @@
   import {
     Delete,
     Add,
+    GroupExpand,
     GroupCollapse,
     MoveUp,
     MoveDown,
@@ -178,7 +179,11 @@
 
         <Tooltip value="Collapse Group">
           <Collapsible.Trigger>
-            <GroupCollapse />
+            {#if open}
+              <GroupCollapse />
+            {:else}
+              <GroupExpand />
+            {/if}
           </Collapsible.Trigger>
         </Tooltip>
       </div>
