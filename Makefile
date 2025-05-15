@@ -5,15 +5,16 @@ PKG_DESCRIPTION := DNS-based routing application
 PKG_MAINTAINER := Vladimir Avtsenov <vladimir.lsk.cool@gmail.com>
 PKG_RELEASE ?= 1
 
-COMMIT := $(shell git rev-parse --short HEAD)
 ifeq ($(strip $(PKG_VERSION)),)
 	PKG_VERSION := $(shell git describe --tags --abbrev=0 2> /dev/null || echo "0.0.0")
 
 	TAG := $(shell git describe --tags --abbrev=0 2> /dev/null)
 	COMMITS_SINCE_TAG := $(shell [ -n "$(TAG)" ] && git rev-list $(TAG)..HEAD --count 2>/dev/null || echo 0)
 	ifneq ($(or $(COMMITS_SINCE_TAG),$(if $(TAG),,1)),0)
-		PRERELEASE_DATE := $(shell date +%Y%m%d%H%M%S)
 		PKG_VERSION_PRERELEASE := $(shell v=$(PKG_VERSION); echo $${v%.*}.$$(( $${v##*.} + 1 )) )
+		PRERELEASE_DATE := $(shell date +%Y%m%d%H%M%S)
+		COMMIT := $(shell git rev-parse --short HEAD)
+
 		PKG_VERSION := $(PKG_VERSION_PRERELEASE)~git$(PRERELEASE_DATE).$(COMMIT)
 	endif
 endif
@@ -46,7 +47,7 @@ GO_FLAGS := \
 	$(if $(GOOS),GOOS="$(GOOS)") \
 	$(if $(GOARCH),GOARCH="$(GOARCH)") \
 	$(if $(GOMIPS),GOMIPS="$(GOMIPS)")
-GO_PARAMS = -v -trimpath -ldflags="-X 'magitrickle/constant.Version=$(PKG_VERSION)' -X 'magitrickle/constant.Commit=$(COMMIT)' -w -s" $(if $(GO_TAGS),-tags "$(GO_TAGS)")
+GO_PARAMS = -v -trimpath -ldflags="-X 'magitrickle/constant.Version=$(PKG_VERSION)' -w -s" $(if $(GO_TAGS),-tags "$(GO_TAGS)")
 
 all: clear build package
 

@@ -175,7 +175,6 @@ func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	log.Info().
 		Str("version", constant.Version).
-		Str("commit", constant.Commit).
 		Msg("starting MagiTrickle daemon")
 
 	if err := checkPIDFile(); err != nil {
