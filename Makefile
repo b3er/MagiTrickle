@@ -46,7 +46,7 @@ GO_FLAGS := \
 	$(if $(GOOS),GOOS="$(GOOS)") \
 	$(if $(GOARCH),GOARCH="$(GOARCH)") \
 	$(if $(GOMIPS),GOMIPS="$(GOMIPS)")
-GO_PARAMS = -v -a -trimpath -ldflags="-X 'magitrickle/constant.Version=$(PKG_VERSION)' -X 'magitrickle/constant.Commit=$(COMMIT)' -w -s" $(if $(GO_TAGS),-tags "$(GO_TAGS)")
+GO_PARAMS = -v -trimpath -ldflags="-X 'magitrickle/constant.Version=$(PKG_VERSION)' -X 'magitrickle/constant.Commit=$(COMMIT)' -w -s" $(if $(GO_TAGS),-tags "$(GO_TAGS)")
 
 all: clear build package
 
