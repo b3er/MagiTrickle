@@ -2,8 +2,8 @@
   import Select from "../common/Select.svelte";
   import { Locale, Gitlab, Bug } from "../common/icons";
   import { t, locale, locales } from "../../data/locale.svelte";
-  const version = import.meta.env.VITE_UPSTREAM_VERSION || "0.0.0";
-  const isDev = import.meta.env.VITE_DEV?.toLowerCase() === "true";
+  const version = import.meta.env.VITE_PKG_VERSION || "0.0.0";
+  const isDev = import.meta.env.VITE_PKG_VERSION_IS_DEV?.toLowerCase() === "true";
 </script>
 
 <div class="container">

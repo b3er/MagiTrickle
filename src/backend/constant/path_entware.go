@@ -6,5 +6,5 @@ const (
 	AppConfigDir = "/opt/etc/magitrickle"
 	AppShareDir  = "/opt/usr/share/magitrickle"
 	AppDataDir   = "/opt/var/lib/magitrickle"
-	RunDir       = "/opt/var/run"
+	PIDPath      = "/opt/var/run/magitrickle.pid"
 )
