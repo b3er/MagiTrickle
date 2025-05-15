@@ -38,7 +38,7 @@ jobs:
       - name: Finding suspicious constructs
         working-directory: ./src/backend
         run: |
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} GOMIPS=${{ matrix.gomips }} GOARM=${{ matrix.goarm }} go vet ./...
+          GOOS="${{ matrix.goos }}" GOARCH="${{ matrix.goarch }}" GOMIPS="${{ matrix.gomips }}" GOARM="${{ matrix.goarm }}" go vet ./...
 
   test:
     name: Testing

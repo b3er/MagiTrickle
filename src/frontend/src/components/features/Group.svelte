@@ -180,9 +180,9 @@
         <Tooltip value="Collapse Group">
           <Collapsible.Trigger>
             {#if open}
-              <GroupCollapse />
+              <GroupCollapse size={20} />
             {:else}
-              <GroupExpand />
+              <GroupExpand size={20} />
             {/if}
           </Collapsible.Trigger>
         </Tooltip>
@@ -349,19 +349,19 @@
       & {
         color: var(--text-2);
         background-color: transparent;
-        border: none;
+        border: 1px solid transparent;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 0.2rem;
+        padding: 0.4rem;
         border-radius: 0.5rem;
         cursor: pointer;
       }
 
       &:hover {
         background-color: var(--bg-dark);
-        outline: 1px solid var(--bg-light-extra);
         color: var(--text);
+        border: 1px solid var(--bg-light-extra);
       }
     }
     .infinite-intersection-target {
