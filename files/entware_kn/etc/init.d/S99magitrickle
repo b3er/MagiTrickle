@@ -39,12 +39,10 @@ startup_loop() {
       continue
     fi
 
-    echo -e -n "$ansi_white [`printf "%04d\n" $(get_uptime)`] Starting $DESC (Attempt #`expr $COUNTER + 1`)... $ansi_std"
     logger "Starting $DESC from $CALLER (Attempt #`expr $COUNTER + 1`)."
     $PROC > /dev/null 2>&1 &
     sleep $STEP
     if [ -z "`pidof $PROC`" ]; then
-      echo -e "            $ansi_red failed. $ansi_std"
       logger "Failed to start $DESC from $CALLER (Attempt #`expr $COUNTER + 1`)."
     fi
     COUNTER=`expr $COUNTER + 1`
@@ -54,7 +52,6 @@ startup_loop() {
     logger "Failed to start $DESC from $CALLER."
     return 255
   else
-    echo -e "            $ansi_green done. $ansi_std"
     logger "Started $DESC from $CALLER."
     return 0
   fi
@@ -71,10 +68,9 @@ start() {
   fi
 
   if [ "`get_uptime`" -le "$UPTIME_MAX_BORDER" ]; then
-    echo -e "            $ansi_yellow in loop (until uptime `printf "%04d\n" $UPTIME_MAX_BORDER`)... $ansi_std"
+    echo -e "            $ansi_yellow in loop (until uptime $UPTIME_MAX_BORDER)... $ansi_std"
     startup_loop &
-    wait $!
-    return $?
+    return 0
   fi
 
   $PRECMD > /dev/null 2>&1
