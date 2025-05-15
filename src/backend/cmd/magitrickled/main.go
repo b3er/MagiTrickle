@@ -29,7 +29,6 @@ import (
 const (
 	noSkinFoundPlaceholder = "<!DOCTYPE html><html><head><title>MagiTrickle</title></head><body><h1>MagiTrickle</h1><p>Please install MagiTrickle skin before using WebUI!</p></body></html>"
 	skinsFolderLocation    = constant.AppShareDir + "/skins"
-	pidFileLocation        = constant.RunDir + "/magitrickle.pid"
 )
 
 func getPIDPath(pid int) (string, error) {
@@ -37,7 +36,7 @@ func getPIDPath(pid int) (string, error) {
 }
 
 func checkPIDFile() error {
-	data, err := os.ReadFile(pidFileLocation)
+	data, err := os.ReadFile(constant.PIDPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -56,17 +55,17 @@ func checkPIDFile() error {
 		return fmt.Errorf("process %d is already running", pid)
 	}
 
-	_ = os.Remove(pidFileLocation)
+	_ = os.Remove(constant.PIDPath)
 	return nil
 }
 
 func createPIDFile() error {
 	pid := os.Getpid()
-	return os.WriteFile(pidFileLocation, []byte(strconv.Itoa(pid)), 0644)
+	return os.WriteFile(constant.PIDPath, []byte(strconv.Itoa(pid)), 0644)
 }
 
 func removePIDFile() {
-	_ = os.Remove(pidFileLocation)
+	_ = os.Remove(constant.PIDPath)
 }
 
 func setupUnixSocket(apiRouter chi.Router, errChan chan error) (*http.Server, error) {

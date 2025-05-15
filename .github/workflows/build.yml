@@ -23,18 +23,15 @@ jobs:
             goos: linux
             goarch: mipsle
             gomips: softfloat
-            go_tags: kn
           - platform: entware
             target: mips-3.4_kn
             goos: linux
             goarch: mips
             gomips: softfloat
-            go_tags: kn
           - platform: entware
             target: aarch64-3.10_kn
             goos: linux
             goarch: arm64
-            go_tags: kn
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -59,7 +56,7 @@ jobs:
 
       - name: Build and Package
         run: |
-          PLATFORM=${{ matrix.platform }} TARGET=${{ matrix.target }} GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} GOMIPS=${{ matrix.gomips }} GOARM=${{ matrix.goarm }} GO_TAGS=${{ matrix.go_tags }} make
+          PLATFORM="${{ matrix.platform }}" TARGET="${{ matrix.target }}" GOOS="${{ matrix.goos }}" GOARCH="${{ matrix.goarch }}" GOMIPS="${{ matrix.gomips }}" GOARM="${{ matrix.goarm }}" GO_TAGS="${{ matrix.go_tags }}" make
 
       - name: Fetching file list for artifact
         if: ${{ github.event_name != 'release' }}
