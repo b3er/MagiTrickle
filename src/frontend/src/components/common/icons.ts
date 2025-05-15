@@ -1,4 +1,5 @@
-export { default as GroupCollapse } from "lucide-svelte/icons/chevrons-up-down";
+export { default as GroupExpand } from "lucide-svelte/icons/square-plus";
+export { default as GroupCollapse } from "lucide-svelte/icons/square-minus";
 export { default as SelectOpen } from "lucide-svelte/icons/chevron-down";
 export { default as Delete } from "lucide-svelte/icons/trash-2";
 export { default as Add } from "lucide-svelte/icons/circle-plus";
