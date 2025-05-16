@@ -26,7 +26,11 @@ func (d *Rule) IsMatch(domainName string) bool {
 	case "wildcard":
 		return wildcard.Match(d.Rule, domainName)
 	case "regex":
-		ok, _ := regexp2.MustCompile(d.Rule, regexp2.IgnoreCase).MatchString(domainName)
+		re, err := regexp2.Compile(d.Rule, regexp2.IgnoreCase)
+		if err != nil {
+			return false
+		}
+		ok, _ := re.MatchString(domainName)
 		return ok
 	case "domain":
 		return domainName == d.Rule
