@@ -36,9 +36,9 @@ jobs:
           go-version: '1.21'
 
       - name: Finding suspicious constructs
-        working-directory: ./backend
+        working-directory: ./src/backend
         run: |
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} GOMIPS=${{ matrix.gomips }} GOARM=${{ matrix.goarm }} go vet ./...
+          GOOS="${{ matrix.goos }}" GOARCH="${{ matrix.goarch }}" GOMIPS="${{ matrix.gomips }}" GOARM="${{ matrix.goarm }}" go vet ./...
 
   test:
     name: Testing
@@ -56,6 +56,6 @@ jobs:
           go-version: '1.21'
 
       - name: Testing
-        working-directory: ./backend
+        working-directory: ./src/backend
         run: |
           GOOS=linux go test ./...

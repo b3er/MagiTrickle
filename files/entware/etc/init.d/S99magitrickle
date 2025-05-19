@@ -1,0 +1,10 @@
+#!/bin/sh
+
+ENABLED=yes
+PROCS=magitrickled
+ARGS=""
+PREARGS=""
+DESC="MagiTrickle Daemon"
+PATH=/opt/sbin:/opt/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+. /opt/etc/init.d/rc.func
