@@ -207,7 +207,6 @@
           <InfiniteLoader triggerLoad={() => loadMore(group_index)} loopDetectionTimeout={10}>
             {#each group.rules.slice(0, showed_limit) as rule, rule_index (rule.id)}
               <RuleComponent
-                key={rule.id}
                 bind:rule={group.rules[rule_index]}
                 {rule_index}
                 {group_index}

@@ -1,11 +1,11 @@
 package v1
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
 	"time"
-	"encoding/json"
 
 	"magitrickle/api/types"
 	"magitrickle/internal/app"
@@ -63,7 +63,6 @@ func (h *Handler) SetLogLevel(w http.ResponseWriter, r *http.Request) {
 	WriteJson(w, http.StatusOK, map[string]string{"level": h.app.GetLogLevel()})
 }
 
-
 // GetLogs
 //
 // @Summary      Получить логи
@@ -72,7 +71,7 @@ func (h *Handler) SetLogLevel(w http.ResponseWriter, r *http.Request) {
 // @Produce      json
 // @Param        level query string false "Фильтр по уровню (info, warn, error, ...)"
 // @Param        limit query int false "Максимум записей (только для polling)"
-// @Success      200 {array} logbuffer.LogEntry
+// @Success      200 {array} LogEntry
 // @Router       /api/v1/logs [get]
 func (h *Handler) GetLogs(w http.ResponseWriter, r *http.Request) {
 	// Check if client wants SSE
@@ -136,7 +135,6 @@ func toJson(v interface{}) string {
 	b, _ := json.Marshal(v)
 	return string(b)
 }
-
 
 // NewHandler создаёт новый обработчик для API v1.
 func NewHandler(a *app.App) *Handler {

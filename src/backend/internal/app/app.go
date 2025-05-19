@@ -4,21 +4,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
-	"io"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	dnsMitmProxy "magitrickle/dns-mitm-proxy"
 	"magitrickle/models"
 	netfilterHelper "magitrickle/netfilter-helper"
 	"magitrickle/records"
-	"magitrickle/internal/logbuffer"
-
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 )
 
 var (
@@ -63,7 +61,7 @@ var defaultAppConfig = models.App{
 // App – основная структура ядра приложения
 
 // LogBuffer returns the ring buffer for logs.
-func (a *App) LogBuffer() *logbuffer.RingBuffer {
+func (a *App) LogBuffer() *RingBuffer {
 	return a.logBuffer
 }
 
@@ -74,9 +72,9 @@ type App struct {
 	records  *records.Records
 	groups   []*Group
 	// Log ring buffer for API log streaming/polling
-	logBuffer *logbuffer.RingBuffer
+	logBuffer *RingBuffer
 	// In-memory log level (not persisted)
-	logLevel zerolog.Level
+	logLevel   zerolog.Level
 	logLevelMu sync.RWMutex
 	// TODO: доделать
 	enabled      atomic.Bool
@@ -87,7 +85,7 @@ type App struct {
 func New() *App {
 	a := &App{
 		config:    defaultAppConfig,
-		logBuffer: logbuffer.NewRingBuffer(500), // store last 500 logs (adjust as needed)
+		logBuffer: NewRingBuffer(500), // store last 500 logs (adjust as needed)
 	}
 
 	// Attach custom writer to capture logs to buffer and console
@@ -117,7 +115,7 @@ func New() *App {
 // (place this type at the bottom of the file or in its own file)
 type TeeLogWriter struct {
 	mainWriter io.Writer
-	buffer     *logbuffer.RingBuffer
+	buffer     *RingBuffer
 }
 
 func (w *TeeLogWriter) Write(p []byte) (n int, err error) {
@@ -128,7 +126,7 @@ func (w *TeeLogWriter) Write(p []byte) (n int, err error) {
 	}
 	// Attempt to parse zerolog JSON line with all fields
 	var parsed map[string]interface{}
-	var entry logbuffer.LogEntry
+	var entry LogEntry
 	if err := json.Unmarshal([]byte(line), &parsed); err == nil {
 		var t time.Time
 		if ts, ok := parsed["time"].(string); ok {
@@ -146,7 +144,7 @@ func (w *TeeLogWriter) Write(p []byte) (n int, err error) {
 				fields[k] = v
 			}
 		}
-		entry = logbuffer.LogEntry{
+		entry = LogEntry{
 			Time:    t,
 			Level:   level,
 			Message: msg,
@@ -155,7 +153,7 @@ func (w *TeeLogWriter) Write(p []byte) (n int, err error) {
 		}
 	} else {
 		// Fallback: store raw message
-		entry = logbuffer.LogEntry{
+		entry = LogEntry{
 			Time:    time.Now(),
 			Level:   "",
 			Message: line,
@@ -165,7 +163,6 @@ func (w *TeeLogWriter) Write(p []byte) (n int, err error) {
 	w.buffer.Add(entry)
 	return
 }
-
 
 // SetLogLevel sets the in-memory log level (not persisted)
 func (a *App) SetLogLevel(level string) bool {
@@ -192,9 +189,6 @@ func (a *App) GetLogLevel() string {
 type logToBufferHook struct {
 	app *App
 }
-
-
-
 
 // Config возвращает конфигурацию
 func (a *App) Config() models.App {
