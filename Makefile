@@ -4,7 +4,6 @@ PKG_NAME := magitrickle
 PKG_DESCRIPTION := DNS-based routing application
 PKG_MAINTAINER := Vladimir Avtsenov <vladimir.lsk.cool@gmail.com>
 PKG_RELEASE ?= 1
-PKG_VERSION ?= 0.0.0
 
 ifeq ($(strip $(PKG_VERSION)),)
 	PKG_VERSION := $(shell git describe --tags --abbrev=0 2> /dev/null || echo "0.0.0")
@@ -12,7 +11,7 @@ ifeq ($(strip $(PKG_VERSION)),)
 	TAG := $(shell git describe --tags --abbrev=0 2> /dev/null)
 	COMMITS_SINCE_TAG := $(shell [ -n "$(TAG)" ] && git rev-list $(TAG)..HEAD --count 2>/dev/null || echo 0)
 	ifneq ($(or $(COMMITS_SINCE_TAG),$(if $(TAG),,1)),0)
-		PKG_VERSION_PRERELEASE := $(shell v=$(PKG_VERSION); echo $${v%.*}.$$(( $${v##*.} + 1 )) )
+		PKG_VERSION_PRERELEASE := $(shell v=$(PKG_VERSION); echo $${%.*}.$$(( $${v*.} + 1 )) )
 		PRERELEASE_DATE := $(shell date +%Y%m%d%H%M%S)
 		COMMIT := $(shell git rev-parse --short HEAD)
 
