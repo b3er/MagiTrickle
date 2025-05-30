@@ -54,18 +54,20 @@
         }
     }
 
-    function handleDrop(state: any) {
-        const { sourceContainer, targetContainer } = state;
-        if (!targetContainer || sourceContainer === targetContainer) return;
-        const [, , , from_rule_index] = sourceContainer.split(",");
-        const [, , , to_rule_index] = targetContainer.split(",");
+    function handleDrop(source: any, target: any) {
+        // Ensure target exists and is different from source
+        if (!target) return;
+        const { rule_index: from_rule_index, group_index: from_group_index } = source;
+        const { rule_index: to_rule_index, group_index: to_group_index } = target;
+        if (from_rule_index === undefined || to_rule_index === undefined) return;
+        // Ignore drops within the same position
+        if (from_rule_index === to_rule_index && from_group_index === to_group_index) return;
+
         if (onRuleDrop) {
-            onRuleDrop(+from_rule_index, +to_rule_index);
+            onRuleDrop(from_rule_index, to_rule_index);
         } else if (onChangeIndex) {
-            // fallback to legacy
-            const [, , from_group_index, from_rule_index_full] = sourceContainer.split(",");
-            const [, , to_group_index, to_rule_index_full] = targetContainer.split(",");
-            onChangeIndex(+from_group_index, +from_rule_index_full, +to_group_index, +to_rule_index_full);
+            // Legacy support when moving between groups
+            onChangeIndex(from_group_index, from_rule_index, to_group_index, to_rule_index);
         }
     }
 
@@ -263,5 +265,3 @@
         }
     }
 </style>
-
-
